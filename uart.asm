@@ -78,6 +78,18 @@ UART_INIT:	PUSH	AF
 			OUT (uart_ISR), A					; This turn on the 16bytes buffer!	
 			RET
 
+configure_uart_cpm: 
+			LD		H, 0x00
+			LD 		L,A
+			LD		A,0x00: OUT (uart_IER),A	; Disable interrupts
+			LD		A,0x80: OUT (uart_LCR),A 	; Turn DLAB on
+			LD		A,L:	OUT (uart_tx_rx),A	; Set divisor low
+			LD		A,H:	OUT (uart_IER),A	; Set divisor high
+			LD		A, 0x03:		OUT (uart_LCR),A	; Write out flow control bits 8,1,N
+			LD 		A, 0x81						; Turn on FIFO, with trigger level of 8.
+			OUT (uart_ISR), A					; This turn on the 16bytes buffer!	
+			RET
+
 UART_TX_WAIT		EQU	600		; Count before a TX times out
 
 ; A: Data read

@@ -34,28 +34,29 @@ BOOT:
     db 27,'[H'                      ; cursor home
     db 27,'[0m'                     ; clear attributes
     db 27,'[?25h'                   ; Show cursor      
-    db 'CP/M v2.2',13,10
+    db 'CP/M v2.2 - 2022',13,10
     db 'Hardware version 202206-R1',13,10
     db 'Copyright (C) Digital Research',13,10
     db 'Implemented and tested by pdsilva',13,10
-    db '64K system with drives A thru P',13,10
+    db '64K ram memory',13,10
+    db 'System with drives A thru P',13,10
     db 13,10
     db 0
 
     call CORE_message
-    db 'CORE ',0
+    db 'CORE... ',0
     ld hl, CORE_START
     call CORE_show_hl_as_hex
     call CORE_newline
 
     call CORE_message
-    db 'BIOS ',0
+    db 'BIOS... ',0
     ld hl, BIOS_START
     call CORE_show_hl_as_hex
     call CORE_newline
 
     call CORE_message
-    db 'BDOS ',0
+    db 'BDOS... ',0
     ld hl, BDOS_START
     call CORE_show_hl_as_hex
     call CORE_newline

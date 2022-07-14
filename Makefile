@@ -4,8 +4,8 @@
 #
 
 
-#all: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin cpm.bin
-all: cpm.bin
+all: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin cpm.bin
+#all: cpm.bin
 
 
 #
@@ -32,7 +32,7 @@ clean:
 # were to modify "locatoins.asm", for example, all appropriate
 # binary files would be rebuilt.
 #
-%.bin: %.asm
+%.bin: %.asm $$(shell ls %.asm)
 #	pasmo $<  $@
 	sjasmplus $<  $@
 

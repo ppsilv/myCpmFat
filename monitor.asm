@@ -116,7 +116,9 @@ not_hash:
 	cp 'c'					; CP/M
 	jr nz, not_c
     call message 
-    db 'Starting CP/M... Make sure you have selected MSX proper slot memory decoder".',13,10,0
+    db 'Starting CP/M... ',13,10
+	db 'Make sure you have selected MSX ',13,10
+	db 'proper slot memory decoder".',13,10,0
     jp start_cpm
 
 not_c:
@@ -151,26 +153,28 @@ unknown_char:
 show_welcome_message:
 	call message
 	db 13,10
-	db 27,'[42m','+------------------+',13,10
-	db 27,'[42m','|',27,'[40m','                  ',27,'[42m','|',13,10
-	db 27,'[42m','|',27,'[40m','  Z80 Playground  ',27,'[42m','|',13,10
-	db 27,'[42m','|',27,'[40m','                  ',27,'[42m','|',13,10
-	db 27,'[42m','+------------------+',27,'[40m',13,10,13,10
-	db 'Monitor v1.05 February 2021',13,10,13,10
-	db 'c = CP/M', 13, 10
-	db 't = Tiny Basic',13,10
-	db 'g = Game-of-Life',13,10
+	db 27,'[42m','+---------------------------------+',13,10
+	db 27,'[42m','|',27,'[40m','                                 ',27,'[42m','|',13,10
+	db 27,'[42m','|',27,'[40m','          Z80 Sandbox            ',27,'[42m','|',13,10
+	db 27,'[42m','|',27,'[40m','           by pdsilva            ',27,'[42m','|',13,10
+	db 27,'[42m','|',27,'[40m','     Monitor v2.00 July 2022     ',27,'[42m','|',13,10
+	db 27,'[42m','|',27,'[40m','   CP/M Loader  v2.00 july 2022  ',27,'[42m','|',13,10
+	db 27,'[42m','|',27,'[40m','                                 ',27,'[42m','|',13,10
+	db 27,'[42m','+---------------------------------+',27,'[40m',13,10,13,10
+	db 'c = CP/M v2.2', 13, 10
+	;db 't = Tiny Basic',13,10
+	;db 'g = Game-of-Life',13,10
 	db 'm = Memory Map', 13, 10
-	db '0 = Show Page 0 of Memory', 13, 10
-	db 'h = Move to Higher Page', 13, 10
-	db 'l = Move to Lower Page', 13, 10
+	;db '0 = Show Page 0 of Memory', 13, 10
+	;db 'h = Move to Higher Page', 13, 10
+	;db 'l = Move to Lower Page', 13, 10
 	db 'u = User LED toggle', 13, 10
 	db '3 = ROM ON', 13, 10
 	db '4 = ROM OFF', 13, 10
-	db '5 = Copy ram', 13, 10
+	;db '5 = Copy ram', 13, 10
 	db 'd = Disk LED toggle', 13, 10
-	db '# = Execute HALT instruction',13,10
-	db 'b = Run burn-in test',13,10
+	;db '# = Execute HALT instruction',13,10
+	;db 'b = Run burn-in test',13,10
 	db '/ = Show this Menu',13,10
 	;db 'j = Poor-Man''s Jupiter Ace',13,10
 	db 13,10,0
@@ -275,6 +279,7 @@ ram_loop:
 
 	call newline
 	call message
+	db 'Z80 Sandbox structure by pdsilva',13,10
 	db '|       |       |       |       |       |       |       |      |',13,10
 	db '0000    2000    4000    6000    8000    A000    C000    E000   FFFF',13,10
 	db '0K      8K      16K     24K     32K     40K     48K     56K    64K',13,10,13,10
@@ -283,16 +288,25 @@ ram_loop:
     db 13,10
 	db '16C550C UART Ports     CH376S Module Ports',13,10
 	db '-------------------    -------------------',13,10
-	db 'TX / RX           8    Data Port        16',13,10
-	db 'Interrupt Enable  9    Command Port     17',13,10
-	db 'Interrup Status  10',13,10
-	db 'Line Control     11',13,10
-	db 'Modem Control    12 <---- 76543210',13,10
-	db 'Line Status      13      Bit 0 = User LED',13,10
-	db 'Modem Status     14      Bit 2 = Disk LED',13,10
-	db 'Scratch          15      Bit 3 = ROM Enable',13,10
+	db 'TX / RX          B8    Data Port        A0',13,10
+	db 'Interrupt Enable B9    Command Port     A1',13,10
+	db 'Interrup Status  BA    ',13,10
+	db 'Line Control     BB    ',13,10
+	db 'Modem Control    BC <---- 76543210',13,10
+	db 'Line Status      BD      Bit 0 = User LED',13,10
+	db 'Modem Status     BE      Bit 2 = Disk LED',13,10
+	db 'Scratch          BF      Bit 3 = ROM Enable',13,10
 	db 13,10
-	db 'The EEPROM is an ATMEL AT28C256',13,10
+	db 'I2C - Z80              PPI 8255 	',13,10
+	db '-------------------    -------------------',13,10
+	db 'SCL              80    Port A           A8',13,10
+	db 'SDA_WR           88    Port B           A9',13,10
+	db 'SDA_RD           B0    Port C           AA',13,10
+	db '                       Ctrl             AB',13,10 
+	db 'PCF8574 - Z80              	',13,10
+	db '-------------------    -------------------',13,10
+    DB 'Port             27',13,10
+	db 'The EEPROM is an ATMEL AT29C512 ID 1F5D',13,10
 	db 13,10,0
 	ret
 
@@ -702,8 +716,6 @@ load_jupiter_ace1:
 
 JUPITER_ACE_NAME:
     db 'JUPITER.BIN',0
-
-
 
 the_end:
 	db 'A message at the end ****************',0

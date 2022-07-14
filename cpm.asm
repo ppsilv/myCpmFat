@@ -105,9 +105,8 @@ skip_over_int_and_nmi:
 
     call message
    	db 27,'[2J',27,'[H'
-    db 'Z80 Playground Monitor & CP/M Loader v1.03',13,10,0
-
-    
+    db 'Z80 Sandbox Monitor & CP/M Loader v2.0',13,10,0
+   
 
     ; Check MCR
     ld a, %00100010
@@ -140,12 +139,12 @@ skip_over_int_and_nmi:
 
     ld a, (baud_rate_divisor)           ; Check if we managed to get both baudrate and flowcontrol
     cp $FF
-    jr z, failed_to_read_uart_config    ; If not, don't reconfigure uart
+    jp z, failed_to_read_uart_config    ; If not, don't reconfigure uart
     ld b, a
 
     ld a, (flow_control_value)
     cp $FF
-    jr z, failed_to_read_uart_config
+    jp z, failed_to_read_uart_config
     ld c, a
 
     call message
@@ -166,7 +165,13 @@ skip_over_int_and_nmi:
     call newline
     pop bc
 
-    call configure_uart                 ; Put these settings into the UART
+    LD A, (baud_rate_divisor) 
+    call message
+    db 'Baudrate value: ',0
+    call show_a_as_hex
+    call newline
+    LD A, (baud_rate_divisor) 
+    call configure_uart_cpm                 ; Put these settings into the UART
 
     ; Report on the AUTO-RUN-CHAR and start the monitor
     ld a, (auto_run_char)
@@ -908,6 +913,7 @@ filesize_units:
 
 dma_address:
     ds 2
+
 
 config_file_loc equ $9000
 auto_run_char   equ $8FFF
