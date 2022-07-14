@@ -1,0 +1,5 @@
+
+
+ccp 2048 bytes
+bdos 3584 bytes
+bios   768 bytes

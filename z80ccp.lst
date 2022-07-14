@@ -1,0 +1,1571 @@
+# file opened: z80ccp.asm
+   1  0000              ;
+   2  0000              ;	ENHANCED CP/M CONSOLE COMMAND PROCESSOR (CCP) for CP/M REV. 2.2
+   3  0000              ;
+   4  0000              ;	Origianl CCP disassembled by ????
+   5  0000              ;	Original CCP disassembled further by RLC
+   6  0000              ;	Original CCP commented by RLC
+   7  0000              ;	Modified and generalized by John Thomas (6/20/81)
+   8  0000              ;	Macros expanded and condtional for terminals which
+   9  0000              ;	use	form feeds to clear the screen added by
+  10  0000              ;	Bo	McCormick (6/27/81)
+  11  0000              ;
+  12  0000              ;	Converted to Z80-style mnemonics and slightly modified
+  13  0000              ;	for Z80 Playground by John Squires, January 2021
+  14  0000              ;
+  15  0000              ;	ASSEMBLING THIS CCP FOR CP/M 2.2 *****
+  16  0000              ;	You	must be using a Z-80 processor to run this
+  17  0000              ;	program. You do not need MAC or any macro library.
+  18  0000              ;	If	you add further modifications to the program
+  19  0000              ;	the	total size of the program must not exceed
+  20  0000              ;	2K	in order to fit under the BDOS. (Unless you change the CCP_START location!)
+  21  0000              ;	Code must be added to use the Clear Screen command with
+  22  0000              ;	your terminal, if it is not VT52 compatible.
+  23  0000              ;	Also, there is a provision for a boot-up command. Place
+  24  0000              ;	the	command to be executed on cold and warm starts at
+  25  0000              ;	location CBUFF.
+  26  0000              ;
+  27  0000              ;	NON	-STANDARD FEATURES *****
+  28  0000              ;	The	non-standard features incorporated into this CCP are:
+  29  0000              ;	A.	The Command-Search Hierarchy, as follows --
+  30  0000              ;	    1.	Scan for a CCP-resident command and execute it if found
+  31  0000              ;	    2.	If not CCP-resident, look for a .COM file on disk
+  32  0000              ;	    3.	If the .COM file is not found in the current user area and the current user area is not USER 0,
+  33  0000              ;	    	USER 0 is selected and scanned for the file
+  34  0000              ;		4.	If the .COM file is not found on the current logged-in disk drive, drive A: is selected
+  35  0000              ;			and	scanned for the file
+  36  0000              ;	B.	The DIR Command no longer prints the current drive spec at	the beginning of each line
+  37  0000              ;	C.	The TYPE Command pages its output
+  38  0000              ;	D.	A LIST Command now exists which is like TYPE but does not page and sends its output to the LST: device
+  39  0000              ;	E.	A CLS (Clear Screen) Command now exists which clears the screen of the terminal
+  40  0000              ;	F.	The user number is printed as part of the command prompt;
+  41  0000              ;		the	prompt is now du>, such as A0> and A15>
+  42  0000              ;	G.	Z80-code is used throughout to reduce the size of the CCP
+  43  0000              ;		and	give room to implement the additional functions
+  44  0000              ;	H.	The input line buffer has been reduced in size to 100 bytes
+  45  0000              ;	I.	The ERA Command displays the names of the files it is to erase
+  46  0000              ;	J.	The DIR Command has an additional special form of "DIR @"
+  47  0000              ;		which	displays all files (both non-system and system),
+  48  0000              ;		while	"DIR" displays just the non-system files
+  49  0000              ;	K.	The Directory Display no longer displays the disk name at
+  50  0000              ;		the	beginning of each line and it now includes a '.' between
+  51  0000              ;		the	file name and file type (FILENAME.TYP)
+  52  0000              ;	L.	The SUBMIT File Facility now expects the $$$.SUB file to be
+  53  0000              ;		on	the currently logged-in disk (as opposed to always A:)
+  54  0000              ;	M.	The Command Line Prompt is now '$' if the command comes from
+  55  0000              ;		a	$$$.SUB file and '>' if the command comes from the user;
+  56  0000              ;		also, the '>' is not printed until all preprocessing is completed
+  57  0000              ;	N.	The TYPE and LIST Commands mask the MSB of each byte, so that
+  58  0000              ;		files created by editors such as EDIT80 are "printable"
+  59  0000              ;
+  60  0000              FALSE:	EQU	0
+  61  0000              TRUE:	EQU	NOT FALSE
+  62  0000
+  63  0000              	include "locations.asm"
+# file opened: locations.asm
+   1+ 0000              ; locations.asm
+   2+ 0000              ; Stores the ORG values for the CCP, BDOS, BIOS and CORE
+   3+ 0000
+   4+ 0000              CORE_START  equ $F600    ; $FFFF - 2.5K
+   5+ 0000              BIOS_START  equ $F400    ; $F600 - 0.5K
+   6+ 0000              BDOS_START  equ $EA00    ; $F400 - 2.5K
+   7+ 0000              CCP_START   equ $DE00    ; $EA00 - 3.0K
+   8+ 0000
+# file closed: locations.asm
+  64  0000
+  65  0000              CCPLOC:	EQU	CCP_START	; START OF CCP IN MEMORY
+  66  0000              	; REPLACE WITH VALUE
+  67  0000              	; FOR YOUR SYSTEM
+  68  0000
+  69  0000              NLINES:	EQU	24			; NUMBER OF LINES ON CRT SCREEN
+  70  0000              H19:	EQU	FALSE		; USING HEATH H19/H89 TERMINAL
+  71  0000              HAZE:	EQU	FALSE		; USING HAZELTINE 1500 TERMINAL
+  72  0000              FFTERM:	EQU	TRUE		; USING TERMINAL THAT RESPONDS TO 0CH
+  73  0000              	; OR ANY CHARACTER IF YOU CHANGE THE
+  74  0000              	; VALUE OF FF BELOW
+  75  0000              CR:		EQU	0DH
+  76  0000              LF:		EQU	0AH
+  77  0000              TAB:	EQU	09H
+  78  0000              FF:		EQU	0CH		;<==== CHANGE THIS BYTE IF TERMINAL
+  79  0000              ESC:	EQU	1BH		;      NEEDS A DIFFERENT CHARACTER
+  80  0000              					;      TO CLEAR THE SCREEN
+  81  0000
+  82  0000              WBOOT:	EQU	0000H		; CP/M WARM BOOT ADDRESS
+  83  0000              UDFLAG:	EQU	0004H		; USER NUMBER IS IN HIGH NYBBLE, DISK IN LOW
+  84  0000              BDOS:	EQU	0005H		; BDOS FUNCTION CALL ENTRY PT
+  85  0000              TBUFF:	EQU	0080H		; DEFAULT DISK I/O BUFFER
+  86  0000              TFCB:	EQU	005CH		; DEFAULT FCB BUFFER
+  87  0000              TPA:	EQU	0100H		; BASE OF TPA
+  88  0000
+  89  0000
+  90  0000              	ORG	CCPLOC		; START OF CCP IN MEMEORY IN YOUR SYSTEM
+  91  DE00
+  92  DE00              ENTRY:
+  93  DE00 C3 01 E1     	JP	CCP
+  94  DE03 C3 FD E0     	JP	CCP1
+  95  DE06
+  96  DE06              ;	INPUT	COMMAND LINE AND DEFAULT COMMAND
+  97  DE06              BUFLEN	EQU	100		; MAXIMUM BUFFER LENGTH
+  98  DE06              MBUFF:
+  99  DE06 64           	DEFB	BUFLEN		; MAXIMUM BUFFER LENGTH
+ 100  DE07              CBUFF:
+ 101  DE07 03           	DEFB	3		;<== NUMBER OF VALID CHARS IN COMMAND LINE
+ 102  DE08              CIBUFF:
+ 103  DE08 44 49 52 20  	DEFB	'DIR '		;<== DEFAULT (COLD BOOT) COMMAND
+ 104  DE0C 20 20 20 20  	DEFB	'    '
+ 105  DE10 20 20 20 20  	DEFB	'    '
+ 106  DE14 20 20 20 20  	DEFB	'    '
+ 107  DE18              CIBUF:
+ 108  DE18 00 00 00...  	DEFS	85		; TOTAL IS 100 BYTES
+ 109  DE6D 00 00 00...  	DEFS	20		; STACK AREA
+ 110  DE81              STACK EQU	$		; TOP OF STACK
+ 111  DE81
+ 112  DE81              CIBPTR:
+ 113  DE81 08 DE        	DEFW	CIBUFF		;POINTER TO CMD INPUT BUFF
+ 114  DE83              CIPTR:
+ 115  DE83 18 DE        	DEFW	CIBUF		;CURRENT PNTR
+ 116  DE85
+ 117  DE85              ;
+ 118  DE85              ;	I/O UTILITIES
+ 119  DE85              ;
+ 120  DE85
+ 121  DE85              ;	OUTPUT <SP>
+ 122  DE85              SPACER:
+ 123  DE85 3E 20        	LD	A,' '		; FALL THRU TO CONOUT
+ 124  DE87
+ 125  DE87              ;	OUTPUT CHAR IN REG A TO CONSOLE AND DON'T CHANGE BC
+ 126  DE87              CONOUT:
+ 127  DE87 C5           	PUSH	BC
+ 128  DE88 E5           	PUSH	HL
+ 129  DE89 0E 02        	LD	C,02H
+ 130  DE8B              OUTPUT:
+ 131  DE8B 5F           	LD	E,A
+ 132  DE8C CD 05 00     	CALL	BDOS
+ 133  DE8F E1           	POP	HL
+ 134  DE90 C1           	POP	BC
+ 135  DE91 C9           	RET
+ 136  DE92
+ 137  DE92              ;	CALL	BDOS AND SAVE BC
+ 138  DE92              BDOSB:
+ 139  DE92 C5           	PUSH	BC
+ 140  DE93 CD 05 00     	CALL	BDOS
+ 141  DE96 C1           	POP	BC
+ 142  DE97 C9           	RET
+ 143  DE98
+ 144  DE98              ;	OUTPUT CHAR IN REG A TO LIST DEVICE
+ 145  DE98              LSTOUT:
+ 146  DE98 C5           	PUSH	BC
+ 147  DE99 E5           	PUSH	HL
+ 148  DE9A 0E 05        	LD	C,05H
+ 149  DE9C 18           	DEFB	18H
+ 150  DE9D ED           	DEFB	OUTPUT-$-1 AND 0FFH
+ 151  DE9E
+ 152  DE9E              ;	OUTPUT <CRLF>
+ 153  DE9E              CRLF:
+ 154  DE9E 3E 0D        	LD	A,CR
+ 155  DEA0 CD 87 DE     	CALL	CONOUT
+ 156  DEA3 3E 0A        	LD	A,LF
+ 157  DEA5 18           	DEFB	18H
+ 158  DEA6 E0           	DEFB	CONOUT-$-1 AND 0FFH
+ 159  DEA7
+ 160  DEA7              ;	PRINT	STRING (ENDING IN 0) PTED TO BY RET ADR; START WITH <CRLF>
+ 161  DEA7              PRINT:
+ 162  DEA7 E3           	EX	(SP),HL		; GET PTR TO STRING
+ 163  DEA8 F5           	PUSH	AF		; SAVE FLAGS
+ 164  DEA9 CD 9E DE     	CALL	CRLF		; NEW LINE
+ 165  DEAC CD B2 DE     	CALL	PRIN1
+ 166  DEAF F1           	POP	AF		; GET FLAGS
+ 167  DEB0 E3           	EX	(SP),HL		; RESTORE HL AND RET ADR
+ 168  DEB1 C9           	RET
+ 169  DEB2
+ 170  DEB2              ;	PRINT	STRING (ENDING IN 0) PTED TO BY HL
+ 171  DEB2              PRIN1:
+ 172  DEB2 7E           	LD	A,(HL)		; GET NEXT BYTE
+ 173  DEB3 23           	INC	HL		; PT TO NEXT BYTE
+ 174  DEB4 B7           	OR	A		; DONE IF 0
+ 175  DEB5 C8           	RET	Z
+ 176  DEB6 CD 87 DE     	CALL	CONOUT		; PRINT CHAR
+ 177  DEB9 18           	DEFB	18H
+ 178  DEBA F7           	DEFB	PRIN1-$-1 AND 0FFH
+ 179  DEBB
+ 180  DEBB              ;
+ 181  DEBB              ;	BDOS	FUNCTION ROUTINES
+ 182  DEBB              ;
+ 183  DEBB
+ 184  DEBB              RESET:
+ 185  DEBB 0E 0D        	LD	C,0DH
+ 186  DEBD C3 05 00     	JP	BDOS
+ 187  DEC0              ;
+ 188  DEC0              LOGIN:
+ 189  DEC0 5F           	LD	E,A
+ 190  DEC1 0E 0E        	LD	C,0EH
+ 191  DEC3 C3 05 00     	JP	BDOS
+ 192  DEC6              ;
+ 193  DEC6              OPENF:
+ 194  DEC6 AF           	XOR	A
+ 195  DEC7 32 FD E5     	LD	(FCBCR),A
+ 196  DECA 11 DD E5     	LD	DE,FCBDN	; FALL THRU TO OPEN
+ 197  DECD              ;
+ 198  DECD              OPEN:
+ 199  DECD 0E 0F        	LD	C,0FH		; FALL THRU TO GRBDOS
+ 200  DECF              ;
+ 201  DECF              GRBDOS:
+ 202  DECF CD 05 00     	CALL	BDOS
+ 203  DED2 3C           	INC	A		; SET ZERO FLAG FOR ERROR RETURN
+ 204  DED3 C9           	RET
+ 205  DED4              ;
+ 206  DED4              CLOSE:
+ 207  DED4 0E 10        	LD	C,10H
+ 208  DED6 18           	DEFB	18H
+ 209  DED7 F7           	DEFB	GRBDOS-$-1 AND 0FFH
+ 210  DED8              ;
+ 211  DED8              SEARF:
+ 212  DED8 11 DD E5     	LD	DE,FCBDN	; SPECIFY FCB
+ 213  DEDB              SEAR1:
+ 214  DEDB 0E 11        	LD	C,11H
+ 215  DEDD 18           	DEFB	18H
+ 216  DEDE F0           	DEFB	GRBDOS-$-1 AND 0FFH
+ 217  DEDF              ;
+ 218  DEDF              SEARN:
+ 219  DEDF 0E 12        	LD	C,12H
+ 220  DEE1 18           	DEFB	18H
+ 221  DEE2 EC           	DEFB	GRBDOS-$-1 AND 0FFH
+ 222  DEE3              ;
+ 223  DEE3              DELETE:
+ 224  DEE3 0E 13        	LD	C,13H
+ 225  DEE5 C3 05 00     	JP	BDOS
+ 226  DEE8              ;
+ 227  DEE8              READF:
+ 228  DEE8 11 DD E5     	LD	DE,FCBDN	; FALL THRU TO READ
+ 229  DEEB              ;
+ 230  DEEB              READ:
+ 231  DEEB 0E 14        	LD	C,14H		; FALL THRU TO GOBDOS
+ 232  DEED              ;
+ 233  DEED              GOBDOS:
+ 234  DEED CD 92 DE     	CALL	BDOSB		; PRESERVE B
+ 235  DEF0 B7           	OR	A
+ 236  DEF1 C9           	RET
+ 237  DEF2              ;
+ 238  DEF2              WRITE:
+ 239  DEF2 0E 15        	LD	C,15H
+ 240  DEF4 18           	DEFB	18H
+ 241  DEF5 F7           	DEFB	GOBDOS-$-1 AND 0FFH
+ 242  DEF6              ;
+ 243  DEF6              CREATE:
+ 244  DEF6 0E 16        	LD	C,16H
+ 245  DEF8 18           	DEFB	18H
+ 246  DEF9 D5           	DEFB	GRBDOS-$-1 AND 0FFH
+ 247  DEFA              ;
+ 248  DEFA              GETUSR:
+ 249  DEFA 1E FF        	LD	E,0FFH		;GET CURRENT USER NUMBER
+ 250  DEFC              SETUSR:
+ 251  DEFC 0E 20        	LD	C,20H		;SET USER NUMBER TO VALUE IN E (GET IF E=FFH)
+ 252  DEFE C3 05 00     	JP	BDOS
+ 253  DF01
+ 254  DF01              ;
+ 255  DF01              ;	END	OF BDOS FUNCTIONS
+ 256  DF01              ;
+ 257  DF01
+ 258  DF01              ;
+ 259  DF01              ;	CCP	UTILITIES
+ 260  DF01              ;
+ 261  DF01
+ 262  DF01              ;	DEFL	USER/DISK FLAG TO CURRENT USER AND DEFAULT DISK
+ 263  DF01              SETUD:
+ 264  DF01 CD FA DE     	CALL	GETUSR		; GET NUMBER OF CURRENT USER
+ 265  DF04 87           	ADD	A,A		; PLACE IT IN HIGH NYBBLE
+ 266  DF05 87           	ADD	A,A
+ 267  DF06 87           	ADD	A,A
+ 268  DF07 87           	ADD	A,A
+ 269  DF08 21 01 E6     	LD	HL,TDRIVE	; MASK IN DEFAULT DRIVE NUMBER (LOW NYBBLE)
+ 270  DF0B B6           	OR	(HL)		; MASK IN
+ 271  DF0C 32 04 00     	LD	(UDFLAG),A	; SET USER/DISK NUMBER
+ 272  DF0F C9           	RET
+ 273  DF10
+ 274  DF10              ;	DEFL	USER/DISK FLAG TO USER 0 AND DEFAULT DISK
+ 275  DF10              SETU0D:
+ 276  DF10 3A 01 E6     	LD	A,(TDRIVE)	; SET USER 0/DEFAULT DISK
+ 277  DF13 32 04 00     	LD	(UDFLAG),A	; SET USER/DISK NUMBER
+ 278  DF16 C9           	RET
+ 279  DF17
+ 280  DF17              ;	CONVE	RT CHAR IN A TO UPPER CASE
+ 281  DF17              UCASE:
+ 282  DF17 FE 61        	CP	61H		; LOWER-CASE A
+ 283  DF19 D8           	RET	C
+ 284  DF1A FE 7B        	CP	7BH		; GREATER THAN LOWER-CASE Z?
+ 285  DF1C D0           	RET	NC
+ 286  DF1D E6 5F        	AND	5FH		; CAPITALIZE
+ 287  DF1F C9           	RET
+ 288  DF20
+ 289  DF20              ;	INPUT	NEXT COMMAND TO CCP
+ 290  DF20              REDBUF:
+ 291  DF20 3A BB E5     	LD	A,(RNGSUB)	; SUBMIT FILE CURRENTLY IN EXECUTION?
+ 292  DF23 B7           	OR	A		; 0=NO
+ 293  DF24 28           	DEFB	28H
+ 294  DF25 47           	DEFB	RB1-$-1 AND 0FFH; GET LINE FROM CONSOLE IF NOT
+ 295  DF26 11 BC E5     	LD	DE,SUBFCB	; OPEN $$$.SUB
+ 296  DF29 CD CD DE     	CALL	OPEN
+ 297  DF2C 28           	DEFB	28H
+ 298  DF2D 3F           	DEFB	RB1-$-1 AND 0FFH; ERASE $$$.SUB IF END OF FILE AND GET CMND
+ 299  DF2E 3A CB E5     	LD	A,(SUBFRC)	; GET VALUE OF LAST RECORD IN FILE
+ 300  DF31 3D           	DEC	A		; PT TO NEXT TO LAST RECORD
+ 301  DF32 32 DC E5     	LD	(SUBFCR),A	; SAVE NEW VALUE OF LAST RECORD IN $$$.SUB
+ 302  DF35 11 BC E5     	LD	DE,SUBFCB	; READ LAST RECORD OF SUBMIT FILE
+ 303  DF38 CD EB DE     	CALL	READ
+ 304  DF3B 20           	DEFB	20H
+ 305  DF3C 30           	DEFB	RB1-$-1 AND 0FFH; ABORT $$$.SUB IF ERROR IN READING LAST REC
+ 306  DF3D 11 07 DE     	LD	DE,CBUFF	; COPY LAST RECORD (NEXT SUBMIT CMND) TO CBUFF
+ 307  DF40 21 80 00     	LD	HL,TBUFF	;   FROM TBUFF
+ 308  DF43 06 64        	LD	B,BUFLEN	; NUMBER OF BYTES
+ 309  DF45 CD D0 E1     	CALL	MOVEHD
+ 310  DF48 21 CA E5     	LD	HL,SUBFS2	; PT TO S2 OF $$$.SUB FCB
+ 311  DF4B 36 00        	LD	(HL),0		; SET S2 TO ZERO
+ 312  DF4D 23           	INC	HL		; PT TO RECORD COUNT
+ 313  DF4E 35           	DEC	(HL)		; DECREMENT RECORD COUNT OF $$$.SUB
+ 314  DF4F 11 BC E5     	LD	DE,SUBFCB	; CLOSE $$$.SUB
+ 315  DF52 CD D4 DE     	CALL	CLOSE
+ 316  DF55 28           	DEFB	28H
+ 317  DF56 16           	DEFB	RB1-$-1 AND 0FFH; ABORT $$$.SUB IF ERROR
+ 318  DF57 3E 24        	LD	A,'$'		; PRINT SUBMIT PROMPT
+ 319  DF59 CD 87 DE     	CALL	CONOUT
+ 320  DF5C 21 08 DE     	LD	HL,CIBUFF	; PRINT COMMAND LINE FROM $$$.SUB
+ 321  DF5F CD B2 DE     	CALL	PRIN1
+ 322  DF62 CD 9C DF     	CALL	BREAK		; CHECK FOR ABORT (ANY CHAR)
+ 323  DF65 28           	DEFB	28H
+ 324  DF66 1C           	DEFB	CNVBUF-$-1 AND 0FFH; IF <NULL> (NO ABORT), CAP COMMAND AND RUN
+ 325  DF67 CD B5 DF     	CALL	SUBKIL		; KILL $$$.SUB IF ABORT
+ 326  DF6A C3 2D E1     	JP	RESTRT		; RESTART CCP
+ 327  DF6D
+ 328  DF6D              ;	INPUT	COMMAND LINE FROM USER CONSOLE
+ 329  DF6D              RB1:
+ 330  DF6D CD B5 DF     	CALL	SUBKIL		; ERASE $$$.SUB IF PRESENT
+ 331  DF70 CD 01 DF     	CALL	SETUD		; SET USER AND DISK
+ 332  DF73 3E 3E        	LD	A,'>'		; PRINT PROMPT
+ 333  DF75 CD 87 DE     	CALL	CONOUT
+ 334  DF78 0E 0A        	LD	C,0AH		; READ COMMAND LINE FROM USER
+ 335  DF7A 11 06 DE     	LD	DE,MBUFF
+ 336  DF7D CD 05 00     	CALL	BDOS
+ 337  DF80 CD 10 DF     	CALL	SETU0D		; SET CURRENT DISK NUMBER IN LOWER PARAMS
+ 338  DF83
+ 339  DF83              ;	CAPIT	ALIZE STRING (ENDING IN 0) IN CBUFF
+ 340  DF83              CNVBUF:
+ 341  DF83 21 07 DE     	LD	HL,CBUFF	; PT TO USER'S COMMAND
+ 342  DF86 46           	LD	B,(HL)		; CHAR COUNT IN B
+ 343  DF87              CB1:
+ 344  DF87 23           	INC	HL		; PT TO 1ST VALID CHAR
+ 345  DF88 78           	LD	A,B		; DONE WHEN <NULL> ENCOUNTERED
+ 346  DF89 B7           	OR	A
+ 347  DF8A 28           	DEFB	28H
+ 348  DF8B 08           	DEFB	CB2-$-1 AND 0FFH
+ 349  DF8C 7E           	LD	A,(HL)		; CAPITALIZE COMMAND CHAR
+ 350  DF8D CD 17 DF     	CALL	UCASE
+ 351  DF90 77           	LD	(HL),A
+ 352  DF91 05           	DEC	B		; CONTINUE UNTIL END OF COMMAND LINE
+ 353  DF92 18           	DEFB	18H
+ 354  DF93 F3           	DEFB	CB1-$-1 AND 0FFH
+ 355  DF94              CB2:
+ 356  DF94 77           	LD	(HL),A		; STORE ENDING <NULL>
+ 357  DF95 21 08 DE     	LD	HL,CIBUFF	; SET COMMAND LINE PTR TO 1ST CHAR
+ 358  DF98 22 81 DE     	LD	(CIBPTR),HL
+ 359  DF9B C9           	RET
+ 360  DF9C
+ 361  DF9C              ;	CHECK	FOR ANY CHAR FROM USER CONSOLE; RET W/ZERO SET IF NONE
+ 362  DF9C              BREAK:
+ 363  DF9C D5           	PUSH	DE		; SAVE DE
+ 364  DF9D 1E FF        	LD	E,0FFH		; GET STATUS
+ 365  DF9F 0E 06        	LD	C,6		; DIRECT CONSOLE I/O
+ 366  DFA1 CD 92 DE     	CALL	BDOSB
+ 367  DFA4 D1           	POP	DE
+ 368  DFA5 E6 7F        	AND	7FH		; MASK MSB AND SET ZERO FLAG
+ 369  DFA7 C9           	RET
+ 370  DFA8
+ 371  DFA8              ;	RETUR	N NUMBER OF CURRENT DISK IN A
+ 372  DFA8              GETDRV:
+ 373  DFA8 0E 19        	LD	C,19H
+ 374  DFAA C3 05 00     	JP	BDOS
+ 375  DFAD
+ 376  DFAD              ;	DEFL	80H AS DMA ADDRESS
+ 377  DFAD              DEFDMA:
+ 378  DFAD 11 80 00     	LD	DE,TBUFF	; 80H=TBUFF
+ 379  DFB0              DMASET:
+ 380  DFB0 0E 1A        	LD	C,1AH
+ 381  DFB2 C3 05 00     	JP	BDOS
+ 382  DFB5
+ 383  DFB5              ;	CHECK	FOR SUBMIT FILE IN EXECUTION AND ABORT IT IF SO
+ 384  DFB5              SUBKIL:
+ 385  DFB5 21 BB E5     	LD	HL,RNGSUB	; CHECK FOR SUBMIT FILE IN EXECUTION
+ 386  DFB8 7E           	LD	A,(HL)
+ 387  DFB9 B7           	OR	A		; 0=NO
+ 388  DFBA C8           	RET	Z
+ 389  DFBB 36 00        	LD	(HL),0		; ABORT SUBMIT FILE
+ 390  DFBD 11 BC E5     	LD	DE,SUBFCB	; DELETE $$$.SUB
+ 391  DFC0 C3 E3 DE     	JP	DELETE
+ 392  DFC3
+ 393  DFC3              ;	INVAL	ID COMMAND -- PRINT IT
+ 394  DFC3              ERROR:
+ 395  DFC3 CD 9E DE     	CALL	CRLF		; NEW LINE
+ 396  DFC6 2A 83 DE     	LD	HL,(CIPTR)	; PT TO BEGINNING OF COMMAND LINE
+ 397  DFC9              ERR2:
+ 398  DFC9 7E           	LD	A,(HL)		; GET CHAR
+ 399  DFCA FE 20        	CP	' '		; SIMPLE '?' IF <SP>
+ 400  DFCC 28           	DEFB	28H
+ 401  DFCD 0B           	DEFB	ERR1-$-1 AND 0FFH
+ 402  DFCE B7           	OR	A		; SIMPLE '?' IF <NULL>
+ 403  DFCF 28           	DEFB	28H
+ 404  DFD0 08           	DEFB	ERR1-$-1 AND 0FFH
+ 405  DFD1 E5           	PUSH	HL		; SAVE PTR TO ERROR COMMAND CHAR
+ 406  DFD2 CD 87 DE     	CALL	CONOUT		; PRINT COMMAND CHAR
+ 407  DFD5 E1           	POP	HL		; GET PTR
+ 408  DFD6 23           	INC	HL		; PT TO NEXT
+ 409  DFD7 18           	DEFB	18H
+ 410  DFD8 F0           	DEFB	ERR2-$-1 AND 0FFH; CONTINUE
+ 411  DFD9              ERR1:
+ 412  DFD9 3E 3F        	LD	A,'?'		; PRINT '?'
+ 413  DFDB CD 87 DE     	CALL	CONOUT
+ 414  DFDE CD B5 DF     	CALL	SUBKIL		; TERMINATE ACTIVE $$$.SUB IF ANY
+ 415  DFE1 C3 2D E1     	JP	RESTRT		; RESTART CCP
+ 416  DFE4
+ 417  DFE4              ;	CHECK	TO SEE IF DE PTS TO DELIMITER; IF SO, RET W/ZERO FLAG SET
+ 418  DFE4              SDELM:
+ 419  DFE4 1A           	LD	A,(DE)
+ 420  DFE5 B7           	OR	A		; 0=DELIMITER
+ 421  DFE6 C8           	RET	Z
+ 422  DFE7 FE 20        	CP	' '		; ERROR IF < <SP>
+ 423  DFE9 DA C3 DF     	JP	C,ERROR
+ 424  DFEC C8           	RET	Z		; <SP>=DELIMITER
+ 425  DFED FE 3D        	CP	'='		; '='=DELIMITER
+ 426  DFEF C8           	RET	Z
+ 427  DFF0 FE 5F        	CP	5FH		; UNDERSCORE=DELIMITER
+ 428  DFF2 C8           	RET	Z
+ 429  DFF3 FE 2E        	CP	'.'		; '.'=DELIMITER
+ 430  DFF5 C8           	RET	Z
+ 431  DFF6 FE 3A        	CP	':'		; ':'=DELIMITER
+ 432  DFF8 C8           	RET	Z
+ 433  DFF9 FE 3B        	CP	';'		; ';'=DELIMITER
+ 434  DFFB C8           	RET	Z
+ 435  DFFC FE 3C        	CP	'<'		; '<'=DELIMITER
+ 436  DFFE C8           	RET	Z
+ 437  DFFF FE 3E        	CP	'>'		; '>'=DELIMITER
+ 438  E001 C9           	RET
+ 439  E002
+ 440  E002              ;	SKIP	STRING PTED TO BY DE (STRING ENDS IN 0) UNTIL END OF STRING
+ 441  E002              ;	OR	NON-BLANK ENCOUNTERED (BEGINNING OF TOKEN)
+ 442  E002              SBLANK:
+ 443  E002 1A           	LD	A,(DE)
+ 444  E003 B7           	OR	A
+ 445  E004 C8           	RET	Z
+ 446  E005 FE 20        	CP	' '
+ 447  E007 C0           	RET	NZ
+ 448  E008 13           	INC	DE
+ 449  E009 18           	DEFB	18H
+ 450  E00A F7           	DEFB	SBLANK-$-1 AND 0FFH
+ 451  E00B
+ 452  E00B              ;	ADD	A,A TO HL (HL=HL+A)
+ 453  E00B              ADDAH:
+ 454  E00B 85           	ADD	A,L
+ 455  E00C 6F           	LD	L,A
+ 456  E00D D0           	RET	NC
+ 457  E00E 24           	INC	H
+ 458  E00F C9           	RET
+ 459  E010
+ 460  E010              ;	EXTRA	CT TOKEN FROM COMMAND LINE AND PLACE IT INTO FCBDN; FORMAT FCBDN
+ 461  E010              ;	IF	TOKEN RESEMBLES FILE NAME AND TYPE (FILENAME.TYP);
+ 462  E010              ;	ON	INPUT, CIBPTR PTS TO CHAR AT WHICH TO START SCAN
+ 463  E010              ;	ON	OUTPUT, CIBPTR PTS TO CHAR AT WHICH TO CONTINUE AND ZERO FLAG IS SET
+ 464  E010              ;	IF	'?' IS IN TOKEN
+ 465  E010              SCANER:
+ 466  E010 3E 00        	LD	A,0		; START AT DRIVE SPECIFICATION BYTE
+ 467  E012              SCAN1:
+ 468  E012 21 DD E5     	LD	HL,FCBDN	; POINT TO FCBDN
+ 469  E015 CD 0B E0     	CALL	ADDAH		; OFFSET INTO FCB
+ 470  E018 E5           	PUSH	HL
+ 471  E019 E5           	PUSH	HL
+ 472  E01A AF           	XOR	A		; SET TEMPORARY DRIVE NUMBER TO DEFAULT
+ 473  E01B 32 02 E6     	LD	(TEMPDR),A
+ 474  E01E 2A 81 DE     	LD	HL,(CIBPTR)	; GET PTR TO NEXT CHAR IN COMMAND LINE
+ 475  E021 EB           	EX	DE,HL		; PTR IN DE
+ 476  E022 CD 02 E0     	CALL	SBLANK		; SKIP TO NON-BLANK OR END OF LINE
+ 477  E025 EB           	EX	DE,HL
+ 478  E026 22 83 DE     	LD	(CIPTR),HL	; SET PTR TO NON-BLANK OR END OF LINE
+ 479  E029 EB           	EX	DE,HL		; DE PTS TO NEXT NON-BLANK OR END OF LINE CHAR
+ 480  E02A E1           	POP	HL		; GET PTR TO NEXT BYTE IN FCBDN
+ 481  E02B 1A           	LD	A,(DE)		; END OF LINE?
+ 482  E02C B7           	OR	A		; 0=YES
+ 483  E02D 28           	DEFB	28H
+ 484  E02E 0A           	DEFB	SCAN2-$-1 AND 0FFH
+ 485  E02F DE 40        	SBC	A,'A'-1		; CONVERT POSSIBLE DRIVE SPEC TO NUMBER
+ 486  E031 47           	LD	B,A		; STORE NUMBER (A:=0, B:=1, ETC) IN B
+ 487  E032 13           	INC	DE		; PT TO NEXT CHAR
+ 488  E033 1A           	LD	A,(DE)		; SEE IF IT IS A COLON (:)
+ 489  E034 FE 3A        	CP	':'
+ 490  E036 28           	DEFB	28H
+ 491  E037 07           	DEFB	SCAN3-$-1 AND 0FFH; YES^  WE HAVE A DRIVE SPEC
+ 492  E038 1B           	DEC	DE		; NO^  BACK UP PTR TO FIRST NON-BLANK CHAR
+ 493  E039              SCAN2:
+ 494  E039 3A 01 E6     	LD	A,(TDRIVE)	; SET 1ST BYTE OF FCBDN AS DEFAULT DRIVE
+ 495  E03C 77           	LD	(HL),A
+ 496  E03D 18           	DEFB	18H
+ 497  E03E 06           	DEFB	SCAN4-$-1 AND 0FFH
+ 498  E03F              SCAN3:
+ 499  E03F 78           	LD	A,B		; WE HAVE A DRIVE SPEC^
+ 500  E040 32 02 E6     	LD	(TEMPDR),A	; SET TEMPORARY DRIVE
+ 501  E043 70           	LD	(HL),B		; SET 1ST BYTE OF FCBDN AS SPECIFIED DRIVE
+ 502  E044 13           	INC	DE		; PT TO BYTE AFTER ':'
+ 503  E045
+ 504  E045              ;	EXTRA	CT FILENAME FROM POSSIBLE FILENAME.TYP
+ 505  E045              SCAN4:
+ 506  E045 06 08        	LD	B,08H		; MAX OF 8 CHARS IN FILE NAME
+ 507  E047              SCAN5:
+ 508  E047 CD E4 DF     	CALL	SDELM		; DONE IF DELIMITER ENCOUNTERED - <SP> FILL
+ 509  E04A 28           	DEFB	28H
+ 510  E04B 15           	DEFB	SCAN9-$-1 AND 0FFH
+ 511  E04C 23           	INC	HL		; PT TO NEXT BYTE IN FCBDN
+ 512  E04D FE 2A        	CP	'*'		; IS (DE) A WILD CARD?
+ 513  E04F 20           	DEFB	20H
+ 514  E050 04           	DEFB	SCAN6-$-1 AND 0FFH; CONTINUE IF NOT
+ 515  E051 36 3F        	LD	(HL),'?'	; PLACE '?' IN FCBDN AND DON'T ADVANCE DE IF SO
+ 516  E053 18           	DEFB	18H
+ 517  E054 02           	DEFB	SCAN7-$-1 AND 0FFH
+ 518  E055              SCAN6:
+ 519  E055 77           	LD	(HL),A		; STORE FILENAME CHAR IN FCBDN
+ 520  E056 13           	INC	DE		; PT TO NEXT CHAR IN COMMAND LINE
+ 521  E057              SCAN7:
+ 522  E057 10           	DEFB	10H
+ 523  E058 EE           	DEFB	SCAN5-$-1 AND 0FFH; DECREMENT CHAR COUNT UNTIL 8 ELAPSED
+ 524  E059              SCAN8:
+ 525  E059 CD E4 DF     	CALL	SDELM		; 8 CHARS OR MORE - SKIP UNTIL DELIMITER
+ 526  E05C 28           	DEFB	28H
+ 527  E05D 08           	DEFB	SCAN10-$-1 AND 0FFH; ZERO FLAG SET IF DELIMITER FOUND
+ 528  E05E 13           	INC	DE		; PT TO NEXT CHAR IN COMMAND LINE
+ 529  E05F 18           	DEFB	18H
+ 530  E060 F8           	DEFB	SCAN8-$-1 AND 0FFH
+ 531  E061              SCAN9:
+ 532  E061 23           	INC	HL		; PT TO NEXT BYTE IN FCBDN
+ 533  E062 36 20        	LD	(HL),' '	; FILL FILENAME PART WITH <SP>
+ 534  E064 10           	DEFB	10H
+ 535  E065 FB           	DEFB	SCAN9-$-1 AND 0FFH
+ 536  E066
+ 537  E066              ;	EXTRA	CT FILE TYPE FROM POSSIBLE FILENAME.TYP
+ 538  E066              SCAN10:
+ 539  E066 06 03        	LD	B,03H		; PREPARE TO EXTRACT TYPE
+ 540  E068 FE 2E        	CP	'.'		; IF (DE) DELIMITER IS A '.', WE HAVE A TYPE
+ 541  E06A 20           	DEFB	20H
+ 542  E06B 1B           	DEFB	SCAN15-$-1 AND 0FFH; FILL FILE TYPE BYTES WITH <SP>
+ 543  E06C 13           	INC	DE		; PT TO CHAR IN COMMAND LINE AFTER '.'
+ 544  E06D              SCAN11:
+ 545  E06D CD E4 DF     	CALL	SDELM		; CHECK FOR DELIMITER
+ 546  E070 28           	DEFB	28H
+ 547  E071 15           	DEFB	SCAN15-$-1 AND 0FFH; FILL REST OF TYPE IF IT IS A DELIMITER
+ 548  E072 23           	INC	HL		; PT TO NEXT BYTE IN FCBDN
+ 549  E073 FE 2A        	CP	'*'		; WILD?
+ 550  E075 20           	DEFB	20H
+ 551  E076 04           	DEFB	SCAN12-$-1 AND 0FFH; STORE CHAR IF NOT WILD
+ 552  E077 36 3F        	LD	(HL),'?'	; STORE '?' AND DON'T ADVANCE COMMAND LINE PTR
+ 553  E079 18           	DEFB	18H
+ 554  E07A 02           	DEFB	SCAN13-$-1 AND 0FFH
+ 555  E07B              SCAN12:
+ 556  E07B 77           	LD	(HL),A		; STORE CHAR IN FCBDN
+ 557  E07C 13           	INC	DE		; PT TO NEXT CHAR IN COMMAND LINE
+ 558  E07D              SCAN13:
+ 559  E07D 10           	DEFB	10H
+ 560  E07E EE           	DEFB	SCAN11-$-1 AND 0FFH; COUNT DOWN CHARS IN FILE TYPE (3 MAX)
+ 561  E07F              SCAN14:
+ 562  E07F CD E4 DF     	CALL	SDELM		; SKIP REST OF CHARS AFTER 3-CHAR TYPE TO
+ 563  E082 28           	DEFB	28H
+ 564  E083 08           	DEFB	SCAN16-$-1 AND 0FFH;   DELIMITER
+ 565  E084 13           	INC	DE
+ 566  E085 18           	DEFB	18H
+ 567  E086 F8           	DEFB	SCAN14-$-1 AND 0FFH
+ 568  E087              SCAN15:
+ 569  E087 23           	INC	HL		; FILL IN REST OF TYP WITH <SP>
+ 570  E088 36 20        	LD	(HL),' '
+ 571  E08A 10           	DEFB	10H
+ 572  E08B FB           	DEFB	SCAN15-$-1 AND 0FFH
+ 573  E08C
+ 574  E08C              ;	FILL	IN EX, S1, S2, AND RC WITH ZEROES
+ 575  E08C              SCAN16:
+ 576  E08C 06 04        	LD	B,4		; 4 BYTES
+ 577  E08E              SCAN17:
+ 578  E08E 23           	INC	HL		; PT TO NEXT BYTE IN FCBDN
+ 579  E08F 36 00        	LD	(HL),0
+ 580  E091 10           	DEFB	10H
+ 581  E092 FB           	DEFB	SCAN17-$-1 AND 0FFH
+ 582  E093
+ 583  E093              ;	SCAN	COMPLETE -- DE PTS TO DELIMITER BYTE AFTER TOKEN
+ 584  E093 EB           	EX	DE,HL		; STORE PTR TO NEXT BYTE IN COMMAND LINE
+ 585  E094 22 81 DE     	LD	(CIBPTR),HL
+ 586  E097
+ 587  E097              ;	DEFL	ZERO FLAG TO INDICATE PRESENCE OF '?' IN FILENAME.TYP
+ 588  E097 E1           	POP	HL		; GET PTR TO FCBDN IN HL
+ 589  E098 01 0B 00     	LD	BC,11		; SCAN FOR '?' IN FILENAME.TYP (C=11 BYTES)
+ 590  E09B              SCAN18:
+ 591  E09B 23           	INC	HL		; PT TO NEXT BYTE IN FCBDN
+ 592  E09C 7E           	LD	A,(HL)
+ 593  E09D FE 3F        	CP	'?'
+ 594  E09F 20           	DEFB	20H
+ 595  E0A0 01           	DEFB	SCAN19-$-1 AND 0FFH
+ 596  E0A1 04           	INC	B		; B<>0 TO INDICATE '?' ENCOUNTERED
+ 597  E0A2              SCAN19:
+ 598  E0A2 0D           	DEC	C		; COUNT DOWN
+ 599  E0A3 20           	DEFB	20H
+ 600  E0A4 F6           	DEFB	SCAN18-$-1 AND 0FFH
+ 601  E0A5 78           	LD	A,B		; A=B=NUMBER OF '?' IN FILENAME.TYP
+ 602  E0A6 B7           	OR	A		; SET ZERO FLAG TO INDICATE ANY '?'
+ 603  E0A7 C9           	RET
+ 604  E0A8
+ 605  E0A8              ;
+ 606  E0A8              ;	CCP	BUILT-IN COMMAND TABLE AND COMMAND PROCESSOR
+ 607  E0A8              ;
+ 608  E0A8              NCMNDS:	EQU	8		; NUMBER OF CCP COMMANDS
+ 609  E0A8              NCHARS:	EQU	4		; NUMBER OF CHARS/COMMAND
+ 610  E0A8              ;	CCP	COMMAND NAME TABLE
+ 611  E0A8              CMDTBL:
+ 612  E0A8 44 49 52 20  	DEFB	'DIR '
+ 613  E0AC 45 52 41 20  	DEFB	'ERA '
+ 614  E0B0 4C 49 53 54  	DEFB	'LIST'
+ 615  E0B4 54 59 50 45  	DEFB	'TYPE'
+ 616  E0B8 53 41 56 45  	DEFB	'SAVE'
+ 617  E0BC 52 45 4E 20  	DEFB	'REN '
+ 618  E0C0 55 53 45 52  	DEFB	'USER'
+ 619  E0C4 43 4C 53 20  	DEFB	'CLS '
+ 620  E0C8              ;	CCP	COMMAND ADDRESS TABLE
+ 621  E0C8              REQTBL:
+ 622  E0C8 00 E2        	DEFW	DIR
+ 623  E0CA A3 E2        	DEFW	ERA
+ 624  E0CC DE E2        	DEFW	LIST
+ 625  E0CE E2 E2        	DEFW	TYPE
+ 626  E0D0 9E E3        	DEFW	SAVE
+ 627  E0D2 F9 E3        	DEFW	REN
+ 628  E0D4 6A E4        	DEFW	USER
+ 629  E0D6 81 E4        	DEFW	CLS
+ 630  E0D8 A7 E4        	DEFW	COM		;MUST BE A COM FILE
+ 631  E0DA
+ 632  E0DA              ;	CMDTB	L (COMMAND TABLE) SCANNER
+ 633  E0DA              ;	ON	RETURN, A=TABLE ENTRY # (0-5) OR 6 IF NOT FOUND (COM FILE)
+ 634  E0DA              CMDSER:
+ 635  E0DA 21 A8 E0     	LD	HL,CMDTBL	; PT TO COMMAND TABLE
+ 636  E0DD 0E 00        	LD	C,0		; SET COMMAND COUNTER
+ 637  E0DF              CMS1:
+ 638  E0DF 79           	LD	A,C		; CHECK FOR DONE
+ 639  E0E0 FE 08        	CP	NCMNDS		; NUMBER OF COMMANDS
+ 640  E0E2 D0           	RET	NC
+ 641  E0E3 11 DE E5     	LD	DE,FCBFN	; PT TO STORED COMMAND NAME
+ 642  E0E6 06 04        	LD	B,NCHARS	; NUMBER OF CHARS/COMMAND (8 MAX)
+ 643  E0E8              CMS2:
+ 644  E0E8 1A           	LD	A,(DE)		; COMPARE AGAINST TABLE ENTRY
+ 645  E0E9 BE           	CP	(HL)
+ 646  E0EA 20           	DEFB	20H
+ 647  E0EB 0B           	DEFB	CMS3-$-1 AND 0FFH; NO MATCH
+ 648  E0EC 13           	INC	DE		; PT TO NEXT CHAR
+ 649  E0ED 23           	INC	HL
+ 650  E0EE 10           	DEFB	10H
+ 651  E0EF F8           	DEFB	CMS2-$-1 AND 0FFH; COUNT DOWN
+ 652  E0F0 1A           	LD	A,(DE)		; NEXT CHAR IN INPUT COMMAND MUST BE <SP>
+ 653  E0F1 FE 20        	CP	' '
+ 654  E0F3 20           	DEFB	20H
+ 655  E0F4 05           	DEFB	CMS4-$-1 AND 0FFH
+ 656  E0F5 79           	LD	A,C		; TABLE ENTRY NUMBER IN A
+ 657  E0F6 C9           	RET
+ 658  E0F7              CMS3:
+ 659  E0F7 23           	INC	HL		; SKIP TO NEXT COMMAND TABLE ENTRY
+ 660  E0F8 10           	DEFB	10H
+ 661  E0F9 FD           	DEFB	CMS3-$-1 AND 0FFH
+ 662  E0FA              CMS4:
+ 663  E0FA 0C           	INC	C		; INCREMENT TABLE ENTRY NUMBER
+ 664  E0FB 18           	DEFB	18H
+ 665  E0FC E2           	DEFB	CMS1-$-1 AND 0FFH
+ 666  E0FD
+ 667  E0FD              ;
+ 668  E0FD              ;	CCP	STARTING POINTS
+ 669  E0FD              ;
+ 670  E0FD
+ 671  E0FD              ;	START	CCP AND DON'T PROCESS DEFAULT COMMAND STORED
+ 672  E0FD              CCP1:
+ 673  E0FD AF           	XOR	A		; SET NO DEFAULT COMMAND
+ 674  E0FE 32 07 DE     	LD	(CBUFF),A
+ 675  E101
+ 676  E101              ;	START	CCP AND POSSIBLY PROCESS DEFAULT COMMAND
+ 677  E101              CCP:
+ 678  E101 31 81 DE     	LD	SP,STACK	; RESET STACK
+ 679  E104 C5           	PUSH	BC
+ 680  E105 79           	LD	A,C		; C=USER/DISK NUMBER (SEE LOC 4)
+ 681  E106 1F           	RRA			; EXTRACT USER NUMBER
+ 682  E107 1F           	RRA
+ 683  E108 1F           	RRA
+ 684  E109 1F           	RRA
+ 685  E10A E6 0F        	AND	0FH
+ 686  E10C 5F           	LD	E,A		; SET USER NUMBER
+ 687  E10D CD FC DE     	CALL	SETUSR
+ 688  E110 CD BB DE     	CALL	RESET		; RESET DISK SYSTEM
+ 689  E113 C1           	POP	BC
+ 690  E114 79           	LD	A,C		; C=USER/DISK NUMBER (SEE LOC 4)
+ 691  E115 E6 0F        	AND	0FH		; EXTRACT DEFAULT DISK DRIVE
+ 692  E117 32 01 E6     	LD	(TDRIVE),A	; SET IT
+ 693  E11A CD C0 DE     	CALL	LOGIN		; LOG IN DEFAULT DISK
+ 694  E11D 11 BC E5     	LD	DE,SUBFCB	; CHECK FOR $$$.SUB ON CURRENT DISK
+ 695  E120 CD DB DE     	CALL	SEAR1
+ 696  E123 2F           	CPL			; 0FFH IS RETURNED IF NO $$$.SUB, SO COMPLEMENT
+ 697  E124 32 BB E5     	LD	(RNGSUB),A	; SET FLAG (0=NO $$$.SUB)
+ 698  E127 3A 07 DE     	LD	A,(CBUFF)	; EXECUTE DEFAULT COMMAND?
+ 699  E12A B7           	OR	A		; 0=NO
+ 700  E12B 20           	DEFB	20H
+ 701  E12C 26           	DEFB	RS1-$-1 AND 0FFH
+ 702  E12D
+ 703  E12D              ;	PROMP	T USER AND INPUT COMMAND LINE FROM HIM
+ 704  E12D              RESTRT:
+ 705  E12D 31 81 DE     	LD	SP,STACK	; RESET STACK
+ 706  E130
+ 707  E130              ;	PRINT	PROMPT (DU>)
+ 708  E130 CD 9E DE     	CALL	CRLF		; PRINT PROMPT
+ 709  E133 CD A8 DF     	CALL	GETDRV		; CURRENT DRIVE IS PART OF PROMPT
+ 710  E136 C6 41        	ADD	A,'A'		; CONVERT TO ASCII A-P
+ 711  E138 CD 87 DE     	CALL	CONOUT
+ 712  E13B CD FA DE     	CALL	GETUSR		; GET USER NUMBER
+ 713  E13E FE 0A        	CP	10		; USER < 10?
+ 714  E140 38           	DEFB	38H
+ 715  E141 09           	DEFB	RS00-$-1 AND 0FFH
+ 716  E142 D6 0A        	SUB	10		; SUBTRACT 10 FROM IT
+ 717  E144 F5           	PUSH	AF		; SAVE IT
+ 718  E145 3E 31        	LD	A,'1'		; OUTPUT 10'S DIGIT
+ 719  E147 CD 87 DE     	CALL	CONOUT
+ 720  E14A F1           	POP	AF
+ 721  E14B              RS00:
+ 722  E14B C6 30        	ADD	A,'0'		; OUTPUT 1'S DIGIT (CONVERT TO ASCII)
+ 723  E14D CD 87 DE     	CALL	CONOUT
+ 724  E150
+ 725  E150              ;	READ	INPUT LINE FROM USER OR $$$.SUB
+ 726  E150 CD 20 DF     	CALL	REDBUF		; INPUT COMMAND LINE FROM USER (OR $$$.SUB)
+ 727  E153
+ 728  E153              ;	PROCE	SS INPUT LINE
+ 729  E153              RS1:
+ 730  E153 11 80 00     	LD	DE,TBUFF	; PT TO INPUT COMMAND LINE (IN TBUFF)
+ 731  E156 CD B0 DF     	CALL	DMASET		; SET TBUFF TO DMA ADDRESS
+ 732  E159 CD A8 DF     	CALL	GETDRV		; GET DEFAULT DRIVE NUMBER
+ 733  E15C 32 01 E6     	LD	(TDRIVE),A	; SET IT
+ 734  E15F CD 10 E0     	CALL	SCANER		; PARSE COMMAND NAME FROM COMMAND LINE
+ 735  E162 C4 C3 DF     	CALL	NZ,ERROR	; ERROR IF COMMAND NAME CONTAINS A '?'
+ 736  E165 3A 02 E6     	LD	A,(TEMPDR)	; IS COMMAND OF FORM 'D:COMMAND'?
+ 737  E168 B7           	OR	A		; NZ=YES
+ 738  E169 C2 A7 E4     	JP	NZ,COM		; PROCESS AS COM FILE IMMEDIATELY
+ 739  E16C CD DA E0     	CALL	CMDSER		; SCAN FOR CCP-RESIDENT COMMAND
+ 740  E16F 21 C8 E0     	LD	HL,REQTBL	; EXECUTE COMMAND (CCP-RESIDENT OR COM)
+ 741  E172 5F           	LD	E,A		; COMPUTE OFFSET INTO ADDRESS TABLE
+ 742  E173 16 00        	LD	D,0
+ 743  E175 19           	ADD	HL,DE
+ 744  E176 19           	ADD	HL,DE
+ 745  E177 7E           	LD	A,(HL)		; GET ADDRESS IN HL
+ 746  E178 23           	INC	HL
+ 747  E179 66           	LD	H,(HL)		; ADDRESS HIGH
+ 748  E17A 6F           	LD	L,A		; ADDRESS LOW
+ 749  E17B E9           	JP	(HL)		; EXECUTE CCP ROUTINE
+ 750  E17C
+ 751  E17C              ;
+ 752  E17C              ;	ERROR	MESSAGES
+ 753  E17C              ;
+ 754  E17C              PRNNF:
+ 755  E17C CD A7 DE     	CALL	PRINT		; NO FILE MESSAGE
+ 756  E17F 4E 6F 20 46  	DEFB	'No Files',0
+ 756  E183 69 6C 65 73
+ 756  E187 00
+ 757  E188 C9           	RET
+ 758  E189
+ 759  E189              ;
+ 760  E189              ;	MORE	CCP UTILITIES
+ 761  E189              ;
+ 762  E189
+ 763  E189              ;	EXTRA	CT NUMBER FROM COMMAND LINE
+ 764  E189              NUMBER:
+ 765  E189 CD 10 E0     	CALL	SCANER		; PARSE NUMBER AND PLACE IN FCBFN
+ 766  E18C 3A 02 E6     	LD	A,(TEMPDR)	; TOKEN BEGIN WITH DRIVE SPEC (D:)?
+ 767  E18F B7           	OR	A		; ERROR IF SO
+ 768  E190 C2 C3 DF     	JP	NZ,ERROR
+ 769  E193 21 DE E5     	LD	HL,FCBFN	; PT TO TOKEN FOR CONVERSION
+ 770  E196 01 0B 00     	LD	BC,11		; B=ACCUMULATED VALUE, C=CHAR COUNT
+ 771  E199              NUM1:
+ 772  E199 7E           	LD	A,(HL)		; GET CHAR
+ 773  E19A FE 20        	CP	' '		; DONE IF <SP>
+ 774  E19C 28           	DEFB	28H
+ 775  E19D 24           	DEFB	NUM2-$-1 AND 0FFH
+ 776  E19E 23           	INC	HL		; PT TO NEXT CHAR
+ 777  E19F D6 30        	SUB	'0'		; CONVERT TO BINARY (ASCII 0-9 TO BINARY)
+ 778  E1A1 FE 0A        	CP	10		; ERROR IF >= 10
+ 779  E1A3 D2 C3 DF     	JP	NC,ERROR
+ 780  E1A6 57           	LD	D,A		; DIGIT IN D
+ 781  E1A7 78           	LD	A,B		; GET ACCUMULATED VALUE
+ 782  E1A8 E6 E0        	AND	0E0H		; CHECK FOR RANGE ERROR (>255)
+ 783  E1AA C2 C3 DF     	JP	NZ,ERROR
+ 784  E1AD 78           	LD	A,B		; NEW VALUE = OLD VALUE * 10
+ 785  E1AE 07           	RLCA
+ 786  E1AF 07           	RLCA
+ 787  E1B0 07           	RLCA
+ 788  E1B1 80           	ADD	A,B		; CHECK FOR RANGE ERROR
+ 789  E1B2 DA C3 DF     	JP	C,ERROR
+ 790  E1B5 80           	ADD	A,B		; CHECK FOR RANGE ERROR
+ 791  E1B6 DA C3 DF     	JP	C,ERROR
+ 792  E1B9 82           	ADD	A,D		; NEW VALUE = OLD VALUE * 10 + DIGIT
+ 793  E1BA DA C3 DF     	JP	C,ERROR	; CHECK FOR RANGE ERROR
+ 794  E1BD 47           	LD	B,A		; SET NEW VALUE
+ 795  E1BE 0D           	DEC	C		; COUNT DOWN
+ 796  E1BF 20           	DEFB	20H
+ 797  E1C0 D8           	DEFB	NUM1-$-1 AND 0FFH
+ 798  E1C1 C9           	RET
+ 799  E1C2
+ 800  E1C2              ;	REST	OF TOKEN BUFFER MUST BE <SP>
+ 801  E1C2              NUM2:
+ 802  E1C2 7E           	LD	A,(HL)		; CHECK FOR <SP>
+ 803  E1C3 FE 20        	CP	' '
+ 804  E1C5 C2 C3 DF     	JP	NZ,ERROR
+ 805  E1C8 23           	INC	HL		; PT TO NEXT
+ 806  E1C9 0D           	DEC	C		; COUNT DOWN CHARS
+ 807  E1CA 20           	DEFB	20H
+ 808  E1CB F6           	DEFB	NUM2-$-1 AND 0FFH
+ 809  E1CC 78           	LD	A,B		; GET ACCUMULATED VALUE
+ 810  E1CD C9           	RET
+ 811  E1CE
+ 812  E1CE              ;	MOVE	3 BYTES FROM HL TO DE
+ 813  E1CE              MOVHD3:
+ 814  E1CE 06 03        	LD	B,3		; MOVE 3 CHARS
+ 815  E1D0              MOVEHD:
+ 816  E1D0 7E           	LD	A,(HL)		; GET IT
+ 817  E1D1 12           	LD	(DE),A		; PUT IT
+ 818  E1D2 23           	INC	HL		; PT TO NEXT
+ 819  E1D3 13           	INC	DE
+ 820  E1D4 10           	DEFB	10H
+ 821  E1D5 FA           	DEFB	MOVEHD-$-1 AND 0FFH
+ 822  E1D6 C9           	RET
+ 823  E1D7
+ 824  E1D7              ;	PT	TO DIRECTORY ENTRY IN TBUFF WHOSE OFFSET IS SPECIFIED BY A AND C
+ 825  E1D7              DIRPTR:
+ 826  E1D7 21 80 00     	LD	HL,TBUFF	; PT TO TEMP BUFFER
+ 827  E1DA 81           	ADD	A,C		; PT TO 1ST BYTE OF DIR ENTRY
+ 828  E1DB CD 0B E0     	CALL	ADDAH		; PT TO DESIRED BYTE IN DIR ENTRY
+ 829  E1DE 7E           	LD	A,(HL)		; GET DESIRED BYTE
+ 830  E1DF C9           	RET
+ 831  E1E0
+ 832  E1E0              ;	CHECK	FOR SPECIFIED DRIVE AND LOG IT IN IF NOT DEFAULT
+ 833  E1E0              SLOGIN:
+ 834  E1E0 AF           	XOR	A		; SET FCBDN FOR DEFAULT DRIVE
+ 835  E1E1 32 DD E5     	LD	(FCBDN),A
+ 836  E1E4 CD F5 E1     	CALL	COMLOG		; CHECK DRIVE
+ 837  E1E7 C8           	RET	Z
+ 838  E1E8 C3 C0 DE     	JP	LOGIN		; DO LOGIN OTHERWISE
+ 839  E1EB
+ 840  E1EB              ;	CHECK	FOR SPECIFIED DRIVE AND LOG IN DEFAULT DRIVE IF SPECIFIED<>DEFAULT
+ 841  E1EB              DLOGIN:
+ 842  E1EB CD F5 E1     	CALL	COMLOG		; CHECK DRIVE
+ 843  E1EE C8           	RET	Z		; ABORT IF SAME
+ 844  E1EF 3A 01 E6     	LD	A,(TDRIVE)	; LOG IN DEFAULT DRIVE
+ 845  E1F2 C3 C0 DE     	JP	LOGIN
+ 846  E1F5
+ 847  E1F5              ;	ROUTI	NE COMMON TO BOTH LOGIN ROUTINES; ON EXIT, Z SET MEANS ABORT
+ 848  E1F5              COMLOG:
+ 849  E1F5 3A 02 E6     	LD	A,(TEMPDR)	; DRIVE SPECIFIED?
+ 850  E1F8 B7           	OR	A		; 0=NO
+ 851  E1F9 C8           	RET	Z
+ 852  E1FA 3D           	DEC	A		; COMPARE IT AGAINST DEFAULT
+ 853  E1FB 21 01 E6     	LD	HL,TDRIVE
+ 854  E1FE BE           	CP	(HL)
+ 855  E1FF C9           	RET			; ABORT IF SAME
+ 856  E200
+ 857  E200              ;
+ 858  E200              ;	CCP	DIRECTORY DISPLAY FUNCTION (DIR)
+ 859  E200              ;
+ 860  E200              DIR:
+ 861  E200 3E 80        	LD	A,80H		; SET SYSTEM BIT EXAMINATION
+ 862  E202 F5           	PUSH	AF
+ 863  E203 CD 10 E0     	CALL	SCANER		; EXTRACT POSSIBLE D:FILENAME.TYP TOKEN
+ 864  E206 CD E0 E1     	CALL	SLOGIN		; LOG IN DRIVE IF NECESSARY
+ 865  E209 21 DE E5     	LD	HL,FCBFN	; MAKE FCB WILD (ALL '?') IF NO FILENAME.TYP
+ 866  E20C 7E           	LD	A,(HL)		; GET FIRST CHAR OF FILENAME.TYP
+ 867  E20D FE 20        	CP	' '		; IF <SP>, ALL WILD
+ 868  E20F 28           	DEFB	28H
+ 869  E210 0E           	DEFB	DIR0-$-1 AND 0FFH
+ 870  E211 FE 40        	CP	'@'		; SYSTEM FILES?
+ 871  E213 20           	DEFB	20H
+ 872  E214 11           	DEFB	DIR2-$-1 AND 0FFH
+ 873  E215 23           	INC	HL		; JUST '@'?  <SP> MUST FOLLOW
+ 874  E216 7E           	LD	A,(HL)
+ 875  E217 2B           	DEC	HL		; BACK UP
+ 876  E218 FE 20        	CP	' '		; JUST '@' IF <SP> FOLLOWS
+ 877  E21A 20           	DEFB	20H
+ 878  E21B 0A           	DEFB	DIR2-$-1 AND 0FFH
+ 879  E21C F1           	POP	AF		; GET FLAG
+ 880  E21D AF           	XOR	A		; SET NO SYSTEM BIT EXAMINATION
+ 881  E21E F5           	PUSH	AF
+ 882  E21F              DIR0:
+ 883  E21F 06 0B        	LD	B,11		; NUMBER OF CHARS IN FN & FT
+ 884  E221              DIR1:
+ 885  E221 36 3F        	LD	(HL),'?'	; STORE '?'
+ 886  E223 23           	INC	HL
+ 887  E224 10           	DEFB	10H
+ 888  E225 FB           	DEFB	DIR1-$-1 AND 0FFH
+ 889  E226              DIR2:
+ 890  E226 F1           	POP	AF		; GET FLAG
+ 891  E227 CD 2D E2     	CALL	DIRPR		; PRINT DIRECTORY
+ 892  E22A C3 A6 E5     	JP	RSTCCP		; RESTART CCP
+ 893  E22D
+ 894  E22D              ;	DIREC	TORY PRINT ROUTINE; ON ENTRY, MSB OF A IS 1 (80H) IF SYSTEM FILES EXCL
+ 895  E22D              DIRPR:
+ 896  E22D 57           	LD	D,A		; STORE SYSTEM FLAG IN D
+ 897  E22E 1E 00        	LD	E,0		; SET COLUMN COUNTER TO ZERO
+ 898  E230 D5           	PUSH	DE		; SAVE COLUMN COUNTER (E) AND SYSTEM FLAG (D)
+ 899  E231 CD D8 DE     	CALL	SEARF		; SEARCH FOR SPECIFIED FILE (FIRST OCCURRANCE)
+ 900  E234 CC 7C E1     	CALL	Z,PRNNF	; PRINT NO FILE MSG; REG A NOT CHANGED
+ 901  E237
+ 902  E237              ;	ENTRY	SELECTION LOOP	; ON ENTRY, A=OFFSET FROM SEARF OR SEARN
+ 903  E237              DIR3:
+ 904  E237 28           	DEFB	28H
+ 905  E238 68           	DEFB	DIR11-$-1 AND 0FFH; DONE IF ZERO FLAG SET
+ 906  E239 3D           	DEC	A		; ADJUST TO RETURNED VALUE
+ 907  E23A 0F           	RRCA			; CONVERT NUMBER TO OFFSET INTO TBUFF
+ 908  E23B 0F           	RRCA
+ 909  E23C 0F           	RRCA
+ 910  E23D E6 60        	AND	60H
+ 911  E23F 4F           	LD	C,A		; OFFSET INTO TBUFF IN C (C=OFFSET TO ENTRY)
+ 912  E240 3E 0A        	LD	A,10		; ADD 10 TO PT TO SYSTEM FILE ATTRIBUTE BIT
+ 913  E242 CD D7 E1     	CALL	DIRPTR
+ 914  E245 D1           	POP	DE		; GET SYSTEM BIT MASK FROM D
+ 915  E246 D5           	PUSH	DE
+ 916  E247 A2           	AND	D		; MASK FOR SYSTEM BIT
+ 917  E248 20           	DEFB	20H
+ 918  E249 4D           	DEFB	DIR10-$-1 AND 0FFH; SKIP ENTRY IF BIT IS SET
+ 919  E24A D1           	POP	DE		; GET ENTRY COUNT (=<CR> COUNTER)
+ 920  E24B 7B           	LD	A,E		; ADD 1 TO IT
+ 921  E24C 1C           	INC	E
+ 922  E24D D5           	PUSH	DE		; SAVE IT
+ 923  E24E E6 03        	AND	03H		; OUTPUT <CRLF> IF 4 ENTRIES PRINTED IN LINE
+ 924  E250 F5           	PUSH	AF
+ 925  E251 20           	DEFB	20H
+ 926  E252 05           	DEFB	DIR4-$-1 AND 0FFH
+ 927  E253 CD 9E DE     	CALL	CRLF		; NEW LINE
+ 928  E256 18           	DEFB	18H
+ 929  E257 0B           	DEFB	DIR5-$-1 AND 0FFH
+ 930  E258              DIR4:
+ 931  E258 CD 85 DE     	CALL	SPACER		; PRINT <SP>:<SP> BETWEEN ENTRIES
+ 932  E25B 3E 3A        	LD	A,':'
+ 933  E25D CD 87 DE     	CALL	CONOUT
+ 934  E260 CD 85 DE     	CALL	SPACER
+ 935  E263              DIR5:
+ 936  E263 06 01        	LD	B,01H		; PT TO 1ST BYTE OF FILE NAME
+ 937  E265              DIR6:
+ 938  E265 78           	LD	A,B		; A=OFFSET
+ 939  E266 CD D7 E1     	CALL	DIRPTR		; HL NOW PTS TO 1ST BYTE OF FILE NAME
+ 940  E269 E6 7F        	AND	7FH		; MASK OUT MSB
+ 941  E26B FE 20        	CP	' '		; NO FILE NAME?
+ 942  E26D 20           	DEFB	20H
+ 943  E26E 13           	DEFB	DIR8-$-1 AND 0FFH; PRINT FILE NAME IF PRESENT
+ 944  E26F F1           	POP	AF
+ 945  E270 F5           	PUSH	AF
+ 946  E271 FE 03        	CP	03H
+ 947  E273 20           	DEFB	20H
+ 948  E274 0B           	DEFB	DIR7-$-1 AND 0FFH
+ 949  E275 3E 09        	LD	A,09H		; PT TO 1ST BYTE OF FILE TYPE
+ 950  E277 CD D7 E1     	CALL	DIRPTR		; HL NOW PTS TO 1ST BYTE OF FILE TYPE
+ 951  E27A E6 7F        	AND	7FH		; MASK OUT MSB
+ 952  E27C FE 20        	CP	' '		; NO FILE TYPE?
+ 953  E27E 28           	DEFB	28H
+ 954  E27F 16           	DEFB	DIR9-$-1 AND 0FFH; CONTINUE IF SO
+ 955  E280              DIR7:
+ 956  E280 3E 20        	LD	A,' '		; OUTPUT <SP>
+ 957  E282              DIR8:
+ 958  E282 CD 87 DE     	CALL	CONOUT		; PRINT CHAR
+ 959  E285 04           	INC	B		; INCR CHAR COUNT
+ 960  E286 78           	LD	A,B
+ 961  E287 FE 0C        	CP	12		; END OF FILENAME.TYP?
+ 962  E289 30           	DEFB	30H
+ 963  E28A 0B           	DEFB	DIR9-$-1 AND 0FFH; CONTINUE IF SO
+ 964  E28B FE 09        	CP	09H		; END IF FILENAME ONLY?
+ 965  E28D 20           	DEFB	20H
+ 966  E28E D6           	DEFB	DIR6-$-1 AND 0FFH; PRINT TYP IF SO
+ 967  E28F 3E 2E        	LD	A,'.'		; PRINT DOT BETWEEN FILE NAME AND TYPE
+ 968  E291 CD 87 DE     	CALL	CONOUT
+ 969  E294 18           	DEFB	18H
+ 970  E295 CF           	DEFB	DIR6-$-1 AND 0FFH
+ 971  E296              DIR9:
+ 972  E296 F1           	POP	AF
+ 973  E297              DIR10:
+ 974  E297 CD 9C DF     	CALL	BREAK		; CHECK FOR ABORT
+ 975  E29A 20           	DEFB	20H
+ 976  E29B 05           	DEFB	DIR11-$-1 AND 0FFH
+ 977  E29C CD DF DE     	CALL	SEARN		; SEARCH FOR NEXT FILE
+ 978  E29F 18           	DEFB	18H
+ 979  E2A0 96           	DEFB	DIR3-$-1 AND 0FFH; CONTINUE
+ 980  E2A1              DIR11:
+ 981  E2A1 D1           	POP	DE		; RESTORE STACK
+ 982  E2A2 C9           	RET
+ 983  E2A3
+ 984  E2A3              ;
+ 985  E2A3              ;	CCP	FILE ERASE FUNCTION (ERA)
+ 986  E2A3              ;
+ 987  E2A3              ERA:
+ 988  E2A3 CD 10 E0     	CALL	SCANER		; PARSE FILE SPECIFICATION
+ 989  E2A6 FE 0B        	CP	0BH		; ALL WILD (ALL FILES = 11 '?')?
+ 990  E2A8 20           	DEFB	20H
+ 991  E2A9 23           	DEFB	ERA1-$-1 AND 0FFH; IF NOT, THEN DO ERASES
+ 992  E2AA CD A7 DE     	CALL	PRINT
+ 993  E2AD 41 6C 6C 20  	DEFB	'All (Y/N)?',0
+ 993  E2B1 28 59 2F 4E
+ 993  E2B5 29 3F 00
+ 994  E2B8 CD 20 DF     	CALL	REDBUF		; GET REPLY
+ 995  E2BB 21 07 DE     	LD	HL,CBUFF	; CHECK FOR <CR>
+ 996  E2BE 35           	DEC	(HL)
+ 997  E2BF C2 2D E1     	JP	NZ,RESTRT	; RESTART CCP IF JUST <CR>
+ 998  E2C2 23           	INC	HL		; PT TO RESPONSE BYTE
+ 999  E2C3 7E           	LD	A,(HL)		; GET IT
+1000  E2C4 FE 59        	CP	'Y'		; YES?
+1001  E2C6 C2 2D E1     	JP	NZ,RESTRT	; RESTART CCP IF NOT
+1002  E2C9 23           	INC	HL		; PT TO CHAR AFTER 'Y'
+1003  E2CA 22 81 DE     	LD	(CIBPTR),HL	; SET PTR TO IT
+1004  E2CD              ERA1:
+1005  E2CD CD E0 E1     	CALL	SLOGIN		; LOG IN SELECTED DISK IF ANY
+1006  E2D0 3E 80        	LD	A,80H		; SKIP SYSTEM FILES (EXAMINE SYSTEM BIT)
+1007  E2D2 CD 2D E2     	CALL	DIRPR		; PRINT DIRECTORY OF ERASED FILES
+1008  E2D5 11 DD E5     	LD	DE,FCBDN	; DELETE FILE SPECIFIED
+1009  E2D8 CD E3 DE     	CALL	DELETE
+1010  E2DB C3 A6 E5     	JP	RSTCCP		; REENTER CCP
+1011  E2DE
+1012  E2DE              ;
+1013  E2DE              ;	CCP	LIST FUNCTION (LIST)
+1014  E2DE              ;
+1015  E2DE              LIST:
+1016  E2DE 3E FF        	LD	A,0FFH		; TURN ON PRINTER FLAG
+1017  E2E0 18           	DEFB	18H
+1018  E2E1 01           	DEFB	TYPE0-$-1 AND 0FFH
+1019  E2E2
+1020  E2E2              ;
+1021  E2E2              ;	CCP	TYPE FUNCTION (TYPE)
+1022  E2E2              ;
+1023  E2E2              TYPE:
+1024  E2E2 AF           	XOR	A		; TURN OFF PRINTER FLAG
+1025  E2E3
+1026  E2E3              ;	ENTRY	POINT FOR CCP LIST FUNCTION (LIST)
+1027  E2E3              TYPE0:
+1028  E2E3 32 FE E5     	LD	(PRFLG),A	; SET FLAG
+1029  E2E6 CD 10 E0     	CALL	SCANER		; EXTRACT FILENAME.TYP TOKEN
+1030  E2E9 C2 C3 DF     	JP	NZ,ERROR	; ERROR IF ANY QUESTION MARKS
+1031  E2EC CD E0 E1     	CALL	SLOGIN		; LOG IN SELECTED DISK IF ANY
+1032  E2EF CD C6 DE     	CALL	OPENF		; OPEN SELECTED FILE
+1033  E2F2 CA 79 E3     	JP	Z,TYPE4	; ABORT IF ERROR
+1034  E2F5 CD 9E DE     	CALL	CRLF		; NEW LINE
+1035  E2F8 CD 98 E3     	CALL	PAGSET		; SET LINE COUNT
+1036  E2FB 21 03 E6     	LD	HL,CHRCNT	; SET CHAR POSITION/COUNT
+1037  E2FE 36 FF        	LD	(HL),0FFH	; EMPTY LINE
+1038  E300 06 00        	LD	B,0		; SET TAB CHAR COUNTER
+1039  E302              TYPE1:
+1040  E302 21 03 E6     	LD	HL,CHRCNT	; PT TO CHAR POSITION/COUNT
+1041  E305 7E           	LD	A,(HL)		; END OF BUFFER?
+1042  E306 FE 80        	CP	80H
+1043  E308 38           	DEFB	38H
+1044  E309 09           	DEFB	TYPE2-$-1 AND 0FFH
+1045  E30A E5           	PUSH	HL		; READ NEXT BLOCK
+1046  E30B CD E8 DE     	CALL	READF
+1047  E30E E1           	POP	HL
+1048  E30F 20           	DEFB	20H
+1049  E310 56           	DEFB	TYPE3-$-1 AND 0FFH; ERROR?
+1050  E311 AF           	XOR	A		; RESET COUNT
+1051  E312 77           	LD	(HL),A
+1052  E313              TYPE2:
+1053  E313 34           	INC	(HL)		; INCREMENT CHAR COUNT
+1054  E314 21 80 00     	LD	HL,TBUFF	; PT TO BUFFER
+1055  E317 CD 0B E0     	CALL	ADDAH		; COMPUTE ADDRESS OF NEXT CHAR FROM OFFSET
+1056  E31A 7E           	LD	A,(HL)		; GET NEXT CHAR
+1057  E31B E6 7F        	AND	7FH		; MASK OUT MSB
+1058  E31D FE 1A        	CP	1AH		; END OF FILE (^Z)?
+1059  E31F CA A6 E5     	JP	Z,RSTCCP	; RESTART CCP IF SO
+1060  E322 F5           	PUSH	AF		; SAVE CHAR
+1061  E323 3A FE E5     	LD	A,(PRFLG)	; TYPE OR LIST?
+1062  E326 B7           	OR	A		; 0=TYPE
+1063  E327 28           	DEFB	28H
+1064  E328 27           	DEFB	TYPE2T-$-1 AND 0FFH
+1065  E329
+1066  E329              ;	OUTPU	T CHAR TO LST: DEVICE WITH TABULATION
+1067  E329 F1           	POP	AF		; GET CHAR
+1068  E32A FE 0D        	CP	CR		; RESET TAB COUNT?
+1069  E32C 28           	DEFB	28H
+1070  E32D 0E           	DEFB	TABRST-$-1 AND 0FFH
+1071  E32E FE 0A        	CP	LF		; RESET TAB COUNT?
+1072  E330 28           	DEFB	28H
+1073  E331 0A           	DEFB	TABRST-$-1 AND 0FFH
+1074  E332 FE 09        	CP	TAB		; TAB?
+1075  E334 28           	DEFB	28H
+1076  E335 0D           	DEFB	LTAB-$-1 AND 0FFH
+1077  E336 CD 98 DE     	CALL	LSTOUT		; LIST CHAR
+1078  E339 04           	INC	B		; INCREMENT CHAR COUNT
+1079  E33A 18           	DEFB	18H
+1080  E33B 1F           	DEFB	TYPE2L-$-1 AND 0FFH
+1081  E33C              TABRST:
+1082  E33C CD 98 DE     	CALL	LSTOUT		; OUTPUT <CR>
+1083  E33F 06 00        	LD	B,0		; RESET TAB COUNTER
+1084  E341 18           	DEFB	18H
+1085  E342 18           	DEFB	TYPE2L-$-1 AND 0FFH
+1086  E343              LTAB:
+1087  E343 3E 20        	LD	A,' '		; <SP>
+1088  E345 CD 98 DE     	CALL	LSTOUT
+1089  E348 04           	INC	B		; INCR POS COUNT
+1090  E349 78           	LD	A,B
+1091  E34A E6 07        	AND	7
+1092  E34C 20           	DEFB	20H
+1093  E34D F5           	DEFB	LTAB-$-1 AND 0FFH
+1094  E34E 18           	DEFB	18H
+1095  E34F 0B           	DEFB	TYPE2L-$-1 AND 0FFH
+1096  E350
+1097  E350              ;	OUTPU	T CHAR TO CON: WITH TABULATION
+1098  E350              TYPE2T:
+1099  E350 F1           	POP	AF		; GET CHAR
+1100  E351 F5           	PUSH	AF		; SAVE CHAR
+1101  E352 CD 87 DE     	CALL	CONOUT		; TYPE CHAR
+1102  E355 F1           	POP	AF
+1103  E356 FE 0A        	CP	LF		; PAGE ON <LF>
+1104  E358 CC 7F E3     	CALL	Z,PAGER	; COUNT LINES AND PAGE
+1105  E35B
+1106  E35B              ;	CONTI	NUE PROCESSING
+1107  E35B              TYPE2L:
+1108  E35B CD 9C DF     	CALL	BREAK		; CHECK FOR ABORT
+1109  E35E 28           	DEFB	28H
+1110  E35F A2           	DEFB	TYPE1-$-1 AND 0FFH; CONTINUE IF NO CHAR
+1111  E360 FE 03        	CP	'C'-'@'		; ^C?
+1112  E362 CA A6 E5     	JP	Z,RSTCCP	; RESTART IF SO
+1113  E365 18           	DEFB	18H
+1114  E366 9B           	DEFB	TYPE1-$-1 AND 0FFH
+1115  E367              TYPE3:
+1116  E367 3D           	DEC	A		; NO ERROR?
+1117  E368 CA A6 E5     	JP	Z,RSTCCP	; RESTART CCP
+1118  E36B CD A7 DE     	CALL	PRINT		; PRINT READ ERROR MSG
+1119  E36E 52 65 61 64  	DEFB	'Read Error',0
+1119  E372 20 45 72 72
+1119  E376 6F 72 00
+1120  E379              TYPE4:
+1121  E379 CD EB E1     	CALL	DLOGIN		; LOG IN DEFAULT DRIVE
+1122  E37C C3 C3 DF     	JP	ERROR
+1123  E37F
+1124  E37F              ;
+1125  E37F              ;	PAGIN	G ROUTINES
+1126  E37F              ;	PAGER	COUNTS DOWN LINES AND PAUSES FOR INPUT (DIRECT) IF COUNT EXPIRES
+1127  E37F              ;	PAGSE	T SETS LINES/PAGE COUNT
+1128  E37F              ;
+1129  E37F              PAGER:
+1130  E37F 3A FF E5     	LD	A,(PAGCNT)	; COUNT DOWN
+1131  E382 3D           	DEC	A
+1132  E383 32 FF E5     	LD	(PAGCNT),A
+1133  E386 C0           	RET	NZ
+1134  E387 E5           	PUSH	HL		; SAVE HL
+1135  E388              PAGER1:
+1136  E388 0E 06        	LD	C,6		; DIRECT CONSOLE I/O
+1137  E38A 1E FF        	LD	E,0FFH		; INPUT
+1138  E38C CD 92 DE     	CALL	BDOSB
+1139  E38F B7           	OR	A		; CHAR READY?
+1140  E390 28           	DEFB	28H
+1141  E391 F6           	DEFB	PAGER1-$-1 AND 0FFH; WAIT FOR CHAR
+1142  E392 FE 03        	CP	'C'-'@'		; ^C
+1143  E394 CA A6 E5     	JP	Z,RSTCCP	; RESTART CCP
+1144  E397 E1           	POP	HL		; RESTORE HL
+1145  E398              PAGSET:
+1146  E398 3E 16        	LD	A,NLINES-2	; GET LINE COUNT
+1147  E39A 32 FF E5     	LD	(PAGCNT),A
+1148  E39D C9           	RET
+1149  E39E
+1150  E39E              ;
+1151  E39E              ;	CCP	SAVE FUNCTION (SAVE)
+1152  E39E              ;
+1153  E39E              SAVE:
+1154  E39E CD 89 E1     	CALL	NUMBER		; EXTRACT NUMBER FROM COMMAND LINE
+1155  E3A1 F5           	PUSH	AF		; SAVE IT
+1156  E3A2 CD 10 E0     	CALL	SCANER		; EXTRACT FILENAME.TYPE
+1157  E3A5 C2 C3 DF     	JP	NZ,ERROR	; MUST BE NO '?' IN IT
+1158  E3A8 CD E0 E1     	CALL	SLOGIN		; LOG IN SELECTED DISK
+1159  E3AB 11 DD E5     	LD	DE,FCBDN	; DELETE FILE IN CASE IT ALREADY EXISTS
+1160  E3AE D5           	PUSH	DE
+1161  E3AF CD E3 DE     	CALL	DELETE
+1162  E3B2 D1           	POP	DE
+1163  E3B3 CD F6 DE     	CALL	CREATE		; MAKE NEW FILE
+1164  E3B6 28           	DEFB	28H
+1165  E3B7 2F           	DEFB	SAVE3-$-1 AND 0FFH; ERROR?
+1166  E3B8 AF           	XOR	A		; SET RECORD COUNT FIELD OF NEW FILE'S FCB
+1167  E3B9 32 FD E5     	LD	(FCBCR),A
+1168  E3BC F1           	POP	AF		; GET PAGE COUNT
+1169  E3BD 6F           	LD	L,A		; HL=PAGE COUNT
+1170  E3BE 26 00        	LD	H,0
+1171  E3C0 29           	ADD	HL,HL		; DOUBLE IT FOR HL=SECTOR (128 BYTES) COUNT
+1172  E3C1 11 00 01     	LD	DE,TPA		; PT TO START OF SAVE AREA (TPA)
+1173  E3C4              SAVE1:
+1174  E3C4 7C           	LD	A,H		; DONE WITH SAVE?
+1175  E3C5 B5           	OR	L		; HL=0 IF SO
+1176  E3C6 28           	DEFB	28H
+1177  E3C7 16           	DEFB	SAVE2-$-1 AND 0FFH
+1178  E3C8 2B           	DEC	HL		; COUNT DOWN ON SECTORS
+1179  E3C9 E5           	PUSH	HL		; SAVE PTR TO BLOCK TO SAVE
+1180  E3CA 21 80 00     	LD	HL,128		; 128 BYTES PER SECTOR
+1181  E3CD 19           	ADD	HL,DE		; PT TO NEXT SECTOR
+1182  E3CE E5           	PUSH	HL		; SAVE ON STACK
+1183  E3CF CD B0 DF     	CALL	DMASET		; SET DMA ADDRESS FOR WRITE (ADDRESS IN DE)
+1184  E3D2 11 DD E5     	LD	DE,FCBDN	; WRITE SECTOR
+1185  E3D5 CD F2 DE     	CALL	WRITE
+1186  E3D8 D1           	POP	DE		; GET PTR TO NEXT SECTOR IN DE
+1187  E3D9 E1           	POP	HL		; GET SECTOR COUNT
+1188  E3DA 20           	DEFB	20H
+1189  E3DB 0B           	DEFB	SAVE3-$-1 AND 0FFH; WRITE ERROR?
+1190  E3DC 18           	DEFB	18H
+1191  E3DD E6           	DEFB	SAVE1-$-1 AND 0FFH; CONTINUE
+1192  E3DE              SAVE2:
+1193  E3DE 11 DD E5     	LD	DE,FCBDN	; CLOSE SAVED FILE
+1194  E3E1 CD D4 DE     	CALL	CLOSE
+1195  E3E4 3C           	INC	A		; ERROR?
+1196  E3E5 20           	DEFB	20H
+1197  E3E6 0C           	DEFB	SAVE4-$-1 AND 0FFH
+1198  E3E7              SAVE3:
+1199  E3E7 CD A7 DE     	CALL	PRINT
+1200  E3EA 4E 6F 20 53  	DEFB	'No Space',0
+1200  E3EE 70 61 63 65
+1200  E3F2 00
+1201  E3F3              SAVE4:
+1202  E3F3 CD AD DF     	CALL	DEFDMA		; SET DMA TO 0080
+1203  E3F6 C3 A6 E5     	JP	RSTCCP		; RESTART CCP
+1204  E3F9
+1205  E3F9              ;
+1206  E3F9              ;	CCP	RENAME FILE FUNCTION (REN)
+1207  E3F9              ;
+1208  E3F9              REN:
+1209  E3F9 CD 10 E0     	CALL	SCANER		; EXTRACT FILE NAME
+1210  E3FC C2 C3 DF     	JP	NZ,ERROR	; ERROR IF ANY '?' IN IT
+1211  E3FF 3A 02 E6     	LD	A,(TEMPDR)	; SAVE CURRENT DEFAULT DISK
+1212  E402 F5           	PUSH	AF
+1213  E403 CD E0 E1     	CALL	SLOGIN		; LOG IN SELECTED DISK
+1214  E406 CD D8 DE     	CALL	SEARF		; LOOK FOR SPECIFIED FILE
+1215  E409 28           	DEFB	28H
+1216  E40A 12           	DEFB	REN0-$-1 AND 0FFH; CONTINUE IF NOT FOUND
+1217  E40B CD A7 DE     	CALL	PRINT
+1218  E40E 46 69 6C 65  	DEFB	'File Exists',0
+1218  E412 20 45 78 69
+1218  E416 73 74 73 00
+1219  E41A C3 61 E4     	JP	RENRET
+1220  E41D              REN0:
+1221  E41D 21 DD E5     	LD	HL,FCBDN	; SAVE NEW FILE NAME
+1222  E420 11 ED E5     	LD	DE,FCBDM
+1223  E423 06 10        	LD	B,16		; 16 BYTES
+1224  E425 CD D0 E1     	CALL	MOVEHD
+1225  E428 2A 81 DE     	LD	HL,(CIBPTR)	; GET PTR TO NEXT CHAR IN COMMAND LINE
+1226  E42B EB           	EX	DE,HL		; ... IN DE
+1227  E42C CD 02 E0     	CALL	SBLANK		; SKIP TO NON-BLANK
+1228  E42F FE 3D        	CP	'='		; '=' OR UNDERSCORE OK
+1229  E431 28           	DEFB	28H
+1230  E432 04           	DEFB	REN1-$-1 AND 0FFH
+1231  E433 FE 5F        	CP	5FH
+1232  E435 20           	DEFB	20H
+1233  E436 2D           	DEFB	REN4-$-1 AND 0FFH
+1234  E437              REN1:
+1235  E437 EB           	EX	DE,HL		; PT TO CHAR AFTER '=' OR UNDERSCORE IN HL
+1236  E438 23           	INC	HL
+1237  E439 22 81 DE     	LD	(CIBPTR),HL	; SAVE PTR TO OLD FILE NAME
+1238  E43C CD 10 E0     	CALL	SCANER		; EXTRACT FILENAME.TYP TOKEN
+1239  E43F 20           	DEFB	20H
+1240  E440 23           	DEFB	REN4-$-1 AND 0FFH; ERROR IF ANY '?'
+1241  E441 F1           	POP	AF		; GET OLD DEFAULT DRIVE
+1242  E442 47           	LD	B,A		; SAVE IT
+1243  E443 21 02 E6     	LD	HL,TEMPDR	; COMPARE IT AGAINST CURRENT DEFAULT DRIVE
+1244  E446 7E           	LD	A,(HL)		; MATCH?
+1245  E447 B7           	OR	A
+1246  E448 28           	DEFB	28H
+1247  E449 04           	DEFB	REN2-$-1 AND 0FFH
+1248  E44A B8           	CP	B		; CHECK FOR DRIVE ERROR
+1249  E44B 70           	LD	(HL),B
+1250  E44C 20           	DEFB	20H
+1251  E44D 16           	DEFB	REN4-$-1 AND 0FFH
+1252  E44E              REN2:
+1253  E44E 70           	LD	(HL),B
+1254  E44F AF           	XOR	A
+1255  E450 32 DD E5     	LD	(FCBDN),A	; SET DEFAULT DRIVE
+1256  E453 11 DD E5     	LD	DE,FCBDN	; RENAME FILE
+1257  E456 0E 17        	LD	C,17H		; BDOS RENAME FCT
+1258  E458 CD 05 00     	CALL	BDOS
+1259  E45B 3C           	INC	A		; ERROR? -- FILE NOT FOUND IF SO
+1260  E45C 20           	DEFB	20H
+1261  E45D 03           	DEFB	RENRET-$-1 AND 0FFH
+1262  E45E              REN3:
+1263  E45E CD 7C E1     	CALL	PRNNF		; PRINT NO FILE MSG
+1264  E461              RENRET:
+1265  E461 C3 A6 E5     	JP	RSTCCP		; RESTART CCP
+1266  E464              REN4:
+1267  E464 CD EB E1     	CALL	DLOGIN		; LOG IN DEFAULT DRIVE
+1268  E467 C3 C3 DF     	JP	ERROR
+1269  E46A
+1270  E46A              ;
+1271  E46A              ;	CCP	SET USER NUMBER FUNCTION
+1272  E46A              ;
+1273  E46A              MAXUSR:	EQU	15		; MAXIMUM USER AREA ACCESSABLE
+1274  E46A              USER:
+1275  E46A CD 89 E1     	CALL	NUMBER		; EXTRACT USER NUMBER FROM COMMAND LINE
+1276  E46D FE 10        	CP	MAXUSR+1	; ERROR IF >= MAXUSR
+1277  E46F D2 C3 DF     	JP	NC,ERROR
+1278  E472 5F           	LD	E,A		; PLACE USER NUMBER IN E
+1279  E473 3A DE E5     	LD	A,(FCBFN)	; CHECK FOR PARSE ERROR
+1280  E476 FE 20        	CP	' '		; <SP>=ERROR
+1281  E478 CA C3 DF     	JP	Z,ERROR
+1282  E47B CD FC DE     	CALL	SETUSR		; SET SPECIFIED USER
+1283  E47E C3 A9 E5     	JP	RCCPNL		; RESTART CCP (NO DEFAULT LOGIN)
+1284  E481
+1285  E481              ;
+1286  E481              ;	CLEAR	SCREEN ROUTINE FOR CRT TERMINAL
+1287  E481              ;
+1288  E481              CLS:
+1289  E481 3E 1B        	LD	A, 27		; Chars to clear the screen
+1290  E483 CD 87 DE     	CALL	CONOUT
+1291  E486 3E 5B        	LD	A, '['
+1292  E488 CD 87 DE     	CALL	CONOUT
+1293  E48B 3E 32        	LD	A, '2'
+1294  E48D CD 87 DE     	CALL	CONOUT
+1295  E490 3E 4A        	LD	A, 'J'
+1296  E492 CD 87 DE     	CALL	CONOUT
+1297  E495 3E 1B        	LD	A, 27		; And cursor home
+1298  E497 CD 87 DE     	CALL	CONOUT
+1299  E49A 3E 5B        	LD	A, '['
+1300  E49C CD 87 DE     	CALL	CONOUT
+1301  E49F 3E 48        	LD	A, 'H'
+1302  E4A1 CD 87 DE     	CALL	CONOUT
+1303  E4A4 C3 A9 E5     	JP	RCCPNL		; RESTART CCP (NO DEFAULT LOGIN)
+1304  E4A7
+1305  E4A7              ;
+1306  E4A7              ;	NOT	CCP-RESIDENT COMMAND -- PROCESS AS TRANSCIENT
+1307  E4A7              ;
+1308  E4A7              COM:
+1309  E4A7 CD FA DE     	CALL	GETUSR		; GET CURRENT USER NUMBER
+1310  E4AA 32 04 E6     	LD	(TMPUSR),A	; SAVE IT FOR LATER
+1311  E4AD 32 05 E6     	LD	(TSELUSR),A	; TEMP USER TO SELECT
+1312  E4B0 3A DE E5     	LD	A,(FCBFN)	; ANY COMMAND?
+1313  E4B3 FE 20        	CP	' '		; ' ' MEANS COMMAND WAS 'D:' TO SWITCH
+1314  E4B5 20           	DEFB	20H
+1315  E4B6 14           	DEFB	COM1-$-1 AND 0FFH; NOT <SP>, SO MUST BE TRANSCIENT OR ERROR
+1316  E4B7 3A 02 E6     	LD	A,(TEMPDR)	; LOOK FOR DRIVE SPEC
+1317  E4BA B7           	OR	A		; IF ZERO, JUST BLANK
+1318  E4BB CA A9 E5     	JP	Z,RCCPNL
+1319  E4BE 3D           	DEC	A		; ADJUST FOR LOG IN
+1320  E4BF 32 01 E6     	LD	(TDRIVE),A	; SET DEFAULT DRIVE
+1321  E4C2 CD 10 DF     	CALL	SETU0D		; SET DRIVE WITH USER 0
+1322  E4C5 CD C0 DE     	CALL	LOGIN		; LOG IN DRIVE
+1323  E4C8 C3 A9 E5     	JP	RCCPNL		; RESTART CCP
+1324  E4CB              COM1:
+1325  E4CB 3A E6 E5     	LD	A,(FCBFT)	; CHECK FOR ERROR IN FCB
+1326  E4CE FE 20        	CP	' '		; ERROR IF SO
+1327  E4D0 C2 C3 DF     	JP	NZ,ERROR
+1328  E4D3              ;
+1329  E4D3              ;	COMA	IS A REENTRY POINT FOR A NON-STANDARD CP/M MODIFICATION
+1330  E4D3              ;	THIS	IS THE RETURN POINT FOR WHEN THE .COM FILE IS NOT FOUND THE
+1331  E4D3              ;	FIRST	TIME, DRIVE A: IS SELECTED FOR A SECOND STTEMPT
+1332  E4D3              ;
+1333  E4D3              COMA:
+1334  E4D3 CD E0 E1     	CALL	SLOGIN		; LOG IN SPECIFIED DRIVE IF ANY
+1335  E4D6 21 A3 E5     	LD	HL,COMMSG	; PLACE 'COM' IN FCB
+1336  E4D9 11 E6 E5     	LD	DE,FCBFT	; PT TO FILE TYPE
+1337  E4DC CD CE E1     	CALL	MOVHD3		; MOVE 3 CHARS
+1338  E4DF CD C6 DE     	CALL	OPENF		; OPEN COMMAND.COM FILE
+1339  E4E2 20           	DEFB	20H
+1340  E4E3 1C           	DEFB	COMA1-$-1 AND 0FFH; ERROR?
+1341  E4E4
+1342  E4E4              ;	ERROR	ROUTINE TO SELECT USER 0 IF ALL ELSE FAILS
+1343  E4E4 3A 05 E6     	LD	A,(TSELUSR)	; GET USER FLAG
+1344  E4E7 B7           	OR	A		; SET FLAGS
+1345  E4E8 28           	DEFB	28H
+1346  E4E9 0A           	DEFB	COMA0-$-1 AND 0FFH; TRY DISK A: IF ALREADY USER 0
+1347  E4EA AF           	XOR	A		; SELECT USER 0
+1348  E4EB 5F           	LD	E,A
+1349  E4EC 32 05 E6     	LD	(TSELUSR),A	; RESET TEMPORARY USER NUMBER
+1350  E4EF CD FC DE     	CALL	SETUSR
+1351  E4F2 18           	DEFB	18H
+1352  E4F3 DF           	DEFB	COMA-$-1 AND 0FFH; TRY AGAIN
+1353  E4F4
+1354  E4F4              ;	ERROR	ROUTINE TO SELECT DRIVE A: IF DEFAULT WAS ORIGINALLY SELECTED
+1355  E4F4              COMA0:
+1356  E4F4 21 02 E6     	LD	HL,TEMPDR	; GET DRIVE FROM CURRENT COMMAND
+1357  E4F7 AF           	XOR	A			; A=0
+1358  E4F8 B6           	or	(HL)
+1359  E4F9 C2 93 E5     	JP	NZ,COM8		; ERROR IF ALREADY DISK A:
+1360  E4FC 36 01        	LD	(HL),1		; SELECT DRIVE a:
+1361  E4FE 18           	DEFB	18H
+1362  E4FF D3           	DEFB	COMA-$-1 AND 0FFH
+1363  E500
+1364  E500              ;	FILE	FOUND -- PROCEED WITH LOAD
+1365  E500              COMA1:
+1366  E500 21 00 01     	LD	HL,TPA		; SET START ADDRESS OF MEMORY LOAD
+1367  E503              COM2:
+1368  E503 E5           	PUSH	HL		; SAVE ADDRESS OF NEXT SECTOR
+1369  E504 EB           	EX	DE,HL		; ... IN DE
+1370  E505 CD B0 DF     	CALL	DMASET		; SET DMA ADDRESS FOR LOAD
+1371  E508 11 DD E5     	LD	DE,FCBDN	; READ NEXT SECTOR
+1372  E50B CD EB DE     	CALL	READ
+1373  E50E 20           	DEFB	20H
+1374  E50F 1F           	DEFB	COM3-$-1 AND 0FFH; READ ERROR OR EOF?
+1375  E510 E1           	POP	HL		; GET ADDRESS OF NEXT SECTOR
+1376  E511 11 80 00     	LD	DE,128		; MOVE 128 BYTES PER SECTOR
+1377  E514 19           	ADD	HL,DE		; PT TO NEXT SECTOR IN HL
+1378  E515 11 80 DD     	LD	DE,ENTRY-128	; ARE WE GOING TO WRITE OVER CCP?
+1379  E518 7D           	LD	A,L		; COMPARE ADDRESS OF NEXT SECTOR (HL)
+1380  E519 93           	SUB	E		;   TO START OF CCP (DE)
+1381  E51A 7C           	LD	A,H
+1382  E51B 9A           	SBC	A,D
+1383  E51C 30           	DEFB	30H
+1384  E51D 02           	DEFB	PRNLE-$-1 AND 0FFH; ERROR IF SAME
+1385  E51E 18           	DEFB	18H
+1386  E51F E3           	DEFB	COM2-$-1 AND 0FFH; OTHERWISE CONTINUE
+1387  E520
+1388  E520              ;	LOAD	ERROR
+1389  E520              PRNLE:
+1390  E520 CD A7 DE     	CALL	PRINT
+1391  E523 42 61 64 20  	DEFB	'Bad Load',0
+1391  E527 4C 6F 61 64
+1391  E52B 00
+1392  E52C C3 A6 E5     	JP	RSTCCP
+1393  E52F
+1394  E52F              COM3:
+1395  E52F E1           	POP	HL		; LOAD COMPLETE!
+1396  E530 3D           	DEC	A
+1397  E531 20           	DEFB	20H
+1398  E532 ED           	DEFB	PRNLE-$-1 AND 0FFH
+1399  E533 CD 9C E5     	CALL	RESETUSR	; RESET CURRENT USER NUMBER
+1400  E536              	;   USER MUST BE SET BEFORE LOGIN IS DONE
+1401  E536 CD EB E1     	CALL	DLOGIN		; LOG IN DEFAULT DRIVE
+1402  E539 CD 10 E0     	CALL	SCANER		; SEARCH COMMAND LINE FOR NEXT TOKEN
+1403  E53C 21 02 E6     	LD	HL,TEMPDR	; SAVE PTR TO DRIVE SPEC
+1404  E53F E5           	PUSH	HL
+1405  E540 7E           	LD	A,(HL)		; SET DRIVE SPEC
+1406  E541 32 DD E5     	LD	(FCBDN),A
+1407  E544 3E 10        	LD	A,10H		; OFFSET FOR 2ND FILE SPEC
+1408  E546 CD 12 E0     	CALL	SCAN1		; SCAN FOR IT AND LOAD IT INTO FCBDN+16
+1409  E549 E1           	POP	HL		; SET UP DRIVE SPECS
+1410  E54A 7E           	LD	A,(HL)
+1411  E54B 32 ED E5     	LD	(FCBDM),A
+1412  E54E AF           	XOR	A
+1413  E54F 32 FD E5     	LD	(FCBCR),A
+1414  E552 11 5C 00     	LD	DE,TFCB		; COPY TO DEFAULT FCB
+1415  E555 21 DD E5     	LD	HL,FCBDN	; FROM FCBDN
+1416  E558 06 21        	LD	B,33		; SET UP DEFAULT FCB
+1417  E55A CD D0 E1     	CALL	MOVEHD
+1418  E55D 21 08 DE     	LD	HL,CIBUFF
+1419  E560              COM4:
+1420  E560 7E           	LD	A,(HL)		; SKIP TO END OF 2ND FILE NAME
+1421  E561 B7           	OR	A		; END OF LINE?
+1422  E562 28           	DEFB	28H
+1423  E563 07           	DEFB	COM5-$-1 AND 0FFH
+1424  E564 FE 20        	CP	' '		; END OF TOKEN?
+1425  E566 28           	DEFB	28H
+1426  E567 03           	DEFB	COM5-$-1 AND 0FFH
+1427  E568 23           	INC	HL
+1428  E569 18           	DEFB	18H
+1429  E56A F5           	DEFB	COM4-$-1 AND 0FFH
+1430  E56B
+1431  E56B              ;	LOAD	COMMAND LINE INTO TBUFF
+1432  E56B              COM5:
+1433  E56B 06 00        	LD	B,0		; SET CHAR COUNT
+1434  E56D 11 81 00     	LD	DE,TBUFF+1	; PT TO CHAR POS
+1435  E570              COM6:
+1436  E570 7E           	LD	A,(HL)		; COPY COMMAND LINE TO TBUFF
+1437  E571 12           	LD	(DE),A
+1438  E572 B7           	OR	A		; DONE IF ZERO
+1439  E573 28           	DEFB	28H
+1440  E574 05           	DEFB	COM7-$-1 AND 0FFH
+1441  E575 04           	INC	B		; INCR CHAR COUNT
+1442  E576 23           	INC	HL		; PT TO NEXT
+1443  E577 13           	INC	DE
+1444  E578 18           	DEFB	18H
+1445  E579 F6           	DEFB	COM6-$-1 AND 0FFH
+1446  E57A
+1447  E57A              ;	RUN	LOADED TRANSCIENT PROGRAM
+1448  E57A              COM7:
+1449  E57A 78           	LD	A,B		; SAVE CHAR COUNT
+1450  E57B 32 80 00     	LD	(TBUFF),A
+1451  E57E CD 9E DE     	CALL	CRLF		; NEW LINE
+1452  E581 CD AD DF     	CALL	DEFDMA		; SET DMA TO 0080
+1453  E584 CD 01 DF     	CALL	SETUD		; SET USER/DISK
+1454  E587 CD 00 01     	CALL	TPA		; RUN TRANSCIENT
+1455  E58A CD 10 DF     	CALL	SETU0D		; SET USER 0/DISK
+1456  E58D CD C0 DE     	CALL	LOGIN		; LOGIN DISK
+1457  E590 C3 2D E1     	JP	RESTRT		; RESTART CCP
+1458  E593
+1459  E593              ;	TRANS	CIENT LOAD ERROR
+1460  E593              COM8:
+1461  E593 CD 9C E5     	CALL	RESETUSR	; RESET CURRENT USER NUMBER
+1462  E596              	;   RESET MUST BE DONE BEFORE LOGIN
+1463  E596 CD EB E1     	CALL	DLOGIN		; LOG IN DEFAULT DISK
+1464  E599 C3 C3 DF     	JP	ERROR
+1465  E59C
+1466  E59C              ;	RESET	SELECTED USER NUMBER IF CHANGED
+1467  E59C              RESETUSR:
+1468  E59C 3A 04 E6     	LD	A,(TMPUSR)	; GET OLD USER NUMBER
+1469  E59F 5F           	LD	E,A		; PLACE IN E
+1470  E5A0 C3 FC DE     	JP	SETUSR		; RESET
+1471  E5A3
+1472  E5A3              ;	FILE	TYPE FOR COMMAND
+1473  E5A3              COMMSG:
+1474  E5A3 43 4F 4D     	DEFB	'COM'
+1475  E5A6
+1476  E5A6              ;	ENTRY	POINT FOR RESTARTING CCP AND LOGGING IN DEFAULT DRIVE
+1477  E5A6              RSTCCP:
+1478  E5A6 CD EB E1     	CALL	DLOGIN		; LOG IN DEFAULT DRIVE
+1479  E5A9              ;	ENTRY	POINT FOR RESTARTING CCP WITHOUT LOGGING IN DEFAULT DRIVE
+1480  E5A9              RCCPNL:
+1481  E5A9 CD 10 E0     	CALL	SCANER		; EXTRACT NEXT TOKEN FROM COMMAND LINE
+1482  E5AC 3A DE E5     	LD	A,(FCBFN)	; GET FIRST CHAR OF TOKEN
+1483  E5AF D6 20        	SUB	' '		; ANY CHAR?
+1484  E5B1 21 02 E6     	LD	HL,TEMPDR
+1485  E5B4 B6           	OR	(HL)
+1486  E5B5 C2 C3 DF     	JP	NZ,ERROR
+1487  E5B8 C3 2D E1     	JP	RESTRT
+1488  E5BB
+1489  E5BB
+1490  E5BB              RNGSUB:
+1491  E5BB 00           	DEFB	0		;0=$$$.SUB NOT PRESENT, ELSE $$$.SUB PRESENT
+1492  E5BC
+1493  E5BC              ;
+1494  E5BC              ;	FILE	CONTROL BLOCK (FCB), ONE
+1495  E5BC              ;
+1496  E5BC              SUBFCB:
+1497  E5BC 00           	DEFB	0		;DISK NAME
+1498  E5BD 24 24 24     	DEFB	'$$$'		;FILE NAME
+1499  E5C0 20 20 20 20  	DEFB	'     '
+1499  E5C4 20
+1500  E5C5 53 55 42     	DEFB	'SUB'		;FILE TYPE
+1501  E5C8 00           	DEFB	0		;EXTENT NUMBER
+1502  E5C9 00           	DEFB	0		;S1
+1503  E5CA              SUBFS2:
+1504  E5CA 00           	DEFS	1		;S2
+1505  E5CB              SUBFRC:
+1506  E5CB 00           	DEFS	1		;RECORD COUNT
+1507  E5CC 00 00 00...  	DEFS	16		;DISK GROUP MAP
+1508  E5DC              SUBFCR:
+1509  E5DC 00           	DEFS	1		;CURRENT RECORD NUMBER
+1510  E5DD
+1511  E5DD              ;
+1512  E5DD              ;	FILE	CONTROL BLOCK
+1513  E5DD              ;
+1514  E5DD              FCBDN:
+1515  E5DD 00           	DEFS	1		;DISK NAME
+1516  E5DE              FCBFN:
+1517  E5DE 00 00 00...  	DEFS	8		;FILE NAME
+1518  E5E6              FCBFT:
+1519  E5E6 00 00 00     	DEFS	3		;FILE TYPE
+1520  E5E9 00           	DEFS	1		;EXTENT NUMBER
+1521  E5EA 00 00        	DEFS	2		;S1 AND S2
+1522  E5EC 00           	DEFS	1		;RECORD COUNT
+1523  E5ED              FCBDM:
+1524  E5ED 00 00 00...  	DEFS	16		;DISK GROUP MAP
+1525  E5FD              FCBCR:
+1526  E5FD 00           	DEFS	1		;CURRENT RECORD NUMBER
+1527  E5FE
+1528  E5FE              ;	OTHER	BUFFERS
+1529  E5FE              PRFLG:
+1530  E5FE 00           	DEFB	0		;PRINTER FLAG (0=NO, 0FFH=YES)
+1531  E5FF              PAGCNT:
+1532  E5FF 16           	DEFB	NLINES-2	;LINES LEFT ON PAGE
+1533  E600              IORESL:
+1534  E600 00           	DEFB	0		;I/O RESULTS
+1535  E601              TDRIVE:
+1536  E601 01           	DEFB	1		;TEMP DRIVE NUMBER
+1537  E602              TEMPDR:
+1538  E602 00           	DEFB	0
+1539  E603              CHRCNT:
+1540  E603 00           	DEFB	0		;CHAR COUNT FOR TYPE
+1541  E604              TMPUSR:
+1542  E604 00           	DEFB	0		;TEMPORARY USER NUMBER FOR COM
+1543  E605              TSELUSR:
+1544  E605 00           	DEFB	0		;TEMPORARY SELECTED USER NUMBER
+1545  E606
+1546  E606              	END
+# file closed: z80ccp.asm
