@@ -35,10 +35,9 @@ BOOT:
     db 27,'[0m'                     ; clear attributes
     db 27,'[?25h'                   ; Show cursor      
     db 'CP/M v2.2',13,10
-    db 'Z80 Playground - 8bitStack.co.uk',13,10
-    db 'Rel 1.10',13,10
-    db 'Inspired by Digital Research',13,10
-    db 13,10
+    db 'Hardware version 202206-R1',13,10
+    db 'Copyright (C) Digital Research',13,10
+    db 'Implemented and tested by pdsilva',13,10
     db '64K system with drives A thru P',13,10
     db 13,10
     db 0
@@ -69,6 +68,7 @@ show_ccp_name_loop:
     call CORE_print_a
     inc hl
     jr show_ccp_name_loop
+
 shown_ccp_name:
     call CORE_space
     ld hl, (ccp_location)
@@ -88,8 +88,7 @@ WBOOT:
 
     call CORE_message
     db 27,'[0m',0                  ; clear attributes
-    ;call CORE_message
-    ; Load the CCP to the proper location
+    ;'Load the CCP to the proper location',13,10,0
     ld hl, ccp_name
     call CORE_copy_filename_to_buffer
     ld de, (ccp_location)
@@ -105,6 +104,10 @@ WBOOT:
     ld a, (UDFLAG)
     ld c, a
     ld hl, (ccp_location)
+
+    call CORE_change_to_slot2
+
+;    jp      CCP_START
     inc hl
     inc hl
     inc hl
@@ -191,3 +194,8 @@ BIOS_STACK:
     db 0,0
 
 UDFLAG	EQU	4		;current drive name and user number.
+BIOS_END equ $
+
+    IF BIOS_END-BIOS_START>BIOS_SIZE
+        WARNING "The BIOS is too big! ',BIOS_SIZE," bytes max!"
+    ENDIF

@@ -8,11 +8,20 @@
   1+  0000              ; locations.asm
   2+  0000              ; Stores the ORG values for the CCP, BDOS, BIOS and CORE
   3+  0000
-  4+  0000              CORE_START  equ $F600    ; $FFFF - 2.5K
-  5+  0000              BIOS_START  equ $F400    ; $F600 - 0.5K
-  6+  0000              BDOS_START  equ $EA00    ; $F400 - 2.5K
-  7+  0000              CCP_START   equ $DE00    ; $EA00 - 3.0K
+  4+  0000              ;CORE_START  equ $F600    ; $FFFF - 2.5K
+  5+  0000              ;BIOS_START  equ $F400    ; $F600 - 0.5K
+  6+  0000              ;BDOS_START  equ $EA00    ; $F400 - 2.5K
+  7+  0000              ;CCP_START   equ $DE00    ; $EA00 - 3.0K
   8+  0000
+  9+  0000              CORE_START  equ $EC00    ; 5119
+ 10+  0000              BIOS_START  equ $DC00    ; 4096
+ 11+  0000              BDOS_START  equ $D000    ; 3072
+ 12+  0000              CCP_START   equ $B000    ; 8192
+ 13+  0000
+ 14+  0000              CORE_SIZE   equ 0xFFFF-CORE_START
+ 15+  0000              BIOS_SIZE   equ CORE_START-BIOS_START
+ 16+  0000              BDOS_SIZE   equ BIOS_START-BDOS_START
+ 17+  0000              CCP_SIZE    equ BDOS_START-CCP_START
 # file closed: locations.asm
   6   0000                  include "core_jump.asm"
 # file opened: core_jump.asm
@@ -34,6 +43,12 @@
   9++ 0000              uart_LSR 		equ   0xBD   ;  13
  10++ 0000              uart_MSR 		equ   0xBE   ;  14
  11++ 0000              uart_scratch 	equ   0xBF   ;  15
+ 12++ 0000
+ 13++ 0000              PIO_A	equ	0xA8		; CA80 user 8255 base address 	  (port A)
+ 14++ 0000              PIO_B	equ	0xA9		; CA80 user 8255 base address + 1 (port B)
+ 15++ 0000              PIO_C	equ	0xAA		; CA80 user 8255 base address + 2 (fport C)
+ 16++ 0000              PIO_M	equ	0xAB		; CA80 user 8255 control register
+ 17++ 0000
 # file closed: port_numbers.asm
   7+  0000
   8+  0000
@@ -80,254 +95,267 @@
  49+  0000              CORE_show_a_as_hex equ CORE_START+120
  50+  0000              CORE_convert_user_number_to_folder_name equ CORE_START+123
  51+  0000              CORE_set_file_size_in_fcb equ CORE_START+126
- 52+  0000
- 53+  0000              filename_buffer equ 65535-20
- 54+  0000              DRIVE_NAME equ filename_buffer-2
- 55+  0000              disk_buffer equ DRIVE_NAME-36
- 56+  0000
- 57+  0000              core_location equ disk_buffer-2         ; Stores the core_start location
- 58+  0000              bios_location equ core_location-2       ; Stores the bios_start location
- 59+  0000              bdos_location equ bios_location-2       ; Stores the bdos_start location
- 60+  0000              ccp_location equ bdos_location-2        ; Stores the ccp_start location
- 61+  0000              ccp_name equ ccp_location-13            ; stores the name of the ccp file, e.g. MYCCP.BIN with a zero terminator
- 62+  0000
- 63+  0000
+ 52+  0000              CORE_change_to_slot2 equ CORE_START+129
+ 53+  0000
+ 54+  0000
+ 55+  0000              filename_buffer equ 65535-20
+ 56+  0000              DRIVE_NAME equ filename_buffer-2
+ 57+  0000              disk_buffer equ DRIVE_NAME-36
+ 58+  0000
+ 59+  0000              core_location equ disk_buffer-2         ; Stores the core_start location
+ 60+  0000              bios_location equ core_location-2       ; Stores the bios_start location
+ 61+  0000              bdos_location equ bios_location-2       ; Stores the bdos_start location
+ 62+  0000              ccp_location equ bdos_location-2        ; Stores the ccp_start location
+ 63+  0000              ccp_name equ ccp_location-13            ; stores the name of the ccp file, e.g. MYCCP.BIN with a zero terminator
  64+  0000
  65+  0000
  66+  0000
  67+  0000
+ 68+  0000
+ 69+  0000
 # file closed: core_jump.asm
   7   0000
   8   0000                  org BIOS_START
-  9   F400
- 10   F400              bios_entry:
- 11   F400 C3 33 F4        	JP	BOOT	;COLD START
- 12   F403              WBOOTE:
- 13   F403 C3 20 F5         JP	WBOOT	;WARM START
- 14   F406 C3 4F F5         JP	CONST	;CONSOLE STATUS
- 15   F409 C3 5C F5         JP	CONIN	;CONSOLE CHARACTER IN
- 16   F40C C3 66 F5         JP	CONOUT	;CONSOLE CHARACTER OUT
- 17   F40F C3 6B F5         JP	LIST	;LIST CHARACTER OUT
- 18   F412 C3 6E F5         JP	PUNCH	;PUNCH CHARACTER OUT
- 19   F415 C3 71 F5         JP	READER	;READER CHARACTER OUT
- 20   F418 C3 76 F5         JP	HOME	;MOVE HEAD TO HOME POSITION
- 21   F41B C3 7B F5         JP	SELDSK	;SELECT DISK
- 22   F41E C3 80 F5         JP	SETTRK	;SET TRACK NUMBER
- 23   F421 C3 85 F5         JP	SETSEC	;SET SECTOR NUMBER
- 24   F424 C3 8A F5         JP	SETDMA	;SET DMA ADDRESS
- 25   F427 C3 8F F5         JP	READ	;READ DISK
- 26   F42A C3 94 F5         JP	WRITE	;WRITE DISK
- 27   F42D C3 99 F5         JP	LISTST	;RETURN LIST STATUS
- 28   F430 C3 9E F5         JP	SECTRAN	;SECTOR TRANSLATE
- 29   F433
- 30   F433              BOOT:
- 31   F433 31 EF F5         ld sp, BIOS_STACK
- 32   F436 CD 39 F6         call CORE_message
- 33   F439 1B 5B 32 4A      db 27,'[2J'                     ; clear screen
- 34   F43D 1B 5B 48         db 27,'[H'                      ; cursor home
- 35   F440 1B 5B 30 6D      db 27,'[0m'                     ; clear attributes
- 36   F444 1B 5B 3F 32      db 27,'[?25h'                   ; Show cursor
- 36   F448 35 68
- 37   F44A 43 50 2F 4D      db 'CP/M v2.2',13,10
- 37   F44E 20 76 32 2E
- 37   F452 32 0D 0A
- 38   F455 5A 38 30 20      db 'Z80 Playground - 8bitStack.co.uk',13,10
- 38   F459 50 6C 61 79
- 38   F45D 67 72 6F 75
- 38   F461 6E 64 20 2D
- 38   F465 20 38 62 69
- 38   F469 74 53 74 61
- 38   F46D 63 6B 2E 63
- 38   F471 6F 2E 75 6B
- 38   F475 0D 0A
- 39   F477 52 65 6C 20      db 'Rel 1.10',13,10
- 39   F47B 31 2E 31 30
- 39   F47F 0D 0A
- 40   F481 49 6E 73 70      db 'Inspired by Digital Research',13,10
- 40   F485 69 72 65 64
- 40   F489 20 62 79 20
- 40   F48D 44 69 67 69
- 40   F491 74 61 6C 20
- 40   F495 52 65 73 65
- 40   F499 61 72 63 68
- 40   F49D 0D 0A
- 41   F49F 0D 0A            db 13,10
- 42   F4A1 36 34 4B 20      db '64K system with drives A thru P',13,10
- 42   F4A5 73 79 73 74
- 42   F4A9 65 6D 20 77
- 42   F4AD 69 74 68 20
- 42   F4B1 64 72 69 76
- 42   F4B5 65 73 20 41
- 42   F4B9 20 74 68 72
- 42   F4BD 75 20 50 0D
- 42   F4C1 0A
- 43   F4C2 0D 0A            db 13,10
- 44   F4C4 00               db 0
- 45   F4C5
- 46   F4C5 CD 39 F6         call CORE_message
- 47   F4C8 43 4F 52 45      db 'CORE ',0
- 47   F4CC 20 00
- 48   F4CE 21 00 F6         ld hl, CORE_START
- 49   F4D1 CD 3C F6         call CORE_show_hl_as_hex
- 50   F4D4 CD 33 F6         call CORE_newline
- 51   F4D7
- 52   F4D7 CD 39 F6         call CORE_message
- 53   F4DA 42 49 4F 53      db 'BIOS ',0
- 53   F4DE 20 00
- 54   F4E0 21 00 F4         ld hl, BIOS_START
- 55   F4E3 CD 3C F6         call CORE_show_hl_as_hex
- 56   F4E6 CD 33 F6         call CORE_newline
- 57   F4E9
- 58   F4E9 CD 39 F6         call CORE_message
- 59   F4EC 42 44 4F 53      db 'BDOS ',0
- 59   F4F0 20 00
- 60   F4F2 21 00 EA         ld hl, BDOS_START
- 61   F4F5 CD 3C F6         call CORE_show_hl_as_hex
- 62   F4F8 CD 33 F6         call CORE_newline
- 63   F4FB
- 64   F4FB 21 B0 FF         ld hl, ccp_name
- 65   F4FE              show_ccp_name_loop:
- 66   F4FE 7E               ld a, (hl)
- 67   F4FF FE 00            cp 0
- 68   F501 28 06            jr z, shown_ccp_name
- 69   F503 CD 06 F6         call CORE_print_a
- 70   F506 23               inc hl
- 71   F507 18 F5            jr show_ccp_name_loop
- 72   F509              shown_ccp_name:
- 73   F509 CD 36 F6         call CORE_space
- 74   F50C 2A BD FF         ld hl, (ccp_location)
- 75   F50F CD 3C F6         call CORE_show_hl_as_hex
- 76   F512 CD 33 F6         call CORE_newline
- 77   F515
- 78   F515 CD 30 F6         call CORE_rom_off
- 79   F518 CD 27 F6         call CORE_user_off
- 80   F51B
- 81   F51B                  ; Set the drive and user to 0
- 82   F51B 3E 00            ld a, 0
- 83   F51D 32 04 00         ld (UDFLAG), a
- 84   F520
- 85   F520                  ; Roll through to the warm boot...
- 86   F520              WBOOT:
- 87   F520 31 EF F5         ld sp, BIOS_STACK
- 88   F523
- 89   F523 CD 39 F6         call CORE_message
- 90   F526 1B 5B 30 6D      db 27,'[0m',0                  ; clear attributes
- 90   F52A 00
- 91   F52B                  ;call CORE_message
- 92   F52B                  ; Load the CCP to the proper location
- 93   F52B 21 B0 FF         ld hl, ccp_name
- 94   F52E CD 60 F6         call CORE_copy_filename_to_buffer
- 95   F531 ED 5B BD FF      ld de, (ccp_location)
- 96   F535 CD 48 F6         call CORE_load_bin_file
- 97   F538
- 98   F538                  ; Load the BDOS to the proper location - so we can do disk access etc
- 99   F538 21 BF F5         ld hl, NAME_OF_BDOS
-100   F53B CD 60 F6         call CORE_copy_filename_to_buffer
-101   F53E 11 00 EA         ld de, BDOS_START
-102   F541 CD 48 F6         call CORE_load_bin_file
-103   F544
-104   F544                  ; Pass the current drive and user to the CCP to start it
-105   F544 3A 04 00         ld a, (UDFLAG)
-106   F547 4F               ld c, a
-107   F548 2A BD FF         ld hl, (ccp_location)
-108   F54B 23               inc hl
-109   F54C 23               inc hl
-110   F54D 23               inc hl
-111   F54E E9               jp (hl) ; Note this means jump to hl, not jump to (hl)
-112   F54F
-113   F54F              CONST:
-114   F54F                  ; RETURN 0FFH IF CHARACTER READY, 00H IF NOT
-115   F54F DB BD        	in a,(uart_LSR)			; get status from Line Status Register
-116   F551 CB 47        	bit 0,a					; zero flag set to true if bit 0 is 0 (bit 0 = Receive Data Ready)
-117   F553              							; "logic 0 = no data in receive holding register."
-118   F553 CA 59 F5     	jp z,CONST1	            ; zero = no char received
-119   F556 3E FF        	ld a, $FF		        ; return true
-120   F558 C9           	ret						; in A
-121   F559              CONST1:
-122   F559 3E 00        	ld a,0					; Return a zero in A
-123   F55B C9           	ret
-124   F55C
-125   F55C              CONIN:
-126   F55C                  ; CONSOLE CHARACTER INTO REGISTER A
-127   F55C DB BD        	in a,(uart_LSR)			; get status from Line Status Register
-128   F55E CB 47        	bit 0,a					; zero flag set to true if bit 0 is 0 (bit 0 = Receive Data Ready)
-129   F560              							; "logic 0 = no data in receive holding register."
-130   F560 CA 5C F5     	jp z,CONIN	            ; zero = no char received
-131   F563 DB B8        	in a,(uart_tx_rx)		; Get the incoming char
-132   F565 C9               ret
-133   F566
-134   F566              CONOUT:
-135   F566 79               ld a, c
-136   F567 CD 06 F6         call CORE_print_a
-137   F56A C9               ret
-138   F56B
-139   F56B              LIST:
-140   F56B C3 66 F5         jp CONOUT
-141   F56E              PUNCH:
-142   F56E C3 66 F5         jp CONOUT
-143   F571              READER:
-144   F571 3E 52            ld a, 'R'
-145   F573 C3 A3 F5         jp BIOS_MOAN
-146   F576              HOME:
-147   F576 3E 48            ld a, 'H'
-148   F578 C3 A3 F5         jp BIOS_MOAN
-149   F57B              SELDSK:
-150   F57B 3E 44            ld a, 'D'
-151   F57D C3 A3 F5         jp BIOS_MOAN
-152   F580              SETTRK:
-153   F580 3E 54            ld a, 'T'
-154   F582 C3 A3 F5         jp BIOS_MOAN
-155   F585              SETSEC:
-156   F585 3E 53            ld a, 'S'
-157   F587 C3 A3 F5         jp BIOS_MOAN
-158   F58A              SETDMA:
-159   F58A 3E 44            ld a, 'D'
-160   F58C C3 A3 F5         jp BIOS_MOAN
-161   F58F              READ:
-162   F58F 3E 3C            ld a, '<'
-163   F591 C3 A3 F5         jp BIOS_MOAN
-164   F594              WRITE:
-165   F594 3E 3E            ld a, '>'
-166   F596 C3 A3 F5         jp BIOS_MOAN
-167   F599              LISTST:
-168   F599 3E 3A            ld a, ':'
-169   F59B C3 A3 F5         jp BIOS_MOAN
-170   F59E              SECTRAN:
-171   F59E 3E 2B            ld a, '+'
-172   F5A0 C3 A3 F5         jp BIOS_MOAN
-173   F5A3
-174   F5A3              BIOS_MOAN:
-175   F5A3 CD 39 F6         call CORE_message
-176   F5A6 42 41 44 20      db 'BAD BIOS CALL: ',0
-176   F5AA 42 49 4F 53
-176   F5AE 20 43 41 4C
-176   F5B2 4C 3A 20 00
-177   F5B6 CD 06 F6         call CORE_print_a
-178   F5B9 CD 33 F6         call CORE_newline
-179   F5BC C3 00 00         jp $0000                    ; Totally abandon anything after a bad BIOS call!
-180   F5BF
-181   F5BF              NAME_OF_BDOS:
-182   F5BF 42 44 4F 53      db 'BDOS.BIN',0
-182   F5C3 2E 42 49 4E
-182   F5C7 00
-183   F5C8              NAME_OF_BIOS:
-184   F5C8 42 49 4F 53      db 'BIOS.BIN',0
-184   F5CC 2E 42 49 4E
-184   F5D0 00
-185   F5D1
-186   F5D1              BIOS_STACK_START:
-187   F5D1 00 00 00 00      db 0,0,0,0,0,0,0,0,0,0
-187   F5D5 00 00 00 00
-187   F5D9 00 00
-188   F5DB 00 00 00 00      db 0,0,0,0,0,0,0,0,0,0
-188   F5DF 00 00 00 00
-188   F5E3 00 00
-189   F5E5 00 00 00 00      db 0,0,0,0,0,0,0,0,0,0
-189   F5E9 00 00 00 00
-189   F5ED 00 00
-190   F5EF              BIOS_STACK:
-191   F5EF 00 00            db 0,0
-192   F5F1
-193   F5F1              UDFLAG	EQU	4		;current drive name and user number.
-194   F5F1
+  9   DC00
+ 10   DC00              bios_entry:
+ 11   DC00 C3 33 DC        	JP	BOOT	;COLD START
+ 12   DC03              WBOOTE:
+ 13   DC03 C3 33 DD         JP	WBOOT	;WARM START
+ 14   DC06 C3 65 DD         JP	CONST	;CONSOLE STATUS
+ 15   DC09 C3 72 DD         JP	CONIN	;CONSOLE CHARACTER IN
+ 16   DC0C C3 7C DD         JP	CONOUT	;CONSOLE CHARACTER OUT
+ 17   DC0F C3 81 DD         JP	LIST	;LIST CHARACTER OUT
+ 18   DC12 C3 84 DD         JP	PUNCH	;PUNCH CHARACTER OUT
+ 19   DC15 C3 87 DD         JP	READER	;READER CHARACTER OUT
+ 20   DC18 C3 8C DD         JP	HOME	;MOVE HEAD TO HOME POSITION
+ 21   DC1B C3 91 DD         JP	SELDSK	;SELECT DISK
+ 22   DC1E C3 96 DD         JP	SETTRK	;SET TRACK NUMBER
+ 23   DC21 C3 9B DD         JP	SETSEC	;SET SECTOR NUMBER
+ 24   DC24 C3 A0 DD         JP	SETDMA	;SET DMA ADDRESS
+ 25   DC27 C3 A5 DD         JP	READ	;READ DISK
+ 26   DC2A C3 AA DD         JP	WRITE	;WRITE DISK
+ 27   DC2D C3 AF DD         JP	LISTST	;RETURN LIST STATUS
+ 28   DC30 C3 B4 DD         JP	SECTRAN	;SECTOR TRANSLATE
+ 29   DC33
+ 30   DC33              BOOT:
+ 31   DC33 31 05 DE         ld sp, BIOS_STACK
+ 32   DC36 CD 39 EC         call CORE_message
+ 33   DC39 1B 5B 32 4A      db 27,'[2J'                     ; clear screen
+ 34   DC3D 1B 5B 48         db 27,'[H'                      ; cursor home
+ 35   DC40 1B 5B 30 6D      db 27,'[0m'                     ; clear attributes
+ 36   DC44 1B 5B 3F 32      db 27,'[?25h'                   ; Show cursor
+ 36   DC48 35 68
+ 37   DC4A 43 50 2F 4D      db 'CP/M v2.2',13,10
+ 37   DC4E 20 76 32 2E
+ 37   DC52 32 0D 0A
+ 38   DC55 48 61 72 64      db 'Hardware version 202206-R1',13,10
+ 38   DC59 77 61 72 65
+ 38   DC5D 20 76 65 72
+ 38   DC61 73 69 6F 6E
+ 38   DC65 20 32 30 32
+ 38   DC69 32 30 36 2D
+ 38   DC6D 52 31 0D 0A
+ 39   DC71 43 6F 70 79      db 'Copyright (C) Digital Research',13,10
+ 39   DC75 72 69 67 68
+ 39   DC79 74 20 28 43
+ 39   DC7D 29 20 44 69
+ 39   DC81 67 69 74 61
+ 39   DC85 6C 20 52 65
+ 39   DC89 73 65 61 72
+ 39   DC8D 63 68 0D 0A
+ 40   DC91 49 6D 70 6C      db 'Implemented and tested by pdsilva',13,10
+ 40   DC95 65 6D 65 6E
+ 40   DC99 74 65 64 20
+ 40   DC9D 61 6E 64 20
+ 40   DCA1 74 65 73 74
+ 40   DCA5 65 64 20 62
+ 40   DCA9 79 20 70 64
+ 40   DCAD 73 69 6C 76
+ 40   DCB1 61 0D 0A
+ 41   DCB4 36 34 4B 20      db '64K system with drives A thru P',13,10
+ 41   DCB8 73 79 73 74
+ 41   DCBC 65 6D 20 77
+ 41   DCC0 69 74 68 20
+ 41   DCC4 64 72 69 76
+ 41   DCC8 65 73 20 41
+ 41   DCCC 20 74 68 72
+ 41   DCD0 75 20 50 0D
+ 41   DCD4 0A
+ 42   DCD5 0D 0A            db 13,10
+ 43   DCD7 00               db 0
+ 44   DCD8
+ 45   DCD8 CD 39 EC         call CORE_message
+ 46   DCDB 43 4F 52 45      db 'CORE ',0
+ 46   DCDF 20 00
+ 47   DCE1 21 00 EC         ld hl, CORE_START
+ 48   DCE4 CD 3C EC         call CORE_show_hl_as_hex
+ 49   DCE7 CD 33 EC         call CORE_newline
+ 50   DCEA
+ 51   DCEA CD 39 EC         call CORE_message
+ 52   DCED 42 49 4F 53      db 'BIOS ',0
+ 52   DCF1 20 00
+ 53   DCF3 21 00 DC         ld hl, BIOS_START
+ 54   DCF6 CD 3C EC         call CORE_show_hl_as_hex
+ 55   DCF9 CD 33 EC         call CORE_newline
+ 56   DCFC
+ 57   DCFC CD 39 EC         call CORE_message
+ 58   DCFF 42 44 4F 53      db 'BDOS ',0
+ 58   DD03 20 00
+ 59   DD05 21 00 D0         ld hl, BDOS_START
+ 60   DD08 CD 3C EC         call CORE_show_hl_as_hex
+ 61   DD0B CD 33 EC         call CORE_newline
+ 62   DD0E
+ 63   DD0E 21 B0 FF         ld hl, ccp_name
+ 64   DD11              show_ccp_name_loop:
+ 65   DD11 7E               ld a, (hl)
+ 66   DD12 FE 00            cp 0
+ 67   DD14 28 06            jr z, shown_ccp_name
+ 68   DD16 CD 06 EC         call CORE_print_a
+ 69   DD19 23               inc hl
+ 70   DD1A 18 F5            jr show_ccp_name_loop
+ 71   DD1C
+ 72   DD1C              shown_ccp_name:
+ 73   DD1C CD 36 EC         call CORE_space
+ 74   DD1F 2A BD FF         ld hl, (ccp_location)
+ 75   DD22 CD 3C EC         call CORE_show_hl_as_hex
+ 76   DD25 CD 33 EC         call CORE_newline
+ 77   DD28
+ 78   DD28 CD 30 EC         call CORE_rom_off
+ 79   DD2B CD 27 EC         call CORE_user_off
+ 80   DD2E
+ 81   DD2E                  ; Set the drive and user to 0
+ 82   DD2E 3E 00            ld a, 0
+ 83   DD30 32 04 00         ld (UDFLAG), a
+ 84   DD33
+ 85   DD33                  ; Roll through to the warm boot...
+ 86   DD33              WBOOT:
+ 87   DD33 31 05 DE         ld sp, BIOS_STACK
+ 88   DD36
+ 89   DD36 CD 39 EC         call CORE_message
+ 90   DD39 1B 5B 30 6D      db 27,'[0m',0                  ; clear attributes
+ 90   DD3D 00
+ 91   DD3E                  ;'Load the CCP to the proper location',13,10,0
+ 92   DD3E 21 B0 FF         ld hl, ccp_name
+ 93   DD41 CD 60 EC         call CORE_copy_filename_to_buffer
+ 94   DD44 ED 5B BD FF      ld de, (ccp_location)
+ 95   DD48 CD 48 EC         call CORE_load_bin_file
+ 96   DD4B
+ 97   DD4B                  ; Load the BDOS to the proper location - so we can do disk access etc
+ 98   DD4B 21 D5 DD         ld hl, NAME_OF_BDOS
+ 99   DD4E CD 60 EC         call CORE_copy_filename_to_buffer
+100   DD51 11 00 D0         ld de, BDOS_START
+101   DD54 CD 48 EC         call CORE_load_bin_file
+102   DD57
+103   DD57                  ; Pass the current drive and user to the CCP to start it
+104   DD57 3A 04 00         ld a, (UDFLAG)
+105   DD5A 4F               ld c, a
+106   DD5B 2A BD FF         ld hl, (ccp_location)
+107   DD5E
+108   DD5E CD 81 EC         call CORE_change_to_slot2
+109   DD61
+110   DD61              ;    jp      CCP_START
+111   DD61 23               inc hl
+112   DD62 23               inc hl
+113   DD63 23               inc hl
+114   DD64 E9               jp (hl) ; Note this means jump to hl, not jump to (hl)
+115   DD65
+116   DD65              CONST:
+117   DD65                  ; RETURN 0FFH IF CHARACTER READY, 00H IF NOT
+118   DD65 DB BD        	in a,(uart_LSR)			; get status from Line Status Register
+119   DD67 CB 47        	bit 0,a					; zero flag set to true if bit 0 is 0 (bit 0 = Receive Data Ready)
+120   DD69              							; "logic 0 = no data in receive holding register."
+121   DD69 CA 6F DD     	jp z,CONST1	            ; zero = no char received
+122   DD6C 3E FF        	ld a, $FF		        ; return true
+123   DD6E C9           	ret						; in A
+124   DD6F              CONST1:
+125   DD6F 3E 00        	ld a,0					; Return a zero in A
+126   DD71 C9           	ret
+127   DD72
+128   DD72              CONIN:
+129   DD72                  ; CONSOLE CHARACTER INTO REGISTER A
+130   DD72 DB BD        	in a,(uart_LSR)			; get status from Line Status Register
+131   DD74 CB 47        	bit 0,a					; zero flag set to true if bit 0 is 0 (bit 0 = Receive Data Ready)
+132   DD76              							; "logic 0 = no data in receive holding register."
+133   DD76 CA 72 DD     	jp z,CONIN	            ; zero = no char received
+134   DD79 DB B8        	in a,(uart_tx_rx)		; Get the incoming char
+135   DD7B C9               ret
+136   DD7C
+137   DD7C              CONOUT:
+138   DD7C 79               ld a, c
+139   DD7D CD 06 EC         call CORE_print_a
+140   DD80 C9               ret
+141   DD81
+142   DD81              LIST:
+143   DD81 C3 7C DD         jp CONOUT
+144   DD84              PUNCH:
+145   DD84 C3 7C DD         jp CONOUT
+146   DD87              READER:
+147   DD87 3E 52            ld a, 'R'
+148   DD89 C3 B9 DD         jp BIOS_MOAN
+149   DD8C              HOME:
+150   DD8C 3E 48            ld a, 'H'
+151   DD8E C3 B9 DD         jp BIOS_MOAN
+152   DD91              SELDSK:
+153   DD91 3E 44            ld a, 'D'
+154   DD93 C3 B9 DD         jp BIOS_MOAN
+155   DD96              SETTRK:
+156   DD96 3E 54            ld a, 'T'
+157   DD98 C3 B9 DD         jp BIOS_MOAN
+158   DD9B              SETSEC:
+159   DD9B 3E 53            ld a, 'S'
+160   DD9D C3 B9 DD         jp BIOS_MOAN
+161   DDA0              SETDMA:
+162   DDA0 3E 44            ld a, 'D'
+163   DDA2 C3 B9 DD         jp BIOS_MOAN
+164   DDA5              READ:
+165   DDA5 3E 3C            ld a, '<'
+166   DDA7 C3 B9 DD         jp BIOS_MOAN
+167   DDAA              WRITE:
+168   DDAA 3E 3E            ld a, '>'
+169   DDAC C3 B9 DD         jp BIOS_MOAN
+170   DDAF              LISTST:
+171   DDAF 3E 3A            ld a, ':'
+172   DDB1 C3 B9 DD         jp BIOS_MOAN
+173   DDB4              SECTRAN:
+174   DDB4 3E 2B            ld a, '+'
+175   DDB6 C3 B9 DD         jp BIOS_MOAN
+176   DDB9
+177   DDB9              BIOS_MOAN:
+178   DDB9 CD 39 EC         call CORE_message
+179   DDBC 42 41 44 20      db 'BAD BIOS CALL: ',0
+179   DDC0 42 49 4F 53
+179   DDC4 20 43 41 4C
+179   DDC8 4C 3A 20 00
+180   DDCC CD 06 EC         call CORE_print_a
+181   DDCF CD 33 EC         call CORE_newline
+182   DDD2 C3 00 00         jp $0000                    ; Totally abandon anything after a bad BIOS call!
+183   DDD5
+184   DDD5              NAME_OF_BDOS:
+185   DDD5 42 44 4F 53      db 'BDOS.BIN',0
+185   DDD9 2E 42 49 4E
+185   DDDD 00
+186   DDDE              NAME_OF_BIOS:
+187   DDDE 42 49 4F 53      db 'BIOS.BIN',0
+187   DDE2 2E 42 49 4E
+187   DDE6 00
+188   DDE7
+189   DDE7              BIOS_STACK_START:
+190   DDE7 00 00 00 00      db 0,0,0,0,0,0,0,0,0,0
+190   DDEB 00 00 00 00
+190   DDEF 00 00
+191   DDF1 00 00 00 00      db 0,0,0,0,0,0,0,0,0,0
+191   DDF5 00 00 00 00
+191   DDF9 00 00
+192   DDFB 00 00 00 00      db 0,0,0,0,0,0,0,0,0,0
+192   DDFF 00 00 00 00
+192   DE03 00 00
+193   DE05              BIOS_STACK:
+194   DE05 00 00            db 0,0
+195   DE07
+196   DE07              UDFLAG	EQU	4		;current drive name and user number.
+197   DE07              BIOS_END equ $
+198   DE07
+199   DE07                  IF BIOS_END-BIOS_START>BIOS_SIZE
+200   DE07 ~                    WARNING "The BIOS is too big! ',BIOS_SIZE," bytes max!"
+201   DE07                  ENDIF
 # file closed: bios.asm

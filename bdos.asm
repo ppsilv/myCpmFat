@@ -1860,8 +1860,8 @@ USB_INT_SUCCESS equ $14
 
 BDOS_END equ $
 
-BDOS_SIZE equ BDOS_END-BDOS_START
 
-    IF BDOS_SIZE = 2560
-        .WARNING "The BDOS is too big! 2560 bytes max!"
+
+    IF BDOS_END-BDOS_START>BDOS_SIZE
+        .WARNING "The BDOS is too big! ",BDOS_SIZE," bytes max!"
     ENDIF

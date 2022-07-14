@@ -606,8 +606,18 @@ CLEARBUF:
 ;**************************************************************
 ;*
 COMMAND:
-    LD	SP,CCPSTACK		;setup stack area.
+    LD	SP, CCPSTACK		;setup stack area.
+	;CALL	CORE_message
+	;db 'Vou parar',13,10,0
+
+	;halt
 	PUSH	BC			;note that (C) should be equal to:
+
+	ld	hl, bc
+    call display_hl32_digit
+	pop bc
+	push bc
+
 	LD	A,C				;(uuuudddd) where 'uuuu' is the user number
 	RRA					;and 'dddd' is the drive number.
 	RRA	
@@ -1762,6 +1772,9 @@ CDRIVE:	DEFB	0		;currently active drive.
 CHGDRV:	DEFB	0		;change in drives flag (0=no change).
 NBYTES:	DEFW	0		;byte counter used by TYPE.
 ;
+   include "core_jump.asm"
 
-
-
+CCP_END	equ $
+    IF CCP_END-CCP_START>CCP_SIZE
+        .WARNING "The BDOS is too big! ",CCP_SIZE," bytes max!"
+    ENDIF

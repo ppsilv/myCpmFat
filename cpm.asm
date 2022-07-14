@@ -94,8 +94,10 @@ loader_entry:
     ;jp skip_over_int_and_nmi
 
 skip_over_int_and_nmi:
-    ld b, $20                   ; 460,800 baud
-    ld c, $00                   ; No flow control
+	LD      A, 0x80 			; All ports output A,B and C
+	OUT     (PIO_M), A		; 
+	LD      A, 0xA0    
+	OUT     (PIO_A), A	
     LD  HL, UART_BAUD_38400
     LD  A,  0x03
     call configure_uart         ; Put these settings into the UART
@@ -198,10 +200,19 @@ start_cpm:
     ; Load CPM config file into memory
     ld hl, CPM_CFG_NAME
     call load_config_file
+    call message
+    db 'CFG loaded!',13,10,0
     ; Parse it to get out the locations
     call parse_cpm_config_file
+    call message
+    db 'CFG parsed!',13,10,0
+
     call show_config    
     call validate_config
+
+    call message
+    db 'CFG validated!',13,10,0
+
 
     ; Load CORE.BIN into its proper location
     ld hl, NAME_OF_CORE
@@ -231,7 +242,18 @@ start_cpm:
     ld (6), hl
 
     ; OK, let's go!
+    call message
+    db 'Bios location: ',0
     ld hl, (bios_location)
+
+    ld  a, h
+    call show_a_as_hex
+    ld  a, l
+    call show_a_as_hex
+    call newline
+
+    ld hl, (bios_location)
+
     jp (hl) ; BIOS COLD BOOT - Note that this is PC=HL not PC=(HL). Confusing eh?
     halt    ; Just in case we ever get back here somehow
 

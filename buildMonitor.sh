@@ -1,2 +1,2 @@
 
-sjasmplus build.asm --raw=AMonitor.bin --lst=AMonitor.lst
+sjasmplus cpm.asm --raw=AMonitor.bin --lst=AMonitor.lst

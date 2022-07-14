@@ -48,16 +48,30 @@ not3:
 	jp monitor_loop
 not4:
 	cp 'd'					; Disk LED toggle
-	jr nz,notd
+	jr nz,not5
 	call message
 	db 'DISK LED toggled!',13,10,0
 	call disk_toggle
 	jp monitor_loop
+not5:
+	cp '5'					; ROM light off
+	jr nz,notd
+	call message
+	db 'RAM copied...',13,10,0
+	call copy_ram
+	jp monitor_loop
 notd:
 	cp 'h'					; Higher page
-	jr nz,noth
+	jr nz,not66
 	ld a,(current_page)
 	inc a
+	ld (current_page),a
+	call show_page
+	jp monitor_loop
+not66:
+	cp '6'					; Higher page
+	jr nz,noth
+	ld a, 0x80
 	ld (current_page),a
 	call show_page
 	jp monitor_loop
@@ -102,7 +116,7 @@ not_hash:
 	cp 'c'					; CP/M
 	jr nz, not_c
     call message 
-    db 'Starting CP/M... Make sure you have the "ROM Select" jumper set to "switched".',13,10,0
+    db 'Starting CP/M... Make sure you have selected MSX proper slot memory decoder".',13,10,0
     jp start_cpm
 
 not_c:
@@ -153,6 +167,7 @@ show_welcome_message:
 	db 'u = User LED toggle', 13, 10
 	db '3 = ROM ON', 13, 10
 	db '4 = ROM OFF', 13, 10
+	db '5 = Copy ram', 13, 10
 	db 'd = Disk LED toggle', 13, 10
 	db '# = Execute HALT instruction',13,10
 	db 'b = Run burn-in test',13,10
@@ -184,6 +199,14 @@ ram_fill:
 	ld hl,0
 	ld de,0
 	ld bc, 1024*16
+	ldir
+    ret
+
+copy_ram:
+    ; Copy the first 16k of ROM down to ram
+	ld hl,0
+	ld de,	0x8000
+	ld bc,	1024*16
 	ldir
     ret
 
@@ -277,8 +300,9 @@ ram_loop:
 	
 ; -------------------------------------------------------------------------------------------------
 goto_page_0:
-	ld a, 0
-	ld (current_page),a
+
+	ld a, 0x0
+	ld (current_page), a
 	call newline
 	call show_page
 	ret

@@ -24,1874 +24,1987 @@
    1+ 0000              ; locations.asm
    2+ 0000              ; Stores the ORG values for the CCP, BDOS, BIOS and CORE
    3+ 0000
-   4+ 0000              CORE_START  equ $F600    ; $FFFF - 2.5K
-   5+ 0000              BIOS_START  equ $F400    ; $F600 - 0.5K
-   6+ 0000              BDOS_START  equ $EA00    ; $F400 - 2.5K
-   7+ 0000              CCP_START   equ $DE00    ; $EA00 - 3.0K
+   4+ 0000              ;CORE_START  equ $F600    ; $FFFF - 2.5K
+   5+ 0000              ;BIOS_START  equ $F400    ; $F600 - 0.5K
+   6+ 0000              ;BDOS_START  equ $EA00    ; $F400 - 2.5K
+   7+ 0000              ;CCP_START   equ $DE00    ; $EA00 - 3.0K
    8+ 0000
+   9+ 0000              CORE_START  equ $EC00    ; 5119
+  10+ 0000              BIOS_START  equ $DC00    ; 4096
+  11+ 0000              BDOS_START  equ $D000    ; 3072
+  12+ 0000              CCP_START   equ $B000    ; 8192
+  13+ 0000
+  14+ 0000              CORE_SIZE   equ 0xFFFF-CORE_START
+  15+ 0000              BIOS_SIZE   equ CORE_START-BIOS_START
+  16+ 0000              BDOS_SIZE   equ BIOS_START-BDOS_START
+  17+ 0000              CCP_SIZE    equ BDOS_START-CCP_START
 # file closed: locations.asm
   22  0000              	;   Set origin for CP/M
   23  0000
   24  0000              	ORG	CCP_START
-  25  DE00
-  26  DE00              IOBYTE	EQU	3		;i/o definition byte.
-  27  DE00              TDRIVE	EQU	4		;current drive name and user number.
-  28  DE00              ENTRY	EQU	5		;entry point for the cp/m bdos.
-  29  DE00              TFCB	EQU	5CH		;default file control block.
-  30  DE00              TBUFF	EQU	80H		;i/o buffer and command line storage.
-  31  DE00              TBASE	EQU	100H		;transient program storage area.
-  32  DE00              ;
-  33  DE00              ;   Set control character equates.
-  34  DE00              ;
-  35  DE00              CNTRLC	EQU	3		;control-c
-  36  DE00              CNTRLE	EQU	05H		;control-e
-  37  DE00              BS	EQU	08H		;backspace
-  38  DE00              TAB	EQU	09H		;tab
-  39  DE00              LF	EQU	0AH		;line feed
-  40  DE00              FF	EQU	0CH		;form feed
-  41  DE00              CR	EQU	0DH		;carriage return
-  42  DE00              CNTRLP	EQU	10H		;control-p
-  43  DE00              CNTRLR	EQU	12H		;control-r
-  44  DE00              CNTRLS	EQU	13H		;control-s
-  45  DE00              CNTRLU	EQU	15H		;control-u
-  46  DE00              CNTRLX	EQU	18H		;control-x
-  47  DE00              CNTRLZ	EQU	1AH		;control-z (end-of-file mark)
-  48  DE00              DEL	EQU	7FH		;rubout
-  49  DE00              ;
-  50  DE00
-  51  DE00              ;**************************************************************
-  52  DE00              ;
-  53  DE00              ;            THIS IS THE START OF THE CCP
-  54  DE00              ;
-  55  DE00              ;**************************************************************
-  56  DE00              ;
-  57  DE00              CBASE:
-  58  DE00 C3 4E E1     	JP	COMMAND		;execute command processor (ccp).
-  59  DE03 C3 4A E1     	JP	CLEARBUF	;entry to empty input buffer before starting ccp.
-  60  DE06
-  61  DE06              ;
-  62  DE06              ;   Standard cp/m ccp input buffer. Format is (max length),
-  63  DE06              ; (actual length), (char #1), (char #2), (char #3), etc.
-  64  DE06              ;
-  65  DE06 7F           INBUFF:	DEFB	127		;length of input buffer.
-  66  DE07 00           	DEFB	0		;current length of contents.
-  67  DE08 43 6F 70 79  	DEFB	'Copyright'
-  67  DE0C 72 69 67 68
-  67  DE10 74
-  68  DE11 20 31 39 37  	DEFB	' 1979 (c) by Digital Research      '
-  68  DE15 39 20 28 63
-  68  DE19 29 20 62 79
-  68  DE1D 20 44 69 67
-  68  DE21 69 74 61 6C
-  68  DE25 20 52 65 73
-  68  DE29 65 61 72 63
-  68  DE2D 68 20 20 20
-  68  DE31 20 20 20
-  69  DE34 00 00 00 00  	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-  69  DE38 00 00 00 00
-  69  DE3C 00 00 00 00
-  69  DE40 00 00 00 00
-  69  DE44 00 00 00 00
-  69  DE48 00 00 00
-  70  DE4B 00 00 00 00  	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-  70  DE4F 00 00 00 00
-  70  DE53 00 00 00 00
-  70  DE57 00 00 00 00
-  70  DE5B 00 00 00 00
-  70  DE5F 00 00 00
-  71  DE62 00 00 00 00  	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-  71  DE66 00 00 00 00
-  71  DE6A 00 00 00 00
-  71  DE6E 00 00 00 00
-  71  DE72 00 00 00 00
-  71  DE76 00 00 00
-  72  DE79 00 00 00 00  	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-  72  DE7D 00 00 00 00
-  72  DE81 00 00 00 00
-  72  DE85 00 00 00
-  73  DE88 08 DE        INPOINT:DEFW	INBUFF+2	;input line pointer
-  74  DE8A 00 00        NAMEPNT:DEFW	0		;input line pointer used for error message. Points to
-  75  DE8C              ;			;start of name in error.
-  76  DE8C              ;
-  77  DE8C              ;   Routine to print (A) on the console. All registers used.
-  78  DE8C              ;
-  79  DE8C 5F           PRINT:	LD	E,A		;setup bdos call.
-  80  DE8D 0E 02        	LD	C,2
-  81  DE8F C3 05 00     	JP	ENTRY
-  82  DE92              ;
-  83  DE92              ;   Routine to print (A) on the console and to save (BC).
-  84  DE92              ;
-  85  DE92 C5           PRINTB:	PUSH	BC
-  86  DE93 CD 8C DE     	CALL	PRINT
-  87  DE96 C1           	POP	BC
-  88  DE97 C9           	RET
-  89  DE98              ;
-  90  DE98              ;   Routine to send a carriage return, line feed combination
-  91  DE98              ; to the console.
-  92  DE98              ;
-  93  DE98 3E 0D        CRLF:	LD	A,CR
-  94  DE9A CD 92 DE     	CALL	PRINTB
-  95  DE9D 3E 0A        	LD	A,LF
-  96  DE9F C3 92 DE     	JP	PRINTB
-  97  DEA2              ;
-  98  DEA2              ;   Routine to send one space to the console and save (BC).
-  99  DEA2              ;
- 100  DEA2 3E 20        SPACE:	LD	A,' '
- 101  DEA4 C3 92 DE     	JP	PRINTB
- 102  DEA7              ;
- 103  DEA7              ;   Routine to print character string pointed to be (BC) on the
- 104  DEA7              ; console. It must terminate with a null byte.
- 105  DEA7              ;
- 106  DEA7 C5           PLINE:	PUSH	BC
- 107  DEA8 CD 98 DE     	CALL	CRLF
- 108  DEAB E1           	POP	HL
- 109  DEAC 7E           PLINE2:	LD	A,(HL)
- 110  DEAD B7           	OR	A
- 111  DEAE C8           	RET	Z
- 112  DEAF 23           	INC	HL
- 113  DEB0 E5           	PUSH	HL
- 114  DEB1 CD 8C DE     	CALL	PRINT
- 115  DEB4 E1           	POP	HL
- 116  DEB5 C3 AC DE     	JP	PLINE2
- 117  DEB8              ;
- 118  DEB8              ;   Routine to reset the disk system.
- 119  DEB8              ;
- 120  DEB8 0E 0D        RESDSK:	LD	C,13
- 121  DEBA C3 05 00     	JP	ENTRY
- 122  DEBD              ;
- 123  DEBD              ;   Routine to select disk (A).
- 124  DEBD              ;
- 125  DEBD 5F           DSKSEL:	LD	E,A
- 126  DEBE 0E 0E        	LD	C,14
- 127  DEC0 C3 05 00     	JP	ENTRY
- 128  DEC3              ;
- 129  DEC3              ;   Routine to call bdos and save the return code. The zero
- 130  DEC3              ; flag is set on a return of 0ffh.
- 131  DEC3              ;
- 132  DEC3 CD 05 00     ENTRY1:	CALL	ENTRY
- 133  DEC6 32 1E E9     	LD	(RTNCODE),A	;save return code.
- 134  DEC9 3C           	INC	A		;set zero if 0ffh returned.
- 135  DECA C9           	RET
- 136  DECB              ;
- 137  DECB              ;   Routine to open a file. (DE) must point to the FCB.
- 138  DECB              ;
- 139  DECB 0E 0F        OPEN:	LD	C,15
- 140  DECD C3 C3 DE     	JP	ENTRY1
- 141  DED0              ;
- 142  DED0              ;   Routine to open file at (FCB).
- 143  DED0              ;
- 144  DED0 AF           OPENFCB:XOR	A		;clear the record number byte at fcb+32
- 145  DED1 32 1D E9     	LD	(FCB+32),A
- 146  DED4 11 FD E8     	LD	DE,FCB
- 147  DED7 C3 CB DE     	JP	OPEN
- 148  DEDA              ;
- 149  DEDA              ;   Routine to close a file. (DE) points to FCB.
- 150  DEDA              ;
- 151  DEDA 0E 10        CLOSE:	LD	C,16
- 152  DEDC C3 C3 DE     	JP	ENTRY1
- 153  DEDF              ;
- 154  DEDF              ;   Routine to search for the first file with ambigueous name
- 155  DEDF              ; (DE).
- 156  DEDF              ;
- 157  DEDF 0E 11        SRCHFST:LD	C,17
- 158  DEE1 C3 C3 DE     	JP	ENTRY1
- 159  DEE4              ;
- 160  DEE4              ;   Search for the next ambigeous file name.
- 161  DEE4              ;
- 162  DEE4 0E 12        SRCHNXT:LD	C,18
- 163  DEE6 C3 C3 DE     	JP	ENTRY1
- 164  DEE9              ;
- 165  DEE9              ;   Search for file at (FCB).
- 166  DEE9              ;
- 167  DEE9 11 FD E8     SRCHFCB:LD	DE,FCB
- 168  DEEC C3 DF DE     	JP	SRCHFST
- 169  DEEF              ;
- 170  DEEF              ;   Routine to delete a file pointed to by (DE).
- 171  DEEF              ;
- 172  DEEF 0E 13        DELETE:	LD	C,19
- 173  DEF1 C3 05 00     	JP	ENTRY
- 174  DEF4              ;
- 175  DEF4              ;   Routine to call the bdos and set the zero flag if a zero
- 176  DEF4              ; status is returned.
- 177  DEF4              ;
- 178  DEF4 CD 05 00     ENTRY2:	CALL	ENTRY
- 179  DEF7 B7           	OR	A		;set zero flag if appropriate.
- 180  DEF8 C9           	RET
- 181  DEF9              ;
- 182  DEF9              ;   Routine to read the next record from a sequential file.
- 183  DEF9              ; (DE) points to the FCB.
- 184  DEF9              ;
- 185  DEF9 0E 14        RDREC:	LD	C,20
- 186  DEFB C3 F4 DE     	JP	ENTRY2
- 187  DEFE              ;
- 188  DEFE              ;   Routine to read file at (FCB).
- 189  DEFE              ;
- 190  DEFE 11 FD E8     READFCB:LD	DE,FCB
- 191  DF01 C3 F9 DE     	JP	RDREC
- 192  DF04              ;
- 193  DF04              ;   Routine to write the next record of a sequential file.
- 194  DF04              ; (DE) points to the FCB.
- 195  DF04              ;
- 196  DF04 0E 15        WRTREC:	LD	C,21
- 197  DF06 C3 F4 DE     	JP	ENTRY2
- 198  DF09              ;
- 199  DF09              ;   Routine to create the file pointed to by (DE).
- 200  DF09              ;
- 201  DF09 0E 16        CREATE:	LD	C,22
- 202  DF0B C3 C3 DE     	JP	ENTRY1
- 203  DF0E              ;
- 204  DF0E              ;   Routine to rename the file pointed to by (DE). Note that
- 205  DF0E              ; the new name starts at (DE+16).
- 206  DF0E              ;
- 207  DF0E 0E 17        RENAM:	LD	C,23
- 208  DF10 C3 05 00     	JP	ENTRY
- 209  DF13              ;
- 210  DF13              ;   Get the current user code.
- 211  DF13              ;
- 212  DF13 1E FF        GETUSR:	LD	E,0FFH
- 213  DF15              ;
- 214  DF15              ;   Routne to get or set the current user code.
- 215  DF15              ; If (E) is FF then this is a GET, else it is a SET.
- 216  DF15              ;
- 217  DF15              GETSETUC:
- 218  DF15 0E 20            LD	C,32
- 219  DF17 C3 05 00     	JP	ENTRY
- 220  DF1A              ;
- 221  DF1A              ;   Routine to set the current drive byte at (TDRIVE).
- 222  DF1A              ;
- 223  DF1A CD 13 DF     SETCDRV:CALL	GETUSR		;get user number
- 224  DF1D 87           	ADD	A,A		;and shift into the upper 4 bits.
- 225  DF1E 87           	ADD	A,A
- 226  DF1F 87           	ADD	A,A
- 227  DF20 87           	ADD	A,A
- 228  DF21 21 1F E9     	LD	HL,CDRIVE	;now add in the current drive number.
- 229  DF24 B6           	OR	(HL)
- 230  DF25 32 04 00     	LD	(TDRIVE),A	;and save.
- 231  DF28 C9           	RET
- 232  DF29              ;
- 233  DF29              ;   Move currently active drive down to (TDRIVE).
- 234  DF29              ;
- 235  DF29 3A 1F E9     MOVECD:	LD	A,(CDRIVE)
- 236  DF2C 32 04 00     	LD	(TDRIVE),A
- 237  DF2F C9           	RET
- 238  DF30              ;
- 239  DF30              ;   Routine to convert (A) into upper case ascii. Only letters
- 240  DF30              ; are affected.
- 241  DF30              ;
- 242  DF30 FE 61        UPPER:	CP	'a'		;check for letters in the range of 'a' to 'z'.
- 243  DF32 D8           	RET	C
- 244  DF33 FE 7B        	CP	'{'
- 245  DF35 D0           	RET	NC
- 246  DF36 E6 5F        	AND	5FH		;convert it if found.
- 247  DF38 C9           	RET
- 248  DF39              ;
- 249  DF39              ;   Routine to get a line of input. We must check to see if the
- 250  DF39              ; user is in (BATCH) mode. If so, then read the input from file
- 251  DF39              ; ($$$.SUB). At the end, reset to console input.
- 252  DF39              ;
- 253  DF39 3A DB E8     GETINP:	LD	A,(BATCH)	;if =0, then use console input.
- 254  DF3C B7           	OR	A
- 255  DF3D CA 96 DF     	JP	Z,GETINP1
- 256  DF40              ;
- 257  DF40              ;   Use the submit file ($$$.sub) which is prepared by a
- 258  DF40              ; SUBMIT run. It must be on drive (A) and it will be deleted
- 259  DF40              ; if and error occures (like eof).
- 260  DF40              ;
- 261  DF40 3A 1F E9     	LD	A,(CDRIVE)	;select drive 0 if need be.
- 262  DF43 B7           	OR	A
- 263  DF44 3E 00        	LD	A,0		;always use drive A for submit.
- 264  DF46 C4 BD DE     	CALL	NZ,DSKSEL	;select it if required.
- 265  DF49 11 DC E8     	LD	DE,BATCHFCB
- 266  DF4C CD CB DE     	CALL	OPEN		;look for it.
- 267  DF4F CA 96 DF     	JP	Z,GETINP1	;if not there, use normal input.
- 268  DF52 3A EB E8     	LD	A,(BATCHFCB+15)	;get last record number+1.
- 269  DF55 3D           	DEC	A
- 270  DF56 32 FC E8     	LD	(BATCHFCB+32),A
- 271  DF59 11 DC E8     	LD	DE,BATCHFCB
- 272  DF5C CD F9 DE     	CALL	RDREC		;read last record.
- 273  DF5F C2 96 DF     	JP	NZ,GETINP1	;quit on end of file.
- 274  DF62              ;
- 275  DF62              ;   Move this record into input buffer.
- 276  DF62              ;
- 277  DF62 11 07 DE     	LD	DE,INBUFF+1
- 278  DF65 21 80 00     	LD	HL,TBUFF	;data was read into buffer here.
- 279  DF68 06 80        	LD	B,128		;all 128 characters may be used.
- 280  DF6A CD 3A E2     	CALL	HL2DE		;(HL) to (DE), (B) bytes.
- 281  DF6D 21 EA E8     	LD	HL,BATCHFCB+14
- 282  DF70 36 00        	LD	(HL),0		;zero out the 's2' byte.
- 283  DF72 23           	INC	HL		;and decrement the record count.
- 284  DF73 35           	DEC	(HL)
- 285  DF74 11 DC E8     	LD	DE,BATCHFCB	;close the batch file now.
- 286  DF77 CD DA DE     	CALL	CLOSE
- 287  DF7A CA 96 DF     	JP	Z,GETINP1	;quit on an error.
- 288  DF7D 3A 1F E9     	LD	A,(CDRIVE)	;re-select previous drive if need be.
- 289  DF80 B7           	OR	A
- 290  DF81 C4 BD DE     	CALL	NZ,DSKSEL	;don't do needless selects.
- 291  DF84              ;
- 292  DF84              ;   Print line just read on console.
- 293  DF84              ;
- 294  DF84 21 08 DE     	LD	HL,INBUFF+2
- 295  DF87 CD AC DE     	CALL	PLINE2
- 296  DF8A CD C2 DF     	CALL	CHKCON		;check console, quit on a key.
- 297  DF8D CA A7 DF     	JP	Z,GETINP2	;jump if no key is pressed.
- 298  DF90              ;
- 299  DF90              ;   Terminate the submit job on any keyboard input. Delete this
- 300  DF90              ; file such that it is not re-started and jump to normal keyboard
- 301  DF90              ; input section.
- 302  DF90              ;
- 303  DF90 CD DD DF     	CALL	DELBATCH	;delete the batch file.
- 304  DF93 C3 74 E1     	JP	CMMND1		;and restart command input.
- 305  DF96              ;
- 306  DF96              ;   Get here for normal keyboard input. Delete the submit file
- 307  DF96              ; incase there was one.
- 308  DF96              ;
- 309  DF96 CD DD DF     GETINP1:CALL	DELBATCH	;delete file ($$$.sub).
- 310  DF99 CD 1A DF     	CALL	SETCDRV		;reset active disk.
- 311  DF9C 0E 0A        	LD	C,10		;get line from console device.
- 312  DF9E 11 06 DE     	LD	DE,INBUFF
- 313  DFA1 CD 05 00     	CALL	ENTRY
- 314  DFA4 CD 29 DF     	CALL	MOVECD		;reset current drive (again).
- 315  DFA7              ;
- 316  DFA7              ;   Convert input line to upper case.
- 317  DFA7              ;
- 318  DFA7 21 07 DE     GETINP2:LD	HL,INBUFF+1
- 319  DFAA 46           	LD	B,(HL)		;(B)=character counter.
- 320  DFAB 23           GETINP3:INC	HL
- 321  DFAC 78           	LD	A,B		;end of the line?
- 322  DFAD B7           	OR	A
- 323  DFAE CA BA DF     	JP	Z,GETINP4
- 324  DFB1 7E           	LD	A,(HL)		;convert to upper case.
- 325  DFB2 CD 30 DF     	CALL	UPPER
- 326  DFB5 77           	LD	(HL),A
- 327  DFB6 05           	DEC	B		;adjust character count.
- 328  DFB7 C3 AB DF     	JP	GETINP3
- 329  DFBA 77           GETINP4:LD	(HL),A		;add trailing null.
- 330  DFBB 21 08 DE     	LD	HL,INBUFF+2
- 331  DFBE 22 88 DE     	LD	(INPOINT),HL	;reset input line pointer.
- 332  DFC1 C9           	RET
- 333  DFC2              ;
- 334  DFC2              ;   Routine to check the console for a key pressed. The zero
- 335  DFC2              ; flag is set is none, else the character is returned in (A).
- 336  DFC2              ;
- 337  DFC2 0E 0B        CHKCON:	LD	C,11		;check console.
- 338  DFC4 CD 05 00     	CALL	ENTRY
- 339  DFC7 B7           	OR	A
- 340  DFC8 C8           	RET	Z		;return if nothing.
- 341  DFC9 0E 01        	LD	C,1		;else get character.
- 342  DFCB CD 05 00     	CALL	ENTRY
- 343  DFCE B7           	OR	A		;clear zero flag and return.
- 344  DFCF C9           	RET
- 345  DFD0              ;
- 346  DFD0              ;   Routine to get the currently active drive number.
- 347  DFD0              ;
- 348  DFD0 0E 19        GETDSK:	LD	C,25
- 349  DFD2 C3 05 00     	JP	ENTRY
- 350  DFD5              ;
- 351  DFD5              ;   Set the stabdard dma address.
- 352  DFD5              ;
- 353  DFD5 11 80 00     STDDMA:	LD	DE,TBUFF
- 354  DFD8              ;
- 355  DFD8              ;   Routine to set the dma address to (DE).
- 356  DFD8              ;
- 357  DFD8 0E 1A        DMASET:	LD	C,26
- 358  DFDA C3 05 00     	JP	ENTRY
- 359  DFDD              ;
- 360  DFDD              ;  Delete the batch file created by SUBMIT.
- 361  DFDD              ;
- 362  DFDD 21 DB E8     DELBATCH: LD	HL,BATCH	;is batch active?
- 363  DFE0 7E           	LD	A,(HL)
- 364  DFE1 B7           	OR	A
- 365  DFE2 C8           	RET	Z
- 366  DFE3 36 00        	LD	(HL),0		;yes, de-activate it.
- 367  DFE5 AF           	XOR	A
- 368  DFE6 CD BD DE     	CALL	DSKSEL		;select drive 0 for sure.
- 369  DFE9 11 DC E8     	LD	DE,BATCHFCB	;and delete this file.
- 370  DFEC CD EF DE     	CALL	DELETE
- 371  DFEF 3A 1F E9     	LD	A,(CDRIVE)	;reset current drive.
- 372  DFF2 C3 BD DE     	JP	DSKSEL
- 373  DFF5
- 374  DFF5              ;
- 375  DFF5              ;   Print back file name with a '?' to indicate a syntax error.
- 376  DFF5              ;
- 377  DFF5 CD 98 DE     SYNERR:	CALL	CRLF		;end current line.
- 378  DFF8 2A 8A DE     	LD	HL,(NAMEPNT)	;this points to name in error.
- 379  DFFB 7E           SYNERR1:LD	A,(HL)		;print it until a space or null is found.
- 380  DFFC FE 20        	CP	' '
- 381  DFFE CA 0E E0     	JP	Z,SYNERR2
- 382  E001 B7           	OR	A
- 383  E002 CA 0E E0     	JP	Z,SYNERR2
- 384  E005 E5           	PUSH	HL
- 385  E006 CD 8C DE     	CALL	PRINT
- 386  E009 E1           	POP	HL
- 387  E00A 23           	INC	HL
- 388  E00B C3 FB DF     	JP	SYNERR1
- 389  E00E 3E 3F        SYNERR2:LD	A,'?'		;add trailing '?'.
- 390  E010 CD 8C DE     	CALL	PRINT
- 391  E013 CD 98 DE     	CALL	CRLF
- 392  E016 CD DD DF     	CALL	DELBATCH	;delete any batch file.
- 393  E019 C3 74 E1     	JP	CMMND1		;and restart from console input.
- 394  E01C              ;
- 395  E01C              ;   Check character at (DE) for legal command input. Note that the
- 396  E01C              ; zero flag is set if the character is a delimiter.
- 397  E01C              ;
- 398  E01C 1A           CHECK:	LD	A,(DE)
- 399  E01D B7           	OR	A
- 400  E01E C8           	RET	Z
- 401  E01F FE 20        	CP	' '		;control characters are not legal here.
- 402  E021 DA F5 DF     	JP	C,SYNERR
- 403  E024 C8           	RET	Z		;check for valid delimiter.
- 404  E025 FE 3D        	CP	'='
- 405  E027 C8           	RET	Z
- 406  E028 FE 5F        	CP	'_'
- 407  E02A C8           	RET	Z
- 408  E02B FE 2E        	CP	'.'
- 409  E02D C8           	RET	Z
- 410  E02E FE 3A        	CP	':'
- 411  E030 C8           	RET	Z
- 412  E031 FE 3B        	CP	';'
- 413  E033 C8           	RET	Z
- 414  E034 FE 3C        	CP	'<'
- 415  E036 C8           	RET	Z
- 416  E037 FE 3E        	CP	'>'
- 417  E039 C8           	RET	Z
- 418  E03A C9           	RET
- 419  E03B              ;
- 420  E03B              ;   Get the next non-blank character from (DE).
- 421  E03B              ;
- 422  E03B 1A           NONBLANK: LD	A,(DE)
- 423  E03C B7           	OR	A		;string ends with a null.
- 424  E03D C8           	RET	Z
- 425  E03E FE 20        	CP	' '
- 426  E040 C0           	RET	NZ
- 427  E041 13           	INC	DE
- 428  E042 C3 3B E0     	JP	NONBLANK
- 429  E045              ;
- 430  E045              ;   Add (HL)=(HL)+(A)
- 431  E045              ;
- 432  E045 85           ADDHL:	ADD	A,L
- 433  E046 6F           	LD	L,A
- 434  E047 D0           	RET	NC		;take care of any carry.
- 435  E048 24           	INC	H
- 436  E049 C9           	RET
- 437  E04A              ;
- 438  E04A              ;   Convert the first name in (FCB).
- 439  E04A              ;
- 440  E04A 3E 00        CONVFST:LD	A,0
- 441  E04C              ;
- 442  E04C              ;   Format a file name (convert * to '?', etc.). On return,
- 443  E04C              ; (A)=0 is an unambigeous name was specified. Enter with (A) equal to
- 444  E04C              ; the position within the fcb for the name (either 0 or 16).
- 445  E04C              ;
- 446  E04C 21 FD E8     CONVERT:LD	HL,FCB
- 447  E04F CD 45 E0     	CALL	ADDHL
- 448  E052 E5           	PUSH	HL
- 449  E053 E5           	PUSH	HL
- 450  E054 AF           	XOR	A
- 451  E055 32 20 E9     	LD	(CHGDRV),A	;initialize drive change flag.
- 452  E058 2A 88 DE     	LD	HL,(INPOINT)	;set (HL) as pointer into input line.
- 453  E05B EB           	EX	DE,HL
- 454  E05C CD 3B E0     	CALL	NONBLANK	;get next non-blank character.
- 455  E05F EB           	EX	DE,HL
- 456  E060 22 8A DE     	LD	(NAMEPNT),HL	;save pointer here for any error message.
- 457  E063 EB           	EX	DE,HL
- 458  E064 E1           	POP	HL
- 459  E065 1A           	LD	A,(DE)		;get first character.
- 460  E066 B7           	OR	A
- 461  E067 CA 75 E0     	JP	Z,CONVRT1
- 462  E06A DE 40        	SBC	A,'A'-1		;might be a drive name, convert to binary.
- 463  E06C 47           	LD	B,A		;and save.
- 464  E06D 13           	INC	DE		;check next character for a ':'.
- 465  E06E 1A           	LD	A,(DE)
- 466  E06F FE 3A        	CP	':'
- 467  E071 CA 7C E0     	JP	Z,CONVRT2
- 468  E074 1B           	DEC	DE		;nope, move pointer back to the start of the line.
- 469  E075 3A 1F E9     CONVRT1:LD	A,(CDRIVE)
- 470  E078 77           	LD	(HL),A
- 471  E079 C3 82 E0     	JP	CONVRT3
- 472  E07C 78           CONVRT2:LD	A,B
- 473  E07D 32 20 E9     	LD	(CHGDRV),A	;set change in drives flag.
- 474  E080 70           	LD	(HL),B
- 475  E081 13           	INC	DE
- 476  E082              ;
- 477  E082              ;   Convert the basic file name.
- 478  E082              ;
- 479  E082 06 08        CONVRT3:LD	B,08H
- 480  E084 CD 1C E0     CONVRT4:CALL	CHECK
- 481  E087 CA A5 E0     	JP	Z,CONVRT8
- 482  E08A 23           	INC	HL
- 483  E08B FE 2A        	CP	'*'		;note that an '*' will fill the remaining
- 484  E08D C2 95 E0     	JP	NZ,CONVRT5	;field with '?'.
- 485  E090 36 3F        	LD	(HL),'?'
- 486  E092 C3 97 E0     	JP	CONVRT6
- 487  E095 77           CONVRT5:LD	(HL),A
- 488  E096 13           	INC	DE
- 489  E097 05           CONVRT6:DEC	B
- 490  E098 C2 84 E0     	JP	NZ,CONVRT4
- 491  E09B CD 1C E0     CONVRT7:CALL	CHECK		;get next delimiter.
- 492  E09E CA AC E0     	JP	Z,GETEXT
- 493  E0A1 13           	INC	DE
- 494  E0A2 C3 9B E0     	JP	CONVRT7
- 495  E0A5 23           CONVRT8:INC	HL		;blank fill the file name.
- 496  E0A6 36 20        	LD	(HL),' '
- 497  E0A8 05           	DEC	B
- 498  E0A9 C2 A5 E0     	JP	NZ,CONVRT8
- 499  E0AC              ;
- 500  E0AC              ;   Get the extension and convert it.
- 501  E0AC              ;
- 502  E0AC 06 03        GETEXT:	LD	B,03H
- 503  E0AE FE 2E        	CP	'.'
- 504  E0B0 C2 D5 E0     	JP	NZ,GETEXT5
- 505  E0B3 13           	INC	DE
- 506  E0B4 CD 1C E0     GETEXT1:CALL	CHECK
- 507  E0B7 CA D5 E0     	JP	Z,GETEXT5
- 508  E0BA 23           	INC	HL
- 509  E0BB FE 2A        	CP	'*'
- 510  E0BD C2 C5 E0     	JP	NZ,GETEXT2
- 511  E0C0 36 3F        	LD	(HL),'?'
- 512  E0C2 C3 C7 E0     	JP	GETEXT3
- 513  E0C5 77           GETEXT2:LD	(HL),A
- 514  E0C6 13           	INC	DE
- 515  E0C7 05           GETEXT3:DEC	B
- 516  E0C8 C2 B4 E0     	JP	NZ,GETEXT1
- 517  E0CB CD 1C E0     GETEXT4:CALL	CHECK
- 518  E0CE CA DC E0     	JP	Z,GETEXT6
- 519  E0D1 13           	INC	DE
- 520  E0D2 C3 CB E0     	JP	GETEXT4
- 521  E0D5 23           GETEXT5:INC	HL
- 522  E0D6 36 20        	LD	(HL),' '
- 523  E0D8 05           	DEC	B
- 524  E0D9 C2 D5 E0     	JP	NZ,GETEXT5
- 525  E0DC 06 03        GETEXT6:LD	B,3
- 526  E0DE 23           GETEXT7:INC	HL
- 527  E0DF 36 00        	LD	(HL),0
- 528  E0E1 05           	DEC	B
- 529  E0E2 C2 DE E0     	JP	NZ,GETEXT7
- 530  E0E5 EB           	EX	DE,HL
- 531  E0E6 22 88 DE     	LD	(INPOINT),HL	;save input line pointer.
- 532  E0E9 E1           	POP	HL
- 533  E0EA              ;
- 534  E0EA              ;   Check to see if this is an ambigeous file name specification.
- 535  E0EA              ; Set the (A) register to non zero if it is.
- 536  E0EA              ;
- 537  E0EA 01 0B 00     	LD	BC,11		;set name length.
- 538  E0ED 23           GETEXT8:INC	HL
- 539  E0EE 7E           	LD	A,(HL)
- 540  E0EF FE 3F        	CP	'?'		;any question marks?
- 541  E0F1 C2 F5 E0     	JP	NZ,GETEXT9
- 542  E0F4 04           	INC	B		;count them.
- 543  E0F5 0D           GETEXT9:DEC	C
- 544  E0F6 C2 ED E0     	JP	NZ,GETEXT8
- 545  E0F9 78           	LD	A,B
- 546  E0FA B7           	OR	A
- 547  E0FB C9           	RET
- 548  E0FC              ;
- 549  E0FC              ;   CP/M command table. Note commands can be either 3 or 4 characters long.
- 550  E0FC              ;
- 551  E0FC              NUMCMDS EQU	9		;number of commands
- 552  E0FC 44 49 52 20  CMDTBL:	DEFB	'DIR '
- 553  E100 45 52 41 20  	DEFB	'ERA '
- 554  E104 54 59 50 45  	DEFB	'TYPE'
- 555  E108 53 41 56 45  	DEFB	'SAVE'
- 556  E10C 52 45 4E 20  	DEFB	'REN '
- 557  E110 55 53 45 52  	DEFB	'USER'
- 558  E114 49 4D 50 20  	DEFB	'IMP '		; John's IMPort command to get files in from SD card to CP/M disks
- 559  E118 45 58 50 20  	DEFB	'EXP '		; John's EXPort command to send files out to SD card from CP/M disks
- 560  E11C 44 55 20 20  	DEFB	'DU  '		; John's Disk Usage command to see how blocks are allocated
- 561  E120              ;
- 562  E120              ;
- 563  E120              ;   Search the command table for a match with what has just
- 564  E120              ; been entered. If a match is found, then we jump to the
- 565  E120              ; proper section. Else jump to (UNKNOWN).
- 566  E120              ; On return, the (C) register is set to the command number
- 567  E120              ; that matched (or NUMCMDS+1 if no match).
- 568  E120              ;
- 569  E120 21 FC E0     SEARCH:	LD	HL,CMDTBL
- 570  E123 0E 00        	LD	C,0
- 571  E125 79           SEARCH1:LD	A,C
- 572  E126 FE 09        	CP	NUMCMDS		;this commands exists.
- 573  E128 D0           	RET	NC
- 574  E129 11 FE E8     	LD	DE,FCB+1	;check this one.
- 575  E12C 06 04        	LD	B,4		;max command length.
- 576  E12E 1A           SEARCH2:LD	A,(DE)
- 577  E12F BE           	CP	(HL)
- 578  E130 C2 41 E1     	JP	NZ,SEARCH3	;not a match.
- 579  E133 13           	INC	DE
- 580  E134 23           	INC	HL
- 581  E135 05           	DEC	B
- 582  E136 C2 2E E1     	JP	NZ,SEARCH2
- 583  E139 1A           	LD	A,(DE)		;allow a 3 character command to match.
- 584  E13A FE 20        	CP	' '
- 585  E13C C2 46 E1     	JP	NZ,SEARCH4
- 586  E13F 79           	LD	A,C		;set return register for this command.
- 587  E140 C9           	RET
- 588  E141 23           SEARCH3:INC	HL
- 589  E142 05           	DEC	B
- 590  E143 C2 41 E1     	JP	NZ,SEARCH3
- 591  E146 0C           SEARCH4:INC	C
- 592  E147 C3 25 E1     	JP	SEARCH1
- 593  E14A              ;
- 594  E14A              ;   Set the input buffer to empty and then start the command
- 595  E14A              ; processor (ccp).
- 596  E14A              ;
- 597  E14A              CLEARBUF:
- 598  E14A AF               XOR	A
- 599  E14B 32 07 DE     	LD	(INBUFF+1),A	;second byte is actual length.
- 600  E14E              ;
- 601  E14E              ;**************************************************************
- 602  E14E              ;*
- 603  E14E              ;*
- 604  E14E              ;* C C P  -   C o n s o l e   C o m m a n d   P r o c e s s o r
- 605  E14E              ;*
- 606  E14E              ;**************************************************************
- 607  E14E              ;*
- 608  E14E              COMMAND:
- 609  E14E 31 D9 E8         LD	SP,CCPSTACK		;setup stack area.
- 610  E151 C5           	PUSH	BC			;note that (C) should be equal to:
- 611  E152 79           	LD	A,C				;(uuuudddd) where 'uuuu' is the user number
- 612  E153 1F           	RRA					;and 'dddd' is the drive number.
- 613  E154 1F           	RRA
- 614  E155 1F           	RRA
- 615  E156 1F           	RRA
- 616  E157 E6 0F        	AND	0FH				;isolate the user number.
- 617  E159 5F           	LD	E,A
- 618  E15A CD 15 DF     	CALL	GETSETUC	;and set it.
- 619  E15D CD B8 DE     	CALL	RESDSK		;reset the disk system.
- 620  E160 32 DB E8     	LD	(BATCH),A		;clear batch mode flag.
- 621  E163 C1           	POP	BC
- 622  E164 79           	LD	A,C
- 623  E165 E6 0F        	AND	0FH				;isolate the drive number.
- 624  E167 32 1F E9     	LD	(CDRIVE),A		;and save.
- 625  E16A CD BD DE     	CALL	DSKSEL		;...and select.
- 626  E16D 3A 07 DE     	LD	A,(INBUFF+1)
- 627  E170 B7           	OR	A				;anything in input buffer already?
- 628  E171 C2 8A E1     	JP	NZ,CMMND2		;yes, we just process it.
- 629  E174              ;
- 630  E174              ;   Entry point to get a command line from the console.
- 631  E174              ;
- 632  E174 31 D9 E8     CMMND1:	LD	SP,CCPSTACK	;set stack straight.
- 633  E177 CD 98 DE     	CALL	CRLF		;start a new line on the screen.
- 634  E17A CD D0 DF     	CALL	GETDSK		;get current drive.
- 635  E17D C6 41        	ADD	A,'A'
- 636  E17F CD 8C DE     	CALL	PRINT		;print current drive.
- 637  E182 3E 3E        	LD	A,'>'
- 638  E184 CD 8C DE     	CALL	PRINT		;and add prompt.
- 639  E187 CD 39 DF     	CALL	GETINP		;get line from user.
- 640  E18A              ;
- 641  E18A              ;   Process command line here.
- 642  E18A              ;
- 643  E18A 11 80 00     CMMND2:	LD	DE,TBUFF
- 644  E18D CD D8 DF     	CALL	DMASET		;set standard dma address.
- 645  E190 CD D0 DF     	CALL	GETDSK
- 646  E193 32 1F E9     	LD	(CDRIVE),A	;set current drive.
- 647  E196 CD 4A E0     	CALL	CONVFST		;convert name typed in.
- 648  E199 C4 F5 DF     	CALL	NZ,SYNERR	;wild cards are not allowed.
- 649  E19C 3A 20 E9     	LD	A,(CHGDRV)	;if a change in drives was indicated,
- 650  E19F B7           	OR	A		;then treat this as an unknown command
- 651  E1A0 C2 21 E7     	JP	NZ,UNKNOWN	;which gets executed.
- 652  E1A3 CD 20 E1     	CALL	SEARCH		;else search command table for a match.
- 653  E1A6              ;
- 654  E1A6              ;   Note that an unknown command returns
- 655  E1A6              ; with (A) pointing to the last address
- 656  E1A6              ; in our table which is (UNKNOWN).
- 657  E1A6              ;
- 658  E1A6 21 B3 E1     	LD	HL,CMDADR	;now, look thru our address table for command (A).
- 659  E1A9 5F           	LD	E,A		;set (DE) to command number.
- 660  E1AA 16 00        	LD	D,0
- 661  E1AC 19           	ADD	HL,DE
- 662  E1AD 19           	ADD	HL,DE		;(HL)=(CMDADR)+2*(command number).
- 663  E1AE 7E           	LD	A,(HL)		;now pick out this address.
- 664  E1AF 23           	INC	HL
- 665  E1B0 66           	LD	H,(HL)
- 666  E1B1 6F           	LD	L,A
- 667  E1B2 E9           	JP	(HL)		;now execute it.
- 668  E1B3              ;
- 669  E1B3              ;   CP/M command address table.
- 670  E1B3              ;
- 671  E1B3 6F E2 13 E3  CMDADR:	DEFW	DIRECT,ERASE,TYPE,SAVE
- 671  E1B7 51 E3 A1 E3
- 672  E1BB 04 E4 82 E4  	DEFW	RENAME,USER,IMPORT_COMMAND,EXPORT_COMMAND,DU_COMMAND,UNKNOWN
- 672  E1BF 9D E4 80 E5
- 672  E1C3 56 E6 21 E7
- 673  E1C7              ;
- 674  E1C7              ;   Halt the system. Reason for this is unknown at present.
- 675  E1C7              ;
- 676  E1C7 21 F3 76     HALTX:	LD	HL,76F3H	;'DI HLT' instructions.
- 677  E1CA 22 00 DE     	LD	(CBASE),HL
- 678  E1CD 21 00 DE     	LD	HL,CBASE
- 679  E1D0 E9           	JP	(HL)
- 680  E1D1              ;
- 681  E1D1              ;   Read error while TYPEing a file.
- 682  E1D1              ;
- 683  E1D1 01 D7 E1     RDERROR:LD	BC,RDERR
- 684  E1D4 C3 A7 DE     	JP	PLINE
- 685  E1D7 52 65 61 64  RDERR:	DEFB	'Read error',0
- 685  E1DB 20 65 72 72
- 685  E1DF 6F 72 00
- 686  E1E2              ;
- 687  E1E2              ;   Required file was not located.
- 688  E1E2              ;
- 689  E1E2 01 E8 E1     NONE:	LD	BC,NOFILE
- 690  E1E5 C3 A7 DE     	JP	PLINE
- 691  E1E8 4E 6F 20 66  NOFILE:	DEFB	'No file',0
- 691  E1EC 69 6C 65 00
- 692  E1F0              ;
- 693  E1F0              ;   Decode a command of the form 'A>filename number{ filename}.
- 694  E1F0              ; Note that a drive specifier is not allowed on the first file
- 695  E1F0              ; name. On return, the number is in register (A). Any error
- 696  E1F0              ; causes 'filename?' to be printed and the command is aborted.
- 697  E1F0              ;
- 698  E1F0 CD 4A E0     DECODE:	CALL	CONVFST		;convert filename.
- 699  E1F3 3A 20 E9     	LD	A,(CHGDRV)	;do not allow a drive to be specified.
- 700  E1F6 B7           	OR	A
- 701  E1F7 C2 F5 DF     	JP	NZ,SYNERR
- 702  E1FA 21 FE E8     	LD	HL,FCB+1	;convert number now.
- 703  E1FD 01 0B 00     	LD	BC,11		;(B)=sum register, (C)=max digit count.
- 704  E200 7E           DECODE1:LD	A,(HL)
- 705  E201 FE 20        	CP	' '		;a space terminates the numeral.
- 706  E203 CA 2B E2     	JP	Z,DECODE3
- 707  E206 23           	INC	HL
- 708  E207 D6 30        	SUB	'0'		;make binary from ascii.
- 709  E209 FE 0A        	CP	10		;legal digit?
- 710  E20B D2 F5 DF     	JP	NC,SYNERR
- 711  E20E 57           	LD	D,A		;yes, save it in (D).
- 712  E20F 78           	LD	A,B		;compute (B)=(B)*10 and check for overflow.
- 713  E210 E6 E0        	AND	0E0H
- 714  E212 C2 F5 DF     	JP	NZ,SYNERR
- 715  E215 78           	LD	A,B
- 716  E216 07           	RLCA
- 717  E217 07           	RLCA
- 718  E218 07           	RLCA			;(A)=(B)*8
- 719  E219 80           	ADD	A,B		;.......*9
- 720  E21A DA F5 DF     	JP	C,SYNERR
- 721  E21D 80           	ADD	A,B		;.......*10
- 722  E21E DA F5 DF     	JP	C,SYNERR
- 723  E221 82           	ADD	A,D		;add in new digit now.
- 724  E222 DA F5 DF     DECODE2:JP	C,SYNERR
- 725  E225 47           	LD	B,A		;and save result.
- 726  E226 0D           	DEC	C		;only look at 11 digits.
- 727  E227 C2 00 E2     	JP	NZ,DECODE1
- 728  E22A C9           	RET
- 729  E22B 7E           DECODE3:LD	A,(HL)		;spaces must follow (why?).
- 730  E22C FE 20        	CP	' '
- 731  E22E C2 F5 DF     	JP	NZ,SYNERR
- 732  E231 23           	INC	HL
- 733  E232 0D           DECODE4:DEC	C
- 734  E233 C2 2B E2     	JP	NZ,DECODE3
- 735  E236 78           	LD	A,B		;set (A)=the numeric value entered.
- 736  E237 C9           	RET
- 737  E238              ;
- 738  E238              ;   Move 3 bytes from (HL) to (DE). Note that there is only
- 739  E238              ; one reference to this at (A2D5h).
- 740  E238              ;
- 741  E238 06 03        MOVE3:	LD	B,3
- 742  E23A              ;
- 743  E23A              ;   Move (B) bytes from (HL) to (DE).
- 744  E23A              ;
- 745  E23A 7E           HL2DE:	LD	A,(HL)
- 746  E23B 12           	LD	(DE),A
- 747  E23C 23           	INC	HL
- 748  E23D 13           	INC	DE
- 749  E23E 05           	DEC	B
- 750  E23F C2 3A E2     	JP	NZ,HL2DE
- 751  E242 C9           	RET
- 752  E243              ;
- 753  E243              ;   Compute (HL)=(TBUFF)+(A)+(C) and get the byte that's here.
- 754  E243              ;
- 755  E243 21 80 00     EXTRACT:LD	HL,TBUFF
- 756  E246 81           	ADD	A,C
- 757  E247 CD 45 E0     	CALL	ADDHL
- 758  E24A 7E           	LD	A,(HL)
- 759  E24B C9           	RET
- 760  E24C              ;
- 761  E24C              ;  Check drive specified. If it means a change, then the new
- 762  E24C              ; drive will be selected. In any case, the drive byte of the
- 763  E24C              ; fcb will be set to null (means use current drive).
- 764  E24C              ;
- 765  E24C AF           DSELECT:XOR	A		;null out first byte of fcb.
- 766  E24D 32 FD E8     	LD	(FCB),A
- 767  E250 3A 20 E9     	LD	A,(CHGDRV)	;a drive change indicated?
- 768  E253 B7           	OR	A
- 769  E254 C8           	RET	Z
- 770  E255 3D           	DEC	A		;yes, is it the same as the current drive?
- 771  E256 21 1F E9     	LD	HL,CDRIVE
- 772  E259 BE           	CP	(HL)
- 773  E25A C8           	RET	Z
- 774  E25B C3 BD DE     	JP	DSKSEL		;no. Select it then.
- 775  E25E              ;
- 776  E25E              ;   Check the drive selection and reset it to the previous
- 777  E25E              ; drive if it was changed for the preceeding command.
- 778  E25E              ;
- 779  E25E 3A 20 E9     RESETDR:LD	A,(CHGDRV)	;drive change indicated?
- 780  E261 B7           	OR	A
- 781  E262 C8           	RET	Z
- 782  E263 3D           	DEC	A		;yes, was it a different drive?
- 783  E264 21 1F E9     	LD	HL,CDRIVE
- 784  E267 BE           	CP	(HL)
- 785  E268 C8           	RET	Z
- 786  E269 3A 1F E9     	LD	A,(CDRIVE)	;yes, re-select our old drive.
- 787  E26C C3 BD DE     	JP	DSKSEL
- 788  E26F              ;
- 789  E26F              ;**************************************************************
- 790  E26F              ;*
- 791  E26F              ;*           D I R E C T O R Y   C O M M A N D
- 792  E26F              ;*
- 793  E26F              ;**************************************************************
- 794  E26F              ;
- 795  E26F              DIRECT:
- 796  E26F CD 4A E0     	CALL	CONVFST		;convert file name.
- 797  E272 CD 4C E2     	CALL	DSELECT		;select indicated drive.
- 798  E275 21 FE E8     	LD	HL,FCB+1		;was any file indicated?
- 799  E278 7E           	LD	A,(HL)
- 800  E279 FE 20        	CP	' '
- 801  E27B C2 87 E2     	JP	NZ,DIRECT2
- 802  E27E 06 0B        	LD	B,11			;no. Fill field with '?' - same as *.*.
- 803  E280 36 3F        DIRECT1:LD	(HL),'?'
- 804  E282 23           	INC	HL
- 805  E283 05           	DEC	B
- 806  E284 C2 80 E2     	JP	NZ,DIRECT1
- 807  E287 1E 00        DIRECT2:LD	E,0			;set initial cursor position.
- 808  E289 D5           	PUSH	DE
- 809  E28A CD E9 DE     	CALL	SRCHFCB		;get first file name.
- 810  E28D CC E2 E1     	CALL	Z,NONE		;none found at all?
- 811  E290              DIRECT3:
- 812  E290 CA 0F E3     	JP	Z,DIRECT9		;terminate if no more names.
- 813  E293 3A 1E E9     	LD	A,(RTNCODE)		;get file's position in segment (0-3).
- 814  E296 0F           	RRCA
- 815  E297 0F           	RRCA
- 816  E298 0F           	RRCA
- 817  E299 E6 60        	AND	60H				;(A)=position*32
- 818  E29B 4F           	LD	C,A
- 819  E29C 3E 0A        	LD	A,10
- 820  E29E CD 43 E2     	CALL	EXTRACT		;extract the tenth entry in fcb.
- 821  E2A1 17           	RLA					;check system file status bit.
- 822  E2A2 DA 09 E3     	JP	C,DIRECT8		;we don't list them.
- 823  E2A5 D1           	POP	DE
- 824  E2A6 7B           	LD	A,E				;bump name count.
- 825  E2A7 1C           	INC	E
- 826  E2A8 D5           	PUSH	DE
- 827  E2A9 E6 03        	AND	03H				;at end of line?
- 828  E2AB F5           	PUSH	AF
- 829  E2AC C2 C4 E2     	JP	NZ,DIRECT4
- 830  E2AF CD 98 DE     	CALL	CRLF		;yes, end this line and start another.
- 831  E2B2 C5           	PUSH	BC
- 832  E2B3 CD D0 DF     	CALL	GETDSK		;start line with ('A:').
- 833  E2B6 C1           	POP	BC
- 834  E2B7 C6 41        	ADD	A,'A'
- 835  E2B9 CD 92 DE     	CALL	PRINTB
- 836  E2BC 3E 3A        	LD	A,':'
- 837  E2BE CD 92 DE     	CALL	PRINTB
- 838  E2C1 C3 CC E2     	JP	DIRECT5
- 839  E2C4              DIRECT4:
- 840  E2C4 CD A2 DE     	CALL	SPACE		;add seperator between file names.
- 841  E2C7 3E 7C        	LD	A,'|'			; [JSS: Changed this from colon to pipe]
- 842  E2C9 CD 92 DE     	CALL	PRINTB
- 843  E2CC CD A2 DE     DIRECT5:CALL	SPACE
- 844  E2CF 06 01        	LD	B,1				;'extract' each file name character at a time.
- 845  E2D1 78           DIRECT6:LD	A,B
- 846  E2D2 CD 43 E2     	CALL	EXTRACT
- 847  E2D5 E6 7F        	AND	7FH				;strip bit 7 (status bit).
- 848  E2D7 FE 20        	CP	' '				;are we at the end of the name?
- 849  E2D9 C2 F1 E2     	JP	NZ,DRECT65
- 850  E2DC F1           	POP	AF				;yes, don't print spaces at the end of a line.
- 851  E2DD F5           	PUSH	AF
- 852  E2DE FE 03        	CP	3
- 853  E2E0 C2 EF E2     	JP	NZ,DRECT63
- 854  E2E3 3E 09        	LD	A,9				;first check for no extension.
- 855  E2E5 CD 43 E2     	CALL	EXTRACT
- 856  E2E8 E6 7F        	AND	7FH
- 857  E2EA FE 20        	CP	' '
- 858  E2EC CA 08 E3     	JP	Z,DIRECT7		;don't print spaces.
- 859  E2EF              DRECT63:
- 860  E2EF 3E 20        	LD	A,' '		;else print them.
- 861  E2F1              DRECT65:
- 862  E2F1 CD 92 DE     	CALL	PRINTB
- 863  E2F4 04           	INC	B				;bump to next character position.
- 864  E2F5 78           	LD	A,B
- 865  E2F6 FE 0C        	CP	12				;end of the name?
- 866  E2F8 D2 08 E3     	JP	NC,DIRECT7
- 867  E2FB FE 09        	CP	9				;nope, starting extension?
- 868  E2FD C2 D1 E2     	JP	NZ,DIRECT6
- 869  E300 3E 2E        	LD	A,'.'			; [JSS: Changed this from space to dot]
- 870  E302 CD 92 DE     	CALL	PRINTB
- 871  E305 C3 D1 E2     	JP	DIRECT6
- 872  E308              DIRECT7:
- 873  E308 F1           	POP	AF		;get the next file name.
- 874  E309              DIRECT8:
- 875  E309              	;CALL	CHKCON		;first check console, quit on anything.
- 876  E309              	;JP	NZ,DIRECT9
- 877  E309 CD E4 DE     	CALL	SRCHNXT		;get next name.
- 878  E30C C3 90 E2     	JP	DIRECT3		;and continue with our list.
- 879  E30F              DIRECT9:
- 880  E30F D1           	POP	DE		;restore the stack and return to command level.
- 881  E310 C3 16 E8     	JP	GETBACK
- 882  E313              ;
- 883  E313              ;**************************************************************
- 884  E313              ;*
- 885  E313              ;*                E R A S E   C O M M A N D
- 886  E313              ;*
- 887  E313              ;**************************************************************
- 888  E313              ;
- 889  E313 CD 4A E0     ERASE:	CALL	CONVFST		;convert file name.
- 890  E316 FE 0B        	CP	11		;was '*.*' entered?
- 891  E318 C2 36 E3     	JP	NZ,ERASE1
- 892  E31B 01 46 E3     	LD	BC,YESNO	;yes, ask for confirmation.
- 893  E31E CD A7 DE     	CALL	PLINE
- 894  E321 CD 39 DF     	CALL	GETINP
- 895  E324 21 07 DE     	LD	HL,INBUFF+1
- 896  E327 35           	DEC	(HL)		;must be exactly 'y'.
- 897  E328 C2 74 E1     	JP	NZ,CMMND1
- 898  E32B 23           	INC	HL
- 899  E32C 7E           	LD	A,(HL)
- 900  E32D FE 59        	CP	'Y'
- 901  E32F C2 74 E1     	JP	NZ,CMMND1
- 902  E332 23           	INC	HL
- 903  E333 22 88 DE     	LD	(INPOINT),HL	;save input line pointer.
- 904  E336 CD 4C E2     ERASE1:	CALL	DSELECT		;select desired disk.
- 905  E339 11 FD E8     	LD	DE,FCB
- 906  E33C CD EF DE     	CALL	DELETE		;delete the file.
- 907  E33F 3C           	INC	A
- 908  E340 CC E2 E1     	CALL	Z,NONE		;not there?
- 909  E343 C3 16 E8     	JP	GETBACK		;return to command level now.
- 910  E346 41 6C 6C 20  YESNO:	DEFB	'All (y/n)?',0
- 910  E34A 28 79 2F 6E
- 910  E34E 29 3F 00
- 911  E351              ;
- 912  E351              ;**************************************************************
- 913  E351              ;*
- 914  E351              ;*            T Y P E   C O M M A N D
- 915  E351              ;*
- 916  E351              ;**************************************************************
- 917  E351              ;
- 918  E351 CD 4A E0     TYPE:	CALL	CONVFST		;convert file name.
- 919  E354 C2 F5 DF     	JP	NZ,SYNERR	;wild cards not allowed.
- 920  E357 CD 4C E2     	CALL	DSELECT		;select indicated drive.
- 921  E35A CD D0 DE     	CALL	OPENFCB		;open the file.
- 922  E35D CA 9B E3     	JP	Z,TYPE5		;not there?
- 923  E360 CD 98 DE     	CALL	CRLF		;ok, start a new line on the screen.
- 924  E363 21 21 E9     	LD	HL,NBYTES	;initialize byte counter.
- 925  E366 36 FF        	LD	(HL),0FFH	;set to read first sector.
- 926  E368 21 21 E9     TYPE1:	LD	HL,NBYTES
- 927  E36B 7E           TYPE2:	LD	A,(HL)		;have we written the entire sector?
- 928  E36C FE 80        	CP	128
- 929  E36E DA 7B E3     	JP	C,TYPE3
- 930  E371 E5           	PUSH	HL		;yes, read in the next one.
- 931  E372 CD FE DE     	CALL	READFCB
- 932  E375 E1           	POP	HL
- 933  E376 C2 94 E3     	JP	NZ,TYPE4	;end or error?
- 934  E379 AF           	XOR	A		;ok, clear byte counter.
- 935  E37A 77           	LD	(HL),A
- 936  E37B 34           TYPE3:	INC	(HL)		;count this byte.
- 937  E37C 21 80 00     	LD	HL,TBUFF	;and get the (A)th one from the buffer (TBUFF).
- 938  E37F CD 45 E0     	CALL	ADDHL
- 939  E382 7E           	LD	A,(HL)
- 940  E383 FE 1A        	CP	CNTRLZ		;end of file mark?
- 941  E385 CA 16 E8     	JP	Z,GETBACK
- 942  E388 CD 8C DE     	CALL	PRINT		;no, print it.
- 943  E38B CD C2 DF     	CALL	CHKCON		;check console, quit if anything ready.
- 944  E38E C2 16 E8     	JP	NZ,GETBACK
- 945  E391 C3 68 E3     	JP	TYPE1
- 946  E394              ;
- 947  E394              ;   Get here on an end of file or read error.
- 948  E394              ;
- 949  E394 3D           TYPE4:	DEC	A		;read error?
- 950  E395 CA 16 E8     	JP	Z,GETBACK
- 951  E398 CD D1 E1     	CALL	RDERROR		;yes, print message.
- 952  E39B CD 5E E2     TYPE5:	CALL	RESETDR		;and reset proper drive
- 953  E39E C3 F5 DF     	JP	SYNERR		;now print file name with problem.
- 954  E3A1              ;
- 955  E3A1              ;**************************************************************
- 956  E3A1              ;*
- 957  E3A1              ;*            S A V E   C O M M A N D
- 958  E3A1              ;*
- 959  E3A1              ;**************************************************************
- 960  E3A1              ;
- 961  E3A1 CD F0 E1     SAVE:	CALL	DECODE		;get numeric number that follows SAVE.
- 962  E3A4 F5           	PUSH	AF		;save number of pages to write.
- 963  E3A5 CD 4A E0     	CALL	CONVFST		;convert file name.
- 964  E3A8 C2 F5 DF     	JP	NZ,SYNERR	;wild cards not allowed.
- 965  E3AB CD 4C E2     	CALL	DSELECT		;select specified drive.
- 966  E3AE 11 FD E8     	LD	DE,FCB		;now delete this file.
- 967  E3B1 D5           	PUSH	DE
- 968  E3B2 CD EF DE     	CALL	DELETE
- 969  E3B5 D1           	POP	DE
- 970  E3B6 CD 09 DF     	CALL	CREATE		;and create it again.
- 971  E3B9 CA EF E3     	JP	Z,SAVE3		;can't create?
- 972  E3BC AF           	XOR	A		;clear record number byte.
- 973  E3BD 32 1D E9     	LD	(FCB+32),A
- 974  E3C0 F1           	POP	AF		;convert pages to sectors.
- 975  E3C1 6F           	LD	L,A
- 976  E3C2 26 00        	LD	H,0
- 977  E3C4 29           	ADD	HL,HL		;(HL)=number of sectors to write.
- 978  E3C5 11 00 01     	LD	DE,TBASE	;and we start from here.
- 979  E3C8 7C           SAVE1:	LD	A,H		;done yet?
- 980  E3C9 B5           	OR	L
- 981  E3CA CA E5 E3     	JP	Z,SAVE2
- 982  E3CD 2B           	DEC	HL		;nope, count this and compute the start
- 983  E3CE E5           	PUSH	HL		;of the next 128 byte sector.
- 984  E3CF 21 80 00     	LD	HL,128
- 985  E3D2 19           	ADD	HL,DE
- 986  E3D3 E5           	PUSH	HL		;save it and set the transfer address.
- 987  E3D4 CD D8 DF     	CALL	DMASET
- 988  E3D7 11 FD E8     	LD	DE,FCB		;write out this sector now.
- 989  E3DA CD 04 DF     	CALL	WRTREC
- 990  E3DD D1           	POP	DE		;reset (DE) to the start of the last sector.
- 991  E3DE E1           	POP	HL		;restore sector count.
- 992  E3DF C2 EF E3     	JP	NZ,SAVE3	;write error?
- 993  E3E2 C3 C8 E3     	JP	SAVE1
- 994  E3E5              ;
- 995  E3E5              ;   Get here after writing all of the file.
- 996  E3E5              ;
- 997  E3E5 11 FD E8     SAVE2:	LD	DE,FCB		;now close the file.
- 998  E3E8 CD DA DE     	CALL	CLOSE
- 999  E3EB 3C           	INC	A		;did it close ok?
-1000  E3EC C2 F5 E3     	JP	NZ,SAVE4
-1001  E3EF              ;
-1002  E3EF              ;   Print out error message (no space).
-1003  E3EF              ;
-1004  E3EF 01 FB E3     SAVE3:	LD	BC,NOSPACE
-1005  E3F2 CD A7 DE     	CALL	PLINE
-1006  E3F5 CD D5 DF     SAVE4:	CALL	STDDMA		;reset the standard dma address.
-1007  E3F8 C3 16 E8     	JP	GETBACK
-1008  E3FB 4E 6F 20 73  NOSPACE:DEFB	'No space',0
-1008  E3FF 70 61 63 65
-1008  E403 00
-1009  E404              ;
-1010  E404              ;**************************************************************
-1011  E404              ;*
-1012  E404              ;*           R E N A M E   C O M M A N D
-1013  E404              ;*
-1014  E404              ;**************************************************************
-1015  E404              ;
-1016  E404              RENAME:
-1017  E404 CD 4A E0     	CALL	CONVFST			;convert first file name.
-1018  E407 C2 F5 DF     	JP	NZ,SYNERR			;wild cards not allowed.
-1019  E40A 3A 20 E9     	LD	A,(CHGDRV)			;remember any change in drives specified.
-1020  E40D F5           	PUSH	AF
-1021  E40E CD 4C E2     	CALL	DSELECT			;and select this drive.
-1022  E411 CD E9 DE     	CALL	SRCHFCB			;is this file present?
-1023  E414 C2 6D E4     	JP	NZ,RENAME6			;yes, print error message.
-1024  E417 21 FD E8     	LD	HL,FCB				;yes, move this name into second slot.
-1025  E41A 11 0D E9     	LD	DE,FCB+16
-1026  E41D 06 10        	LD	B,16
-1027  E41F CD 3A E2     	CALL	HL2DE
-1028  E422 2A 88 DE     	LD	HL,(INPOINT)		;get input pointer.
-1029  E425 EB           	EX	DE,HL
-1030  E426 CD 3B E0     	CALL	NONBLANK		;get next non blank character.
-1031  E429 FE 3D        	CP	'='					;only allow an '=' or '<' seperator.
-1032  E42B CA 33 E4     	JP	Z,RENAME1
-1033  E42E FE 3C        	CP	'<'
-1034  E430 C2 67 E4     	JP	NZ,RENAME5
-1035  E433              RENAME1:
-1036  E433 EB           	EX	DE,HL
-1037  E434 23           	INC	HL					;ok, skip seperator.
-1038  E435 22 88 DE     	LD	(INPOINT),HL		;save input line pointer.
-1039  E438 CD 4A E0     	CALL	CONVFST			;convert this second file name now.
-1040  E43B C2 67 E4     	JP	NZ,RENAME5			;again, no wild cards.
-1041  E43E F1           	POP	AF					;if a drive was specified, then it
-1042  E43F 47           	LD	B,A					;must be the same as before.
-1043  E440 21 20 E9     	LD	HL,CHGDRV
-1044  E443 7E           	LD	A,(HL)
-1045  E444 B7           	OR	A
-1046  E445 CA 4D E4     	JP	Z,RENAME2
-1047  E448 B8           	CP	B
-1048  E449 70           	LD	(HL),B
-1049  E44A C2 67 E4     	JP	NZ,RENAME5			;they were different, error.
-1050  E44D              RENAME2:
-1051  E44D 70           	LD	(HL),B				;	reset as per the first file specification.
-1052  E44E AF           	XOR	A
-1053  E44F 32 FD E8     	LD	(FCB),A				;clear the drive byte of the fcb.
-1054  E452              RENAME3:
-1055  E452 CD E9 DE     	CALL	SRCHFCB			;and go look for second file.
-1056  E455 CA 61 E4     	JP	Z,RENAME4			;doesn't exist?
-1057  E458 11 FD E8     	LD	DE,FCB
-1058  E45B CD 0E DF     	CALL	RENAM			;ok, rename the file.
-1059  E45E C3 16 E8     	JP	GETBACK
-1060  E461              ;
-1061  E461              ;   Process rename errors here.
-1062  E461              ;
-1063  E461              RENAME4:
-1064  E461 CD E2 E1     	CALL	NONE		;file not there.
-1065  E464 C3 16 E8     	JP	GETBACK
-1066  E467              RENAME5:
-1067  E467 CD 5E E2     	CALL	RESETDR		;bad command format.
-1068  E46A C3 F5 DF     	JP	SYNERR
-1069  E46D              RENAME6:
-1070  E46D 01 76 E4     	LD	BC,EXISTS	;destination file already exists.
-1071  E470 CD A7 DE     	CALL	PLINE
-1072  E473 C3 16 E8     	JP	GETBACK
-1073  E476              EXISTS:
-1074  E476 46 69 6C 65  	DEFB	'File exists',0
-1074  E47A 20 65 78 69
-1074  E47E 73 74 73 00
-1075  E482              ;
-1076  E482              ;**************************************************************
-1077  E482              ;*
-1078  E482              ;*             U S E R   C O M M A N D
-1079  E482              ;*
-1080  E482              ;**************************************************************
-1081  E482              ;
-1082  E482              USER:
-1083  E482 CD F0 E1     	CALL	DECODE		;get numeric value following command.
-1084  E485 FE 10        	CP	16		;legal user number?
-1085  E487 D2 F5 DF     	JP	NC,SYNERR
-1086  E48A 5F           	LD	E,A		;yes but is there anything else?
-1087  E48B 3A FE E8     	LD	A,(FCB+1)
-1088  E48E FE 20        	CP	' '
-1089  E490 CA F5 DF     	JP	Z,SYNERR	;yes, that is not allowed.
-1090  E493 CD 15 DF     	CALL	GETSETUC	;ok, set user code.
-1091  E496 C3 19 E8     	JP	GETBACK1
-1092  E499
-1093  E499              ;
-1094  E499              ;**************************************************************
-1095  E499              ;*
-1096  E499              ;*             I M P O R T   C O M M A N D
-1097  E499              ;*
-1098  E499              ;**************************************************************
-1099  E499              ;
-1100  E499              ; This takes the name of a file from the command line.
-1101  E499              ; It asks the Arduino for the size of this file. This is done by sending the appropriate command
-1102  E499              ; to Arduino, which reads the name of the file from the FCB by DMA. It responds with the size of
-1103  E499              ; the file (placed in the DMA area). This is 5 bytes long. The first byte is 0 if the
-1104  E499              ; file doesn't exist. The next 4 are the file size in bytes.
-1105  E499              ; This command then creates a file of the name from the FCB.
-1106  E499              ; It then reads 128 byte blocks of data from the Arduino taken from this file.
-1107  E499              ; It saves each one to disk.
-1108  E499              ; Finally it closes the file it just created.
-1109  E499              ;
-1110  E499              importbyteslow:
-1111  E499 00 00        	dw 0
-1112  E49B              importbyteshigh:
-1113  E49B 00 00        	dw 0
-1114  E49D
-1115  E49D              IMPORT_COMMAND:
-1116  E49D CD 98 DE     	call 	CRLF
-1117  E4A0 11 49 E5     	ld 	de, IMPORT_MESSAGE_INTRO
-1118  E4A3 0E 09        	ld 	c, 9		; Print String
-1119  E4A5 CD 05 00     	call	ENTRY		; Call BDOS to print it
-1120  E4A8 CD 98 DE     	call 	CRLF
-1121  E4AB
-1122  E4AB CD 4A E0     	CALL	CONVFST		;convert file name.
-1123  E4AE C2 F5 DF     	JP	NZ,SYNERR	;wild cards not allowed.
-1124  E4B1 CD 4C E2     	CALL	DSELECT		;and select this drive.
-1125  E4B4 CD E9 DE     	CALL	SRCHFCB		;is this file present?
-1126  E4B7 C2 6D E4     	JP	NZ,RENAME6	;yes, print error message.
-1127  E4BA
-1128  E4BA 11 80 00     	ld de, TBUFF			; Copy the file name from FCB to the DMA location
-1129  E4BD 21 FD E8     	ld hl, FCB
-1130  E4C0 01 0C 00     	ld bc, 12
-1131  E4C3 ED B0        	ldir
-1132  E4C5              	;out 	(IMPORTFILE_PORT), a
-1133  E4C5
-1134  E4C5              	; Get info on whether file exists
-1135  E4C5
-1136  E4C5 11 80 00     	ld de, TBUFF	; Get pointer to DMA area
-1137  E4C8
-1138  E4C8 1A           	ld a, (de)
-1139  E4C9 FE 00        	cp 0
-1140  E4CB CA FE E5     	jp z, EXPORT_ERROR_FILE_NOT_FOUND
-1141  E4CE
-1142  E4CE 11 FD E8     	ld	de, FCB
-1143  E4D1 0E 16        	ld 	c, 22		; Create file
-1144  E4D3 CD 05 00     	call	ENTRY		; Call BDOS to make file
-1145  E4D6
-1146  E4D6              	;jp GETBACK
-1147  E4D6
-1148  E4D6              	; Import the data, 128 bytes at a time
-1149  E4D6
-1150  E4D6              IMPORT_MAIN_LOOP:
-1151  E4D6
-1152  E4D6 CD D5 DF     	call	STDDMA		; Set the standard DMA address
-1153  E4D9              	;out (GETFILE_PORT), a 	; Get the 128 bytes from Arduino
-1154  E4D9
-1155  E4D9 11 FD E8     	ld 	de, FCB
-1156  E4DC 0E 15        	ld	c, 21
-1157  E4DE CD 05 00     	call 	ENTRY		; Call BDOS to write these bytes to file
-1158  E4E1 FE 02        	cp	2
-1159  E4E3 28 24        	jr      z, IMPORT_DISK_FULL
-1160  E4E5 FE 01        	cp 	1
-1161  E4E7 28 2E        	jr      z, IMPORT_NO_DIR
-1162  E4E9
-1163  E4E9 3A FF FF     	ld a, (65535)
-1164  E4EC FE 00        	cp 0
-1165  E4EE 28 03        	jr z, IMPORT_FINISHED
-1166  E4F0
-1167  E4F0 C3 D6 E4     	jp	IMPORT_MAIN_LOOP
-1168  E4F3
-1169  E4F3              IMPORT_FINISHED:
-1170  E4F3              	; Finished so close file
-1171  E4F3
-1172  E4F3 11 FD E8     	ld	de, FCB
-1173  E4F6 0E 10        	ld 	c, 16		; Close file
-1174  E4F8 CD 05 00     	call	ENTRY		; Call BDOS to close file
-1175  E4FB
-1176  E4FB CD 98 DE     	call 	CRLF
-1177  E4FE 11 6D E5     	ld 	de, IMPORT_MESSAGE_SUCCESS
-1178  E501 0E 09        	ld 	c, 9		; Print String
-1179  E503 CD 05 00     	call	ENTRY		; Call BDOS to print it
-1180  E506 C3 16 E8     	JP	GETBACK
-1181  E509
-1182  E509              IMPORT_DISK_FULL:
-1183  E509 CD 98 DE     	call 	CRLF
-1184  E50C 11 25 E5     	ld 	de, IMPORT_MESSAGE_DISK_FULL
-1185  E50F 0E 09        	ld 	c, 9		; Print String
-1186  E511 CD 05 00     	call	ENTRY		; Call BDOS to print it
-1187  E514 C3 16 E8     	jp	GETBACK
-1188  E517
-1189  E517              IMPORT_NO_DIR:
-1190  E517 CD 98 DE     	call 	CRLF
-1191  E51A 11 30 E5     	ld 	de, IMPORT_MESSAGE_NO_DIR
-1192  E51D 0E 09        	ld 	c, 9		; Print String
-1193  E51F CD 05 00     	call	ENTRY		; Call BDOS to print it
-1194  E522 C3 16 E8     	jp	GETBACK
-1195  E525
-1196  E525              IMPORT_MESSAGE_DISK_FULL:
-1197  E525 44 69 73 6B  	defb	"Disk full!$"
-1197  E529 20 66 75 6C
-1197  E52D 6C 21 24
-1198  E530              IMPORT_MESSAGE_NO_DIR:
-1199  E530 4E 6F 20 64  	defb	"No directory space left!$"
-1199  E534 69 72 65 63
-1199  E538 74 6F 72 79
-1199  E53C 20 73 70 61
-1199  E540 63 65 20 6C
-1199  E544 65 66 74 21
-1199  E548 24
-1200  E549
-1201  E549              IMPORT_MESSAGE_INTRO:
-1202  E549 49 6D 70 6F  	defb "Importing a file from PC to CP/M...$"
-1202  E54D 72 74 69 6E
-1202  E551 67 20 61 20
-1202  E555 66 69 6C 65
-1202  E559 20 66 72 6F
-1202  E55D 6D 20 50 43
-1202  E561 20 74 6F 20
-1202  E565 43 50 2F 4D
-1202  E569 2E 2E 2E 24
-1203  E56D              IMPORT_MESSAGE_SUCCESS:
-1204  E56D 46 69 6C 65  	defb "File imported!$"
-1204  E571 20 69 6D 70
-1204  E575 6F 72 74 65
-1204  E579 64 21 24
-1205  E57C
-1206  E57C              ;
-1207  E57C              ;**************************************************************
-1208  E57C              ;*
-1209  E57C              ;*             E X P O R T   C O M M A N D
-1210  E57C              ;*
-1211  E57C              ;**************************************************************
-1212  E57C              ;
-1213  E57C              ; This takes the name of a file from the command line.
-1214  E57C              ; It first checks that the file is present on disk.
-1215  E57C              ; It then opens the file and works its way through it one sector at a time.
-1216  E57C              ; It reads data from the file and sends it to the Arduino.
-1217  E57C              ; The arduino saves sector on to SD card.
-1218  E57C              ; Finally we close the file.
-1219  E57C              ;
-1220  E57C              exportbyteslow:
-1221  E57C 00 00        	dw 0
-1222  E57E              exportbyteshigh:
-1223  E57E 00 00        	dw 0
-1224  E580
-1225  E580              EXPORT_COMMAND:
-1226  E580 CD D5 DF     	call	STDDMA		; Set the standard DMA address
-1227  E583
-1228  E583 CD 98 DE     	call 	CRLF
-1229  E586 11 23 E6     	ld 	de, EXPORT_MESSAGE_INTRO
-1230  E589 0E 09        	ld 	c, 9		; Print String
-1231  E58B CD 05 00     	call	ENTRY		; Call BDOS to print it
-1232  E58E CD 98 DE     	call 	CRLF
-1233  E591
-1234  E591 CD 4A E0     	CALL	CONVFST		;convert file name.
-1235  E594 C2 F5 DF     	JP	NZ,SYNERR	;wild cards not allowed.
-1236  E597 CD 4C E2     	CALL	DSELECT		;and select this drive.
-1237  E59A CD E9 DE     	CALL	SRCHFCB		;is this file present?
-1238  E59D CA FE E5     	JP	Z,EXPORT_ERROR_FILE_NOT_FOUND	;no, print error message.
-1239  E5A0
-1240  E5A0              	;ld 	a, StartExportCommand
-1241  E5A0              	;out 	(port), a
-1242  E5A0 21 FE E8     	ld 	hl, FCB+1
-1243  E5A3 06 0B        	ld 	b, 11
-1244  E5A5              EXPORT_COMMAND_SEND_NAME_LOOP:
-1245  E5A5 7E           	ld 	a, (hl)		; Send the filename to the Arduino, 8 + 3 letters
-1246  E5A6              	;out	(port), a
-1247  E5A6 23           	inc 	hl
-1248  E5A7 10 FC        	djnz	EXPORT_COMMAND_SEND_NAME_LOOP
-1249  E5A9
-1250  E5A9              	;call debug
-1251  E5A9              	;db "CCP open the file", 13, 10, 0
-1252  E5A9
-1253  E5A9              	; Open the file
-1254  E5A9 11 FD E8     	ld	de, FCB
-1255  E5AC 0E 0F        	ld 	c, 15		; Open file
-1256  E5AE CD 05 00     	call	ENTRY		; Call BDOS to open file
-1257  E5B1
-1258  E5B1              	;call debug
-1259  E5B1              	;db "CCP read a sector", 13, 10, 0
-1260  E5B1
-1261  E5B1              	; Loop through getting each sector in turn until none remainder
-1262  E5B1              	; We read it into the standard DMA location (TBUFF), then send each
-1263  E5B1              	; byte to the Arduino
-1264  E5B1              EXPORT_LOOP:
-1265  E5B1 11 80 00     	ld	de, TBUFF
-1266  E5B4 0E 1A        	ld 	c, 26			; Set DMA address
-1267  E5B6 CD 05 00     	call	ENTRY			; Call BDOS
-1268  E5B9
-1269  E5B9 11 FD E8     	ld	de, FCB
-1270  E5BC 0E 14        	ld 	c, 20			; Read sequential
-1271  E5BE CD 05 00     	call	ENTRY			; Call BDOS
-1272  E5C1 FE 00        	cp	0
-1273  E5C3 20 0B        	jr	nz, EXPORT_NO_MORE_DATA
-1274  E5C5
-1275  E5C5              	;call debug
-1276  E5C5              	;db "CCP export a sector", 13, 10, 0
-1277  E5C5
-1278  E5C5              	;ld 	a, ContinueExportCommand	; Every block of 128 bytes is preceeded by a "continue" command
-1279  E5C5              	;out 	(port), a
-1280  E5C5
-1281  E5C5 21 80 00     	ld	hl, TBUFF		; Point to start of the DMA buffer
-1282  E5C8 06 80        	ld 	b, 128			; Count for 128 bytes of this sector
-1283  E5CA              EXPORT_BYTE_LOOP:
-1284  E5CA 7E           	ld	a, (hl)
-1285  E5CB              	;out	(port), a		; Send a byte to the Arduino
-1286  E5CB 23           	inc	hl			; Point to next byte
-1287  E5CC 10 FC        	djnz	EXPORT_BYTE_LOOP	; Do all 128 bytes
-1288  E5CE 18 E1        	jr	EXPORT_LOOP		; Continue to next sector
-1289  E5D0
-1290  E5D0              EXPORT_NO_MORE_DATA:
-1291  E5D0              	; Close the file
-1292  E5D0
-1293  E5D0 CD 7A E8     	call debug
-1294  E5D3 43 43 50 20  	db "CCP close the file", 13, 10, 0
-1294  E5D7 63 6C 6F 73
-1294  E5DB 65 20 74 68
-1294  E5DF 65 20 66 69
-1294  E5E3 6C 65 0D 0A
-1294  E5E7 00
-1295  E5E8
-1296  E5E8 11 FD E8     	ld	de, FCB
-1297  E5EB 0E 10        	ld 	c, 16		; Close file
-1298  E5ED CD 05 00     	call	ENTRY		; Call BDOS to close file
-1299  E5F0
-1300  E5F0              	;ld 	a, EndExportCommand
-1301  E5F0              	;out 	(port), a
-1302  E5F0
-1303  E5F0 CD 98 DE     	call 	CRLF
-1304  E5F3 11 47 E6     	ld 	de, EXPORT_MESSAGE_SUCCESS
-1305  E5F6 0E 09        	ld 	c, 9		; Print String
-1306  E5F8 CD 05 00     	call	ENTRY		; Call BDOS to print it
-1307  E5FB C3 16 E8     	JP	GETBACK
-1308  E5FE
-1309  E5FE              EXPORT_ERROR_FILE_NOT_FOUND:
-1310  E5FE CD 98 DE     	call 	CRLF
-1311  E601 11 0C E6     	ld 	de, EXPORT_MESSAGE_FILE_NOT_FOUND
-1312  E604 0E 09        	ld 	c, 9		; Print String
-1313  E606 CD 05 00     	call	ENTRY		; Call BDOS to print it
-1314  E609 C3 16 E8     	jp	GETBACK
-1315  E60C
-1316  E60C              EXPORT_MESSAGE_FILE_NOT_FOUND:
-1317  E60C 45 52 52 4F  	defb "ERROR: File not found.$"
-1317  E610 52 3A 20 46
-1317  E614 69 6C 65 20
-1317  E618 6E 6F 74 20
-1317  E61C 66 6F 75 6E
-1317  E620 64 2E 24
-1318  E623              EXPORT_MESSAGE_INTRO:
-1319  E623 45 78 70 6F  	defb "Exporting a file from CP/M to SD...$"
-1319  E627 72 74 69 6E
-1319  E62B 67 20 61 20
-1319  E62F 66 69 6C 65
-1319  E633 20 66 72 6F
-1319  E637 6D 20 43 50
-1319  E63B 2F 4D 20 74
-1319  E63F 6F 20 53 44
-1319  E643 2E 2E 2E 24
-1320  E647              EXPORT_MESSAGE_SUCCESS:
-1321  E647 46 69 6C 65  	defb "File exported!$"
-1321  E64B 20 65 78 70
-1321  E64F 6F 72 74 65
-1321  E653 64 21 24
-1322  E656
-1323  E656
-1324  E656              ;**************************************************************
-1325  E656              ;
-1326  E656              ;	Disk Usage (DU) command
-1327  E656              ;
-1328  E656              ;**************************************************************
-1329  E656
-1330  E656              DU_COMMAND:
-1331  E656 CD 98 DE     	call	CRLF
-1332  E659
-1333  E659 CD 7A E8     	call 	debug
-1334  E65C 3D 20 44 55  	db 	"= DU", 13, 10, 0
-1334  E660 0D 0A 00
-1335  E663
-1336  E663              	;call	CRLF
-1337  E663              	;jp 	GETBACK
-1338  E663
-1339  E663              	;; Loop through all 700 records in my large.txt file, showing them on screen
-1340  E663
-1341  E663 21 0F E7     	ld 	hl, DU_SECTOR_COUNTER
-1342  E666 36 00        	ld	(hl), 0
-1343  E668
-1344  E668 11 FD E8     	ld 	de, FCB
-1345  E66B 21 11 E7     	ld	hl, LARGE_TXT_FCB
-1346  E66E 01 10 00     	ld	bc, 16
-1347  E671 ED B0        	ldir				; Copy file name into FCB
-1348  E673
-1349  E673 CD 7A E8     	call 	debug
-1350  E676 3D 20 4F 70  	db 	"= Open", 13, 10, 0
-1350  E67A 65 6E 0D 0A
-1350  E67E 00
-1351  E67F
-1352  E67F 11 FD E8     	ld	de, FCB
-1353  E682 0E 0F        	ld	c, 15			; open file
-1354  E684 CD 05 00     	call	ENTRY			; by calling BDOS
-1355  E687
-1356  E687 CD 7A E8     	call 	debug
-1357  E68A 3D 20 52 65  	db 	"= Result = ", 0
-1357  E68E 73 75 6C 74
-1357  E692 20 3D 20 00
-1358  E696
-1359  E696 4F           	ld	c, a			; Get error code if any
-1360  E697 CD 9E E8     	call 	show_c_in_hex
-1361  E69A
-1362  E69A CD 7A E8     	call	debug
-1363  E69D 0D 0A 3D 20  	db	13, 10, "= DMA", 13, 10, 0
-1363  E6A1 44 4D 41 0D
-1363  E6A5 0A 00
-1364  E6A7
-1365  E6A7              SECTOR_COUNTER_LOOP:
-1366  E6A7 11 80 00     	ld	de, TBUFF
-1367  E6AA 0E 1A        	ld 	c, 26			; Set DMA address
-1368  E6AC CD 05 00     	call	ENTRY			; by calling BDOS
-1369  E6AF
-1370  E6AF 21 FD E8     	ld	hl, FCB
-1371  E6B2 11 21 00     	ld	de, 021H
-1372  E6B5 19           	add	hl, de			; HL points to random record area of FCB
-1373  E6B6
-1374  E6B6 ED 4B 0F E7  	ld	bc, (DU_SECTOR_COUNTER)	; get sector counter
-1375  E6BA 71           	ld	(hl), c			; Put bc into random record area of FCB
-1376  E6BB 23           	inc	hl
-1377  E6BC 70           	ld	(hl), b			; FCB now set for read
-1378  E6BD
-1379  E6BD 11 FD E8     	ld	de, FCB
-1380  E6C0 0E 21        	ld 	c, 33			; Read a "random access" record
-1381  E6C2 CD 05 00     	call	ENTRY			; by calling BDOS
-1382  E6C5
-1383  E6C5              	; Display the sector
-1384  E6C5 21 80 00     	ld	hl, TBUFF
-1385  E6C8 06 80        	ld	b, 128
-1386  E6CA 16 40        	ld	d, 64
-1387  E6CC              SHOW_SECTOR_LOOP:
-1388  E6CC              	;ld	c, (hl)
-1389  E6CC              	;call	show_c_in_hex
-1390  E6CC              	;ld	a, ' '
-1391  E6CC 7E           	ld	a, (hl)
-1392  E6CD D3 00        	out	(0), a
-1393  E6CF 15           	dec	d
-1394  E6D0 20 0A        	jr	nz, NOT_END_OF_LINE
-1395  E6D2
-1396  E6D2 3E 0D        	ld 	a, 13
-1397  E6D4 D3 00        	out	(0), a
-1398  E6D6 3E 0A        	ld 	a, 10
-1399  E6D8 D3 00        	out	(0), a
-1400  E6DA 16 40        	ld	d, 64
-1401  E6DC
-1402  E6DC              NOT_END_OF_LINE:
-1403  E6DC 23           	inc	hl
-1404  E6DD 10 ED        	djnz	SHOW_SECTOR_LOOP
-1405  E6DF
-1406  E6DF 2A 0F E7     	ld	hl, (DU_SECTOR_COUNTER)	; get sector counter
-1407  E6E2 23           	inc	hl
-1408  E6E3 22 0F E7     	ld	(DU_SECTOR_COUNTER), hl	; set sector counter
-1409  E6E6 11 44 FD     	ld	de, -700
-1410  E6E9 19           	add	hl, de
-1411  E6EA
-1412  E6EA
-1413  E6EA 7D           	ld 	a, l
-1414  E6EB FE 00        	cp	0
-1415  E6ED 20 B8        	jr	nz, 	SECTOR_COUNTER_LOOP
-1416  E6EF 7C           	ld 	a, h
-1417  E6F0 FE 00        	cp	0
-1418  E6F2 20 B3        	jr	nz, 	SECTOR_COUNTER_LOOP
-1419  E6F4
-1420  E6F4
-1421  E6F4
-1422  E6F4
-1423  E6F4 CD 7A E8     	call	debug
-1424  E6F7 3D 20 43 4C  	db	"= CLOSE", 13, 10, 0
-1424  E6FB 4F 53 45 0D
-1424  E6FF 0A 00
-1425  E701
-1426  E701              	; Close the file
-1427  E701 11 FD E8     	ld	de, FCB
-1428  E704 0E 10        	ld	c, 16			; close the file
-1429  E706 CD 05 00     	call	ENTRY			; by calling BDOS
-1430  E709
-1431  E709 CD 98 DE     	call	CRLF
-1432  E70C C3 16 E8     	jp 	GETBACK
-1433  E70F
-1434  E70F              DU_SECTOR_COUNTER:
-1435  E70F 00 00        	dw	0
-1436  E711
-1437  E711              LARGE_TXT_FCB:
-1438  E711 10 4C 41 52  	db	16, "LARGE   TXT", 0, 0, 0, 0
-1438  E715 47 45 20 20
-1438  E719 20 54 58 54
-1438  E71D 00 00 00 00
-1439  E721
-1440  E721
-1441  E721              ;
-1442  E721              ;**************************************************************
-1443  E721              ;*
-1444  E721              ;*        T R A N S I E N T   P R O G R A M   C O M M A N D
-1445  E721              ;*
-1446  E721              ;**************************************************************
-1447  E721              ;
-1448  E721              UNKNOWN:
-1449  E721 3A FE E8     	LD	A,(FCB+1)	;anything to execute?
-1450  E724 FE 20        	CP	' '
-1451  E726 C2 3D E7     	JP	NZ,UNKWN1
-1452  E729 3A 20 E9     	LD	A,(CHGDRV)	;nope, only a drive change?
-1453  E72C B7           	OR	A
-1454  E72D CA 19 E8     	JP	Z,GETBACK1	;neither???
-1455  E730 3D           	DEC	A
-1456  E731 32 1F E9     	LD	(CDRIVE),A	;ok, store new drive.
-1457  E734 CD 29 DF     	CALL	MOVECD		;set (TDRIVE) also.
-1458  E737 CD BD DE     	CALL	DSKSEL		;and select this drive.
-1459  E73A C3 19 E8     	JP	GETBACK1	;then return.
-1460  E73D              ;
-1461  E73D              ;   Here a file name was typed. Prepare to execute it.
-1462  E73D              ;
-1463  E73D              UNKWN1:
-1464  E73D 11 06 E9     	LD	DE,FCB+9	;an extension specified?
-1465  E740 1A           	LD	A,(DE)
-1466  E741 FE 20        	CP	' '
-1467  E743 C2 F5 DF     	JP	NZ,SYNERR	;yes, not allowed.
-1468  E746              UNKWN2:
-1469  E746 D5           	PUSH	DE
-1470  E747 CD 4C E2     	CALL	DSELECT		;select specified drive.
-1471  E74A D1           	POP	DE
-1472  E74B 21 13 E8     	LD	HL,COMFILE	;set the extension to 'COM'.
-1473  E74E CD 38 E2     	CALL	MOVE3
-1474  E751 CD D0 DE     	CALL	OPENFCB		;and open this file.
-1475  E754 CA E4 E7     	JP	Z,UNKWN9	;not present?
-1476  E757              ;
-1477  E757              ;   Load in the program.
-1478  E757              ;
-1479  E757 21 00 01     	LD	HL,TBASE	;store the program starting here.
-1480  E75A              UNKWN3:
-1481  E75A E5           	PUSH	HL
-1482  E75B EB           	EX	DE,HL
-1483  E75C CD D8 DF     	CALL	DMASET		;set transfer address.
-1484  E75F 11 FD E8     	LD	DE,FCB		;and read the next record.
-1485  E762 CD F9 DE     	CALL	RDREC
-1486  E765 C2 7A E7     	JP	NZ,UNKWN4	;end of file or read error?
-1487  E768 E1           	POP	HL		;nope, bump pointer for next sector.
-1488  E769 11 80 00     	LD	DE,128
-1489  E76C 19           	ADD	HL,DE
-1490  E76D 11 00 DE     	LD	DE,CBASE	;enough room for the whole file?
-1491  E770 7D           	LD	A,L
-1492  E771 93           	SUB	E
-1493  E772 7C           	LD	A,H
-1494  E773 9A           	SBC	A,D
-1495  E774 D2 EA E7     	JP	NC,UNKWN0	;no, it can't fit.
-1496  E777 C3 5A E7     	JP	UNKWN3
-1497  E77A              ;
-1498  E77A              ;   Get here after finished reading.
-1499  E77A              ;
-1500  E77A              UNKWN4:
-1501  E77A E1           	POP	HL
-1502  E77B 3D           	DEC	A		;normal end of file?
-1503  E77C C2 F3 E7     	JP	NZ,UNKWN99
-1504  E77F CD 5E E2     	CALL	RESETDR		;yes, reset previous drive.
-1505  E782 CD 4A E0     	CALL	CONVFST		;convert the first file name that follows
-1506  E785 21 20 E9     	LD	HL,CHGDRV	;command name.
-1507  E788 E5           	PUSH	HL
-1508  E789 7E           	LD	A,(HL)		;set drive code in default fcb.
-1509  E78A 32 FD E8     	LD	(FCB),A
-1510  E78D 3E 10        	LD	A,16		;put second name 16 bytes later.
-1511  E78F CD 4C E0     	CALL	CONVERT		;convert second file name.
-1512  E792 E1           	POP	HL
-1513  E793 7E           	LD	A,(HL)		;and set the drive for this second file.
-1514  E794 32 0D E9     	LD	(FCB+16),A
-1515  E797 AF           	XOR	A		;clear record byte in fcb.
-1516  E798 32 1D E9     	LD	(FCB+32),A
-1517  E79B 11 5C 00     	LD	DE,TFCB		;move it into place at(005Ch).
-1518  E79E 21 FD E8     	LD	HL,FCB
-1519  E7A1 06 21        	LD	B,33
-1520  E7A3 CD 3A E2     	CALL	HL2DE
-1521  E7A6 21 08 DE     	LD	HL,INBUFF+2	;now move the remainder of the input
-1522  E7A9              UNKWN5:
-1523  E7A9 7E           	LD	A,(HL)		;line down to (0080h). Look for a non blank.
-1524  E7AA B7           	OR	A		;or a null.
-1525  E7AB CA B7 E7     	JP	Z,UNKWN6
-1526  E7AE FE 20        	CP	' '
-1527  E7B0 CA B7 E7     	JP	Z,UNKWN6
-1528  E7B3 23           	INC	HL
-1529  E7B4 C3 A9 E7     	JP	UNKWN5
-1530  E7B7              ;
-1531  E7B7              ;   Do the line move now. It ends in a null byte.
-1532  E7B7              ;
-1533  E7B7              UNKWN6:
-1534  E7B7 06 00        	LD	B,0		;keep a character count.
-1535  E7B9 11 81 00     	LD	DE,TBUFF+1	;data gets put here.
-1536  E7BC              UNKWN7:
-1537  E7BC 7E           	LD	A,(HL)		;move it now.
-1538  E7BD 12           	LD	(DE),A
-1539  E7BE B7           	OR	A
-1540  E7BF CA C8 E7     	JP	Z,UNKWN8
-1541  E7C2 04           	INC	B
-1542  E7C3 23           	INC	HL
-1543  E7C4 13           	INC	DE
-1544  E7C5 C3 BC E7     	JP	UNKWN7
-1545  E7C8              UNKWN8:
-1546  E7C8 78           	LD	A,B		;now store the character count.
-1547  E7C9 32 80 00     	LD	(TBUFF),A
-1548  E7CC CD 98 DE     	CALL	CRLF		;clean up the screen.
-1549  E7CF CD D5 DF     	CALL	STDDMA		;set standard transfer address.
-1550  E7D2 CD 1A DF     	CALL	SETCDRV		;reset current drive.
-1551  E7D5 CD 00 01     	CALL	TBASE		;and execute the program.
-1552  E7D8              ;
-1553  E7D8              ;   Transiant programs return here (or reboot).
-1554  E7D8              ;
-1555  E7D8 31 DB E8     	LD	SP,BATCH	;set stack first off.
-1556  E7DB CD 29 DF     	CALL	MOVECD		;move current drive into place (TDRIVE).
-1557  E7DE CD BD DE     	CALL	DSKSEL		;and reselect it.
-1558  E7E1 C3 74 E1     	JP	CMMND1		;back to comand mode.
-1559  E7E4              ;
-1560  E7E4              ;   Get here if some error occured.
-1561  E7E4              ;
-1562  E7E4              UNKWN9:
-1563  E7E4 CD 5E E2     	CALL	RESETDR		;inproper format.
-1564  E7E7 C3 F5 DF     	JP	SYNERR
-1565  E7EA              UNKWN0:
-1566  E7EA 01 FC E7     	LD	BC,BADLOAD	;read error or won't fit.
-1567  E7ED CD A7 DE     	CALL	PLINE
-1568  E7F0 C3 16 E8     	JP	GETBACK
-1569  E7F3              UNKWN99:
-1570  E7F3 01 07 E8     	LD	BC,BADLOAD99	;read error or won't fit.
-1571  E7F6 CD A7 DE     	CALL	PLINE
-1572  E7F9 C3 16 E8     	JP	GETBACK
-1573  E7FC              BADLOAD:
-1574  E7FC 42 61 64 20  	DEFB	'Bad load 0',0
-1574  E800 6C 6F 61 64
-1574  E804 20 30 00
-1575  E807              BADLOAD99:
-1576  E807 42 61 64 20  	DEFB	'Bad load 99',0
-1576  E80B 6C 6F 61 64
-1576  E80F 20 39 39 00
-1577  E813              COMFILE:
-1578  E813 43 4F 4D     	DEFB	'COM'		;command file extension.
-1579  E816              ;
-1580  E816              ;   Get here to return to command level. We will reset the
-1581  E816              ; previous active drive and then either return to command
-1582  E816              ; level directly or print error message and then return.
-1583  E816              ;
-1584  E816 CD 5E E2     GETBACK:CALL	RESETDR		;reset previous drive.
-1585  E819 CD 4A E0     GETBACK1: CALL	CONVFST		;convert first name in (FCB).
-1586  E81C 3A FE E8     	LD	A,(FCB+1)	;if this was just a drive change request,
-1587  E81F D6 20        	SUB	' '		;make sure it was valid.
-1588  E821 21 20 E9     	LD	HL,CHGDRV
-1589  E824 B6           	OR	(HL)
-1590  E825 C2 F5 DF     	JP	NZ,SYNERR
-1591  E828 C3 74 E1     	JP	CMMND1		;ok, return to command level.
-1592  E82B
-1593  E82B              ; Some subroutines added by John Squires to help with the new IMPort command
-1594  E82B
-1595  E82B              ; 32-bit addition.
-1596  E82B              ; Input:
-1597  E82B              ; 32-bit number in H'L'HL
-1598  E82B              ; 32-bit number in D'E'DE
-1599  E82B              ; Result:
-1600  E82B              ; H'L'HL = H'L'HL + D'E'DE
-1601  E82B              ADD32:
-1602  E82B B7           	or	a	; Clear carry flag
-1603  E82C ED 5A            adc	hl, de	; First, perform 16 bit addition for least-significant 16 bits
-1604  E82E D9               exx
-1605  E82F ED 5A            adc     hl, de 	; Now deal with upper 16 bits, including carry from first stage
-1606  E831 D9               exx
-1607  E832 C9               ret
-1608  E833
-1609  E833              ; 32-bit subtraction.
-1610  E833              ; Input:
-1611  E833              ; 32-bit number in H'L'HL
-1612  E833              ; 32-bit number in D'E'DE
-1613  E833              ; Result:
-1614  E833              ; H'L'HL = H'L'HL - D'E'DE
-1615  E833              SUBTRACT32:
-1616  E833 B7           	or	a	; Clear carry flag
-1617  E834 ED 52            sbc	hl, de	; First, perform 16 bit subtraction for least-significant 16 bits
-1618  E836 D9               exx
-1619  E837 ED 52            sbc     hl, de 	; Now deal with upper 16 bits, including carry from first stage
-1620  E839 D9               exx
-1621  E83A C9               ret
-1622  E83B
-1623  E83B              ; Display 32 bit number in h'l'hl
-1624  E83B              display_hl32:
-1625  E83B 11 A0 86     	ld	de,34464
-1626  E83E D9           	exx
-1627  E83F 11 01 00     	ld 	de, 1
-1628  E842 D9           	exx
-1629  E843 CD 6E E8     	call	display_hl32_digit
-1630  E846
-1631  E846 11 10 27     	ld	de, 10000
-1632  E849 D9           	exx
-1633  E84A 11 00 00     	ld 	de, 0
-1634  E84D D9           	exx
-1635  E84E CD 6E E8     	call	display_hl32_digit
-1636  E851
-1637  E851 11 E8 03     	ld	de, 1000
-1638  E854 D9           	exx
-1639  E855 11 00 00     	ld 	de, 0
-1640  E858 D9           	exx
-1641  E859 CD 6E E8     	call	display_hl32_digit
-1642  E85C
-1643  E85C 11 64 00     	ld	de, 100
-1644  E85F D9           	exx
-1645  E860 11 00 00     	ld 	de, 0
-1646  E863 D9           	exx
-1647  E864
-1648  E864 CD 6E E8     	call	display_hl32_digit
-1649  E867 1E 0A        	ld	e, 10
-1650  E869 CD 6E E8     	call	display_hl32_digit
-1651  E86C 1E 01        	ld	e, 1
-1652  E86E              display_hl32_digit:
-1653  E86E 3E 2F        	ld	a, '0'-1
-1654  E870              display_hl32_digit_loop:
-1655  E870 3C           	inc	a
-1656  E871 CD 33 E8     	call	SUBTRACT32
-1657  E874 30 FA        	jr	nc,display_hl32_digit_loop
-1658  E876 CD 2B E8     	call	ADD32
-1659  E879              	;out 	(PRINTCHAR_PORT), a
-1660  E879 C9           	ret
-1661  E87A
-1662  E87A              ; --------------------------------------------
-1663  E87A              ; A temporary funciton to help with debugging
-1664  E87A
-1665  E87A              debug:
-1666  E87A              	; This expects to be called from code where the message follows the "call debug" line, like this:
-1667  E87A              	; ld a, 10
-1668  E87A              	; call debug
-1669  E87A              	; db "my message", 0
-1670  E87A              	; ld b, 10
-1671  E87A              	;
-1672  E87A              	; When we return we make sure sp is pointing to the next line of code after the message.
-1673  E87A
-1674  E87A F5           	push af			; We have stored af, but decreased sp by 2
-1675  E87B 33           	inc sp
-1676  E87C 33           	inc sp			; adjust the stack to overlook the stored "af"
-1677  E87D
-1678  E87D 22 9A E8     	ld (store_hl), hl	; temporarily store hl
-1679  E880 EB           	ex de, hl
-1680  E881 22 9C E8     	ld (store_de), hl	; temporarily store de
-1681  E884
-1682  E884
-1683  E884 E3           	ex (sp), hl		; top of stack is now mangled, but hl is pointing to our message
-1684  E885
-1685  E885              debug_message_loop:
-1686  E885 7E           	ld a, (hl)
-1687  E886 FE 00        	cp 0
-1688  E888 28 03        	jr z, debug_message_complete
-1689  E88A 23           	inc hl
-1690  E88B              	;out (PRINTCHAR_PORT), a 		; print it
-1691  E88B 18 F8        	jr debug_message_loop
-1692  E88D
-1693  E88D              debug_message_complete:
-1694  E88D 23           	inc hl
-1695  E88E E3           	ex (sp), hl		; restore top of stack, after we have incremented it so it points to the subsequent instruction
-1696  E88F
-1697  E88F 2A 9C E8     	ld hl, (store_de)	; restore de
-1698  E892 EB           	ex de, hl
-1699  E893 2A 9A E8     	ld hl, (store_hl)	; restore hl
-1700  E896
-1701  E896 3B           	dec sp
-1702  E897 3B           	dec sp			; adjust stack because of our pushed "af"
-1703  E898 F1           	pop af			; we have restored af
-1704  E899
-1705  E899 C9           	ret			; return to the instruction after the debug message
-1706  E89A
-1707  E89A              store_hl:
-1708  E89A 00 00        	defw 0			; Temporary store for hl
-1709  E89C              store_de:
-1710  E89C 00 00        	defw 0			; Temporary store for de
-1711  E89E
-1712  E89E              show_c_in_hex:
-1713  E89E F5           	push af
-1714  E89F E5           	push hl
-1715  E8A0 C5           	push bc
-1716  E8A1 CD AD E8     	call show_c_in_hex_inner
-1717  E8A4 C1           	pop bc
-1718  E8A5 E1           	pop hl
-1719  E8A6 F1           	pop af
-1720  E8A7 C9           	ret
-1721  E8A8
-1722  E8A8              show_hl_in_hex_inner:
-1723  E8A8 4C           	ld  c,h
-1724  E8A9 CD AD E8     	call  show_c_in_hex_inner
-1725  E8AC 4D           	ld  c,l
-1726  E8AD              show_c_in_hex_inner:
-1727  E8AD 79           	ld  a,c
-1728  E8AE 1F           	rra
-1729  E8AF 1F           	rra
-1730  E8B0 1F           	rra
-1731  E8B1 1F           	rra
-1732  E8B2 CD B6 E8     	call convert_nibble_to_char
-1733  E8B5 79           	ld  a,c
-1734  E8B6              convert_nibble_to_char:
-1735  E8B6 E6 0F        	and  $0F
-1736  E8B8 C6 90        	add  a,$90
-1737  E8BA 27           	daa
-1738  E8BB CE 40        	adc  a,$40
-1739  E8BD 27           	daa
-1740  E8BE              	;out (PRINTCHAR_PORT), a
-1741  E8BE C9           	ret
-1742  E8BF
-1743  E8BF              ;------------------------------------
-1744  E8BF
-1745  E8BF              ;
-1746  E8BF              ;   ccp stack area.
-1747  E8BF              ;
-1748  E8BF 00 00 00 00  	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-1748  E8C3 00 00 00 00
-1748  E8C7 00 00 00 00
-1748  E8CB 00 00 00 00
-1748  E8CF 00 00 00 00
-1748  E8D3 00 00 00 00
-1748  E8D7 00 00
-1749  E8D9              CCPSTACK:
-1750  E8D9 00 00        	defb 0,0		; I changed the syntax here in case my assembler was unable to understand what "$" means.
-1751  E8DB              ;
-1752  E8DB              ;   Batch (or SUBMIT) processing information storage.
-1753  E8DB              ;
-1754  E8DB 00           BATCH:	DEFB	0		;batch mode flag (0=not active).
-1755  E8DC 00 24 24 24  BATCHFCB: DEFB	0,'$$$     SUB',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-1755  E8E0 20 20 20 20
-1755  E8E4 20 53 55 42
-1755  E8E8 00 00 00 00
-1755  E8EC 00 00 00 00
-1755  E8F0 00 00 00 00
-1755  E8F4 00 00 00 00
-1755  E8F8 00 00 00 00
-1755  E8FC 00
-1756  E8FD              ;
-1757  E8FD              ;   File control block setup by the CCP.
-1758  E8FD              ;
-1759  E8FD 00 20 20 20  FCB:	DEFB	0,'           ',0,0,0,0,0,'           ',0,0,0,0,0
-1759  E901 20 20 20 20
-1759  E905 20 20 20 20
-1759  E909 00 00 00 00
-1759  E90D 00 20 20 20
-1759  E911 20 20 20 20
-1759  E915 20 20 20 20
-1759  E919 00 00 00 00
-1759  E91D 00
-1760  E91E 00           RTNCODE:DEFB	0		;status returned from bdos call.
-1761  E91F 00           CDRIVE:	DEFB	0		;currently active drive.
-1762  E920 00           CHGDRV:	DEFB	0		;change in drives flag (0=no change).
-1763  E921 00 00        NBYTES:	DEFW	0		;byte counter used by TYPE.
-1764  E923              ;
-1765  E923
-1766  E923
-1767  E923
+  25  B000
+  26  B000              IOBYTE	EQU	3		;i/o definition byte.
+  27  B000              TDRIVE	EQU	4		;current drive name and user number.
+  28  B000              ENTRY	EQU	5		;entry point for the cp/m bdos.
+  29  B000              TFCB	EQU	5CH		;default file control block.
+  30  B000              TBUFF	EQU	80H		;i/o buffer and command line storage.
+  31  B000              TBASE	EQU	100H		;transient program storage area.
+  32  B000              ;
+  33  B000              ;   Set control character equates.
+  34  B000              ;
+  35  B000              CNTRLC	EQU	3		;control-c
+  36  B000              CNTRLE	EQU	05H		;control-e
+  37  B000              BS	EQU	08H		;backspace
+  38  B000              TAB	EQU	09H		;tab
+  39  B000              LF	EQU	0AH		;line feed
+  40  B000              FF	EQU	0CH		;form feed
+  41  B000              CR	EQU	0DH		;carriage return
+  42  B000              CNTRLP	EQU	10H		;control-p
+  43  B000              CNTRLR	EQU	12H		;control-r
+  44  B000              CNTRLS	EQU	13H		;control-s
+  45  B000              CNTRLU	EQU	15H		;control-u
+  46  B000              CNTRLX	EQU	18H		;control-x
+  47  B000              CNTRLZ	EQU	1AH		;control-z (end-of-file mark)
+  48  B000              DEL	EQU	7FH		;rubout
+  49  B000              ;
+  50  B000
+  51  B000              ;**************************************************************
+  52  B000              ;
+  53  B000              ;            THIS IS THE START OF THE CCP
+  54  B000              ;
+  55  B000              ;**************************************************************
+  56  B000              ;
+  57  B000              CBASE:
+  58  B000 C3 4E B3     	JP	COMMAND		;execute command processor (ccp).
+  59  B003 C3 4A B3     	JP	CLEARBUF	;entry to empty input buffer before starting ccp.
+  60  B006
+  61  B006              ;
+  62  B006              ;   Standard cp/m ccp input buffer. Format is (max length),
+  63  B006              ; (actual length), (char #1), (char #2), (char #3), etc.
+  64  B006              ;
+  65  B006 7F           INBUFF:	DEFB	127		;length of input buffer.
+  66  B007 00           	DEFB	0		;current length of contents.
+  67  B008 43 6F 70 79  	DEFB	'Copyright'
+  67  B00C 72 69 67 68
+  67  B010 74
+  68  B011 20 31 39 37  	DEFB	' 1979 (c) by Digital Research      '
+  68  B015 39 20 28 63
+  68  B019 29 20 62 79
+  68  B01D 20 44 69 67
+  68  B021 69 74 61 6C
+  68  B025 20 52 65 73
+  68  B029 65 61 72 63
+  68  B02D 68 20 20 20
+  68  B031 20 20 20
+  69  B034 00 00 00 00  	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  69  B038 00 00 00 00
+  69  B03C 00 00 00 00
+  69  B040 00 00 00 00
+  69  B044 00 00 00 00
+  69  B048 00 00 00
+  70  B04B 00 00 00 00  	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  70  B04F 00 00 00 00
+  70  B053 00 00 00 00
+  70  B057 00 00 00 00
+  70  B05B 00 00 00 00
+  70  B05F 00 00 00
+  71  B062 00 00 00 00  	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  71  B066 00 00 00 00
+  71  B06A 00 00 00 00
+  71  B06E 00 00 00 00
+  71  B072 00 00 00 00
+  71  B076 00 00 00
+  72  B079 00 00 00 00  	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  72  B07D 00 00 00 00
+  72  B081 00 00 00 00
+  72  B085 00 00 00
+  73  B088 08 B0        INPOINT:DEFW	INBUFF+2	;input line pointer
+  74  B08A 00 00        NAMEPNT:DEFW	0		;input line pointer used for error message. Points to
+  75  B08C              ;			;start of name in error.
+  76  B08C              ;
+  77  B08C              ;   Routine to print (A) on the console. All registers used.
+  78  B08C              ;
+  79  B08C 5F           PRINT:	LD	E,A		;setup bdos call.
+  80  B08D 0E 02        	LD	C,2
+  81  B08F C3 05 00     	JP	ENTRY
+  82  B092              ;
+  83  B092              ;   Routine to print (A) on the console and to save (BC).
+  84  B092              ;
+  85  B092 C5           PRINTB:	PUSH	BC
+  86  B093 CD 8C B0     	CALL	PRINT
+  87  B096 C1           	POP	BC
+  88  B097 C9           	RET
+  89  B098              ;
+  90  B098              ;   Routine to send a carriage return, line feed combination
+  91  B098              ; to the console.
+  92  B098              ;
+  93  B098 3E 0D        CRLF:	LD	A,CR
+  94  B09A CD 92 B0     	CALL	PRINTB
+  95  B09D 3E 0A        	LD	A,LF
+  96  B09F C3 92 B0     	JP	PRINTB
+  97  B0A2              ;
+  98  B0A2              ;   Routine to send one space to the console and save (BC).
+  99  B0A2              ;
+ 100  B0A2 3E 20        SPACE:	LD	A,' '
+ 101  B0A4 C3 92 B0     	JP	PRINTB
+ 102  B0A7              ;
+ 103  B0A7              ;   Routine to print character string pointed to be (BC) on the
+ 104  B0A7              ; console. It must terminate with a null byte.
+ 105  B0A7              ;
+ 106  B0A7 C5           PLINE:	PUSH	BC
+ 107  B0A8 CD 98 B0     	CALL	CRLF
+ 108  B0AB E1           	POP	HL
+ 109  B0AC 7E           PLINE2:	LD	A,(HL)
+ 110  B0AD B7           	OR	A
+ 111  B0AE C8           	RET	Z
+ 112  B0AF 23           	INC	HL
+ 113  B0B0 E5           	PUSH	HL
+ 114  B0B1 CD 8C B0     	CALL	PRINT
+ 115  B0B4 E1           	POP	HL
+ 116  B0B5 C3 AC B0     	JP	PLINE2
+ 117  B0B8              ;
+ 118  B0B8              ;   Routine to reset the disk system.
+ 119  B0B8              ;
+ 120  B0B8 0E 0D        RESDSK:	LD	C,13
+ 121  B0BA C3 05 00     	JP	ENTRY
+ 122  B0BD              ;
+ 123  B0BD              ;   Routine to select disk (A).
+ 124  B0BD              ;
+ 125  B0BD 5F           DSKSEL:	LD	E,A
+ 126  B0BE 0E 0E        	LD	C,14
+ 127  B0C0 C3 05 00     	JP	ENTRY
+ 128  B0C3              ;
+ 129  B0C3              ;   Routine to call bdos and save the return code. The zero
+ 130  B0C3              ; flag is set on a return of 0ffh.
+ 131  B0C3              ;
+ 132  B0C3 CD 05 00     ENTRY1:	CALL	ENTRY
+ 133  B0C6 32 25 BB     	LD	(RTNCODE),A	;save return code.
+ 134  B0C9 3C           	INC	A		;set zero if 0ffh returned.
+ 135  B0CA C9           	RET
+ 136  B0CB              ;
+ 137  B0CB              ;   Routine to open a file. (DE) must point to the FCB.
+ 138  B0CB              ;
+ 139  B0CB 0E 0F        OPEN:	LD	C,15
+ 140  B0CD C3 C3 B0     	JP	ENTRY1
+ 141  B0D0              ;
+ 142  B0D0              ;   Routine to open file at (FCB).
+ 143  B0D0              ;
+ 144  B0D0 AF           OPENFCB:XOR	A		;clear the record number byte at fcb+32
+ 145  B0D1 32 24 BB     	LD	(FCB+32),A
+ 146  B0D4 11 04 BB     	LD	DE,FCB
+ 147  B0D7 C3 CB B0     	JP	OPEN
+ 148  B0DA              ;
+ 149  B0DA              ;   Routine to close a file. (DE) points to FCB.
+ 150  B0DA              ;
+ 151  B0DA 0E 10        CLOSE:	LD	C,16
+ 152  B0DC C3 C3 B0     	JP	ENTRY1
+ 153  B0DF              ;
+ 154  B0DF              ;   Routine to search for the first file with ambigueous name
+ 155  B0DF              ; (DE).
+ 156  B0DF              ;
+ 157  B0DF 0E 11        SRCHFST:LD	C,17
+ 158  B0E1 C3 C3 B0     	JP	ENTRY1
+ 159  B0E4              ;
+ 160  B0E4              ;   Search for the next ambigeous file name.
+ 161  B0E4              ;
+ 162  B0E4 0E 12        SRCHNXT:LD	C,18
+ 163  B0E6 C3 C3 B0     	JP	ENTRY1
+ 164  B0E9              ;
+ 165  B0E9              ;   Search for file at (FCB).
+ 166  B0E9              ;
+ 167  B0E9 11 04 BB     SRCHFCB:LD	DE,FCB
+ 168  B0EC C3 DF B0     	JP	SRCHFST
+ 169  B0EF              ;
+ 170  B0EF              ;   Routine to delete a file pointed to by (DE).
+ 171  B0EF              ;
+ 172  B0EF 0E 13        DELETE:	LD	C,19
+ 173  B0F1 C3 05 00     	JP	ENTRY
+ 174  B0F4              ;
+ 175  B0F4              ;   Routine to call the bdos and set the zero flag if a zero
+ 176  B0F4              ; status is returned.
+ 177  B0F4              ;
+ 178  B0F4 CD 05 00     ENTRY2:	CALL	ENTRY
+ 179  B0F7 B7           	OR	A		;set zero flag if appropriate.
+ 180  B0F8 C9           	RET
+ 181  B0F9              ;
+ 182  B0F9              ;   Routine to read the next record from a sequential file.
+ 183  B0F9              ; (DE) points to the FCB.
+ 184  B0F9              ;
+ 185  B0F9 0E 14        RDREC:	LD	C,20
+ 186  B0FB C3 F4 B0     	JP	ENTRY2
+ 187  B0FE              ;
+ 188  B0FE              ;   Routine to read file at (FCB).
+ 189  B0FE              ;
+ 190  B0FE 11 04 BB     READFCB:LD	DE,FCB
+ 191  B101 C3 F9 B0     	JP	RDREC
+ 192  B104              ;
+ 193  B104              ;   Routine to write the next record of a sequential file.
+ 194  B104              ; (DE) points to the FCB.
+ 195  B104              ;
+ 196  B104 0E 15        WRTREC:	LD	C,21
+ 197  B106 C3 F4 B0     	JP	ENTRY2
+ 198  B109              ;
+ 199  B109              ;   Routine to create the file pointed to by (DE).
+ 200  B109              ;
+ 201  B109 0E 16        CREATE:	LD	C,22
+ 202  B10B C3 C3 B0     	JP	ENTRY1
+ 203  B10E              ;
+ 204  B10E              ;   Routine to rename the file pointed to by (DE). Note that
+ 205  B10E              ; the new name starts at (DE+16).
+ 206  B10E              ;
+ 207  B10E 0E 17        RENAM:	LD	C,23
+ 208  B110 C3 05 00     	JP	ENTRY
+ 209  B113              ;
+ 210  B113              ;   Get the current user code.
+ 211  B113              ;
+ 212  B113 1E FF        GETUSR:	LD	E,0FFH
+ 213  B115              ;
+ 214  B115              ;   Routne to get or set the current user code.
+ 215  B115              ; If (E) is FF then this is a GET, else it is a SET.
+ 216  B115              ;
+ 217  B115              GETSETUC:
+ 218  B115 0E 20            LD	C,32
+ 219  B117 C3 05 00     	JP	ENTRY
+ 220  B11A              ;
+ 221  B11A              ;   Routine to set the current drive byte at (TDRIVE).
+ 222  B11A              ;
+ 223  B11A CD 13 B1     SETCDRV:CALL	GETUSR		;get user number
+ 224  B11D 87           	ADD	A,A		;and shift into the upper 4 bits.
+ 225  B11E 87           	ADD	A,A
+ 226  B11F 87           	ADD	A,A
+ 227  B120 87           	ADD	A,A
+ 228  B121 21 26 BB     	LD	HL,CDRIVE	;now add in the current drive number.
+ 229  B124 B6           	OR	(HL)
+ 230  B125 32 04 00     	LD	(TDRIVE),A	;and save.
+ 231  B128 C9           	RET
+ 232  B129              ;
+ 233  B129              ;   Move currently active drive down to (TDRIVE).
+ 234  B129              ;
+ 235  B129 3A 26 BB     MOVECD:	LD	A,(CDRIVE)
+ 236  B12C 32 04 00     	LD	(TDRIVE),A
+ 237  B12F C9           	RET
+ 238  B130              ;
+ 239  B130              ;   Routine to convert (A) into upper case ascii. Only letters
+ 240  B130              ; are affected.
+ 241  B130              ;
+ 242  B130 FE 61        UPPER:	CP	'a'		;check for letters in the range of 'a' to 'z'.
+ 243  B132 D8           	RET	C
+ 244  B133 FE 7B        	CP	'{'
+ 245  B135 D0           	RET	NC
+ 246  B136 E6 5F        	AND	5FH		;convert it if found.
+ 247  B138 C9           	RET
+ 248  B139              ;
+ 249  B139              ;   Routine to get a line of input. We must check to see if the
+ 250  B139              ; user is in (BATCH) mode. If so, then read the input from file
+ 251  B139              ; ($$$.SUB). At the end, reset to console input.
+ 252  B139              ;
+ 253  B139 3A E2 BA     GETINP:	LD	A,(BATCH)	;if =0, then use console input.
+ 254  B13C B7           	OR	A
+ 255  B13D CA 96 B1     	JP	Z,GETINP1
+ 256  B140              ;
+ 257  B140              ;   Use the submit file ($$$.sub) which is prepared by a
+ 258  B140              ; SUBMIT run. It must be on drive (A) and it will be deleted
+ 259  B140              ; if and error occures (like eof).
+ 260  B140              ;
+ 261  B140 3A 26 BB     	LD	A,(CDRIVE)	;select drive 0 if need be.
+ 262  B143 B7           	OR	A
+ 263  B144 3E 00        	LD	A,0		;always use drive A for submit.
+ 264  B146 C4 BD B0     	CALL	NZ,DSKSEL	;select it if required.
+ 265  B149 11 E3 BA     	LD	DE,BATCHFCB
+ 266  B14C CD CB B0     	CALL	OPEN		;look for it.
+ 267  B14F CA 96 B1     	JP	Z,GETINP1	;if not there, use normal input.
+ 268  B152 3A F2 BA     	LD	A,(BATCHFCB+15)	;get last record number+1.
+ 269  B155 3D           	DEC	A
+ 270  B156 32 03 BB     	LD	(BATCHFCB+32),A
+ 271  B159 11 E3 BA     	LD	DE,BATCHFCB
+ 272  B15C CD F9 B0     	CALL	RDREC		;read last record.
+ 273  B15F C2 96 B1     	JP	NZ,GETINP1	;quit on end of file.
+ 274  B162              ;
+ 275  B162              ;   Move this record into input buffer.
+ 276  B162              ;
+ 277  B162 11 07 B0     	LD	DE,INBUFF+1
+ 278  B165 21 80 00     	LD	HL,TBUFF	;data was read into buffer here.
+ 279  B168 06 80        	LD	B,128		;all 128 characters may be used.
+ 280  B16A CD 41 B4     	CALL	HL2DE		;(HL) to (DE), (B) bytes.
+ 281  B16D 21 F1 BA     	LD	HL,BATCHFCB+14
+ 282  B170 36 00        	LD	(HL),0		;zero out the 's2' byte.
+ 283  B172 23           	INC	HL		;and decrement the record count.
+ 284  B173 35           	DEC	(HL)
+ 285  B174 11 E3 BA     	LD	DE,BATCHFCB	;close the batch file now.
+ 286  B177 CD DA B0     	CALL	CLOSE
+ 287  B17A CA 96 B1     	JP	Z,GETINP1	;quit on an error.
+ 288  B17D 3A 26 BB     	LD	A,(CDRIVE)	;re-select previous drive if need be.
+ 289  B180 B7           	OR	A
+ 290  B181 C4 BD B0     	CALL	NZ,DSKSEL	;don't do needless selects.
+ 291  B184              ;
+ 292  B184              ;   Print line just read on console.
+ 293  B184              ;
+ 294  B184 21 08 B0     	LD	HL,INBUFF+2
+ 295  B187 CD AC B0     	CALL	PLINE2
+ 296  B18A CD C2 B1     	CALL	CHKCON		;check console, quit on a key.
+ 297  B18D CA A7 B1     	JP	Z,GETINP2	;jump if no key is pressed.
+ 298  B190              ;
+ 299  B190              ;   Terminate the submit job on any keyboard input. Delete this
+ 300  B190              ; file such that it is not re-started and jump to normal keyboard
+ 301  B190              ; input section.
+ 302  B190              ;
+ 303  B190 CD DD B1     	CALL	DELBATCH	;delete the batch file.
+ 304  B193 C3 7B B3     	JP	CMMND1		;and restart command input.
+ 305  B196              ;
+ 306  B196              ;   Get here for normal keyboard input. Delete the submit file
+ 307  B196              ; incase there was one.
+ 308  B196              ;
+ 309  B196 CD DD B1     GETINP1:CALL	DELBATCH	;delete file ($$$.sub).
+ 310  B199 CD 1A B1     	CALL	SETCDRV		;reset active disk.
+ 311  B19C 0E 0A        	LD	C,10		;get line from console device.
+ 312  B19E 11 06 B0     	LD	DE,INBUFF
+ 313  B1A1 CD 05 00     	CALL	ENTRY
+ 314  B1A4 CD 29 B1     	CALL	MOVECD		;reset current drive (again).
+ 315  B1A7              ;
+ 316  B1A7              ;   Convert input line to upper case.
+ 317  B1A7              ;
+ 318  B1A7 21 07 B0     GETINP2:LD	HL,INBUFF+1
+ 319  B1AA 46           	LD	B,(HL)		;(B)=character counter.
+ 320  B1AB 23           GETINP3:INC	HL
+ 321  B1AC 78           	LD	A,B		;end of the line?
+ 322  B1AD B7           	OR	A
+ 323  B1AE CA BA B1     	JP	Z,GETINP4
+ 324  B1B1 7E           	LD	A,(HL)		;convert to upper case.
+ 325  B1B2 CD 30 B1     	CALL	UPPER
+ 326  B1B5 77           	LD	(HL),A
+ 327  B1B6 05           	DEC	B		;adjust character count.
+ 328  B1B7 C3 AB B1     	JP	GETINP3
+ 329  B1BA 77           GETINP4:LD	(HL),A		;add trailing null.
+ 330  B1BB 21 08 B0     	LD	HL,INBUFF+2
+ 331  B1BE 22 88 B0     	LD	(INPOINT),HL	;reset input line pointer.
+ 332  B1C1 C9           	RET
+ 333  B1C2              ;
+ 334  B1C2              ;   Routine to check the console for a key pressed. The zero
+ 335  B1C2              ; flag is set is none, else the character is returned in (A).
+ 336  B1C2              ;
+ 337  B1C2 0E 0B        CHKCON:	LD	C,11		;check console.
+ 338  B1C4 CD 05 00     	CALL	ENTRY
+ 339  B1C7 B7           	OR	A
+ 340  B1C8 C8           	RET	Z		;return if nothing.
+ 341  B1C9 0E 01        	LD	C,1		;else get character.
+ 342  B1CB CD 05 00     	CALL	ENTRY
+ 343  B1CE B7           	OR	A		;clear zero flag and return.
+ 344  B1CF C9           	RET
+ 345  B1D0              ;
+ 346  B1D0              ;   Routine to get the currently active drive number.
+ 347  B1D0              ;
+ 348  B1D0 0E 19        GETDSK:	LD	C,25
+ 349  B1D2 C3 05 00     	JP	ENTRY
+ 350  B1D5              ;
+ 351  B1D5              ;   Set the stabdard dma address.
+ 352  B1D5              ;
+ 353  B1D5 11 80 00     STDDMA:	LD	DE,TBUFF
+ 354  B1D8              ;
+ 355  B1D8              ;   Routine to set the dma address to (DE).
+ 356  B1D8              ;
+ 357  B1D8 0E 1A        DMASET:	LD	C,26
+ 358  B1DA C3 05 00     	JP	ENTRY
+ 359  B1DD              ;
+ 360  B1DD              ;  Delete the batch file created by SUBMIT.
+ 361  B1DD              ;
+ 362  B1DD 21 E2 BA     DELBATCH: LD	HL,BATCH	;is batch active?
+ 363  B1E0 7E           	LD	A,(HL)
+ 364  B1E1 B7           	OR	A
+ 365  B1E2 C8           	RET	Z
+ 366  B1E3 36 00        	LD	(HL),0		;yes, de-activate it.
+ 367  B1E5 AF           	XOR	A
+ 368  B1E6 CD BD B0     	CALL	DSKSEL		;select drive 0 for sure.
+ 369  B1E9 11 E3 BA     	LD	DE,BATCHFCB	;and delete this file.
+ 370  B1EC CD EF B0     	CALL	DELETE
+ 371  B1EF 3A 26 BB     	LD	A,(CDRIVE)	;reset current drive.
+ 372  B1F2 C3 BD B0     	JP	DSKSEL
+ 373  B1F5
+ 374  B1F5              ;
+ 375  B1F5              ;   Print back file name with a '?' to indicate a syntax error.
+ 376  B1F5              ;
+ 377  B1F5 CD 98 B0     SYNERR:	CALL	CRLF		;end current line.
+ 378  B1F8 2A 8A B0     	LD	HL,(NAMEPNT)	;this points to name in error.
+ 379  B1FB 7E           SYNERR1:LD	A,(HL)		;print it until a space or null is found.
+ 380  B1FC FE 20        	CP	' '
+ 381  B1FE CA 0E B2     	JP	Z,SYNERR2
+ 382  B201 B7           	OR	A
+ 383  B202 CA 0E B2     	JP	Z,SYNERR2
+ 384  B205 E5           	PUSH	HL
+ 385  B206 CD 8C B0     	CALL	PRINT
+ 386  B209 E1           	POP	HL
+ 387  B20A 23           	INC	HL
+ 388  B20B C3 FB B1     	JP	SYNERR1
+ 389  B20E 3E 3F        SYNERR2:LD	A,'?'		;add trailing '?'.
+ 390  B210 CD 8C B0     	CALL	PRINT
+ 391  B213 CD 98 B0     	CALL	CRLF
+ 392  B216 CD DD B1     	CALL	DELBATCH	;delete any batch file.
+ 393  B219 C3 7B B3     	JP	CMMND1		;and restart from console input.
+ 394  B21C              ;
+ 395  B21C              ;   Check character at (DE) for legal command input. Note that the
+ 396  B21C              ; zero flag is set if the character is a delimiter.
+ 397  B21C              ;
+ 398  B21C 1A           CHECK:	LD	A,(DE)
+ 399  B21D B7           	OR	A
+ 400  B21E C8           	RET	Z
+ 401  B21F FE 20        	CP	' '		;control characters are not legal here.
+ 402  B221 DA F5 B1     	JP	C,SYNERR
+ 403  B224 C8           	RET	Z		;check for valid delimiter.
+ 404  B225 FE 3D        	CP	'='
+ 405  B227 C8           	RET	Z
+ 406  B228 FE 5F        	CP	'_'
+ 407  B22A C8           	RET	Z
+ 408  B22B FE 2E        	CP	'.'
+ 409  B22D C8           	RET	Z
+ 410  B22E FE 3A        	CP	':'
+ 411  B230 C8           	RET	Z
+ 412  B231 FE 3B        	CP	';'
+ 413  B233 C8           	RET	Z
+ 414  B234 FE 3C        	CP	'<'
+ 415  B236 C8           	RET	Z
+ 416  B237 FE 3E        	CP	'>'
+ 417  B239 C8           	RET	Z
+ 418  B23A C9           	RET
+ 419  B23B              ;
+ 420  B23B              ;   Get the next non-blank character from (DE).
+ 421  B23B              ;
+ 422  B23B 1A           NONBLANK: LD	A,(DE)
+ 423  B23C B7           	OR	A		;string ends with a null.
+ 424  B23D C8           	RET	Z
+ 425  B23E FE 20        	CP	' '
+ 426  B240 C0           	RET	NZ
+ 427  B241 13           	INC	DE
+ 428  B242 C3 3B B2     	JP	NONBLANK
+ 429  B245              ;
+ 430  B245              ;   Add (HL)=(HL)+(A)
+ 431  B245              ;
+ 432  B245 85           ADDHL:	ADD	A,L
+ 433  B246 6F           	LD	L,A
+ 434  B247 D0           	RET	NC		;take care of any carry.
+ 435  B248 24           	INC	H
+ 436  B249 C9           	RET
+ 437  B24A              ;
+ 438  B24A              ;   Convert the first name in (FCB).
+ 439  B24A              ;
+ 440  B24A 3E 00        CONVFST:LD	A,0
+ 441  B24C              ;
+ 442  B24C              ;   Format a file name (convert * to '?', etc.). On return,
+ 443  B24C              ; (A)=0 is an unambigeous name was specified. Enter with (A) equal to
+ 444  B24C              ; the position within the fcb for the name (either 0 or 16).
+ 445  B24C              ;
+ 446  B24C 21 04 BB     CONVERT:LD	HL,FCB
+ 447  B24F CD 45 B2     	CALL	ADDHL
+ 448  B252 E5           	PUSH	HL
+ 449  B253 E5           	PUSH	HL
+ 450  B254 AF           	XOR	A
+ 451  B255 32 27 BB     	LD	(CHGDRV),A	;initialize drive change flag.
+ 452  B258 2A 88 B0     	LD	HL,(INPOINT)	;set (HL) as pointer into input line.
+ 453  B25B EB           	EX	DE,HL
+ 454  B25C CD 3B B2     	CALL	NONBLANK	;get next non-blank character.
+ 455  B25F EB           	EX	DE,HL
+ 456  B260 22 8A B0     	LD	(NAMEPNT),HL	;save pointer here for any error message.
+ 457  B263 EB           	EX	DE,HL
+ 458  B264 E1           	POP	HL
+ 459  B265 1A           	LD	A,(DE)		;get first character.
+ 460  B266 B7           	OR	A
+ 461  B267 CA 75 B2     	JP	Z,CONVRT1
+ 462  B26A DE 40        	SBC	A,'A'-1		;might be a drive name, convert to binary.
+ 463  B26C 47           	LD	B,A		;and save.
+ 464  B26D 13           	INC	DE		;check next character for a ':'.
+ 465  B26E 1A           	LD	A,(DE)
+ 466  B26F FE 3A        	CP	':'
+ 467  B271 CA 7C B2     	JP	Z,CONVRT2
+ 468  B274 1B           	DEC	DE		;nope, move pointer back to the start of the line.
+ 469  B275 3A 26 BB     CONVRT1:LD	A,(CDRIVE)
+ 470  B278 77           	LD	(HL),A
+ 471  B279 C3 82 B2     	JP	CONVRT3
+ 472  B27C 78           CONVRT2:LD	A,B
+ 473  B27D 32 27 BB     	LD	(CHGDRV),A	;set change in drives flag.
+ 474  B280 70           	LD	(HL),B
+ 475  B281 13           	INC	DE
+ 476  B282              ;
+ 477  B282              ;   Convert the basic file name.
+ 478  B282              ;
+ 479  B282 06 08        CONVRT3:LD	B,08H
+ 480  B284 CD 1C B2     CONVRT4:CALL	CHECK
+ 481  B287 CA A5 B2     	JP	Z,CONVRT8
+ 482  B28A 23           	INC	HL
+ 483  B28B FE 2A        	CP	'*'		;note that an '*' will fill the remaining
+ 484  B28D C2 95 B2     	JP	NZ,CONVRT5	;field with '?'.
+ 485  B290 36 3F        	LD	(HL),'?'
+ 486  B292 C3 97 B2     	JP	CONVRT6
+ 487  B295 77           CONVRT5:LD	(HL),A
+ 488  B296 13           	INC	DE
+ 489  B297 05           CONVRT6:DEC	B
+ 490  B298 C2 84 B2     	JP	NZ,CONVRT4
+ 491  B29B CD 1C B2     CONVRT7:CALL	CHECK		;get next delimiter.
+ 492  B29E CA AC B2     	JP	Z,GETEXT
+ 493  B2A1 13           	INC	DE
+ 494  B2A2 C3 9B B2     	JP	CONVRT7
+ 495  B2A5 23           CONVRT8:INC	HL		;blank fill the file name.
+ 496  B2A6 36 20        	LD	(HL),' '
+ 497  B2A8 05           	DEC	B
+ 498  B2A9 C2 A5 B2     	JP	NZ,CONVRT8
+ 499  B2AC              ;
+ 500  B2AC              ;   Get the extension and convert it.
+ 501  B2AC              ;
+ 502  B2AC 06 03        GETEXT:	LD	B,03H
+ 503  B2AE FE 2E        	CP	'.'
+ 504  B2B0 C2 D5 B2     	JP	NZ,GETEXT5
+ 505  B2B3 13           	INC	DE
+ 506  B2B4 CD 1C B2     GETEXT1:CALL	CHECK
+ 507  B2B7 CA D5 B2     	JP	Z,GETEXT5
+ 508  B2BA 23           	INC	HL
+ 509  B2BB FE 2A        	CP	'*'
+ 510  B2BD C2 C5 B2     	JP	NZ,GETEXT2
+ 511  B2C0 36 3F        	LD	(HL),'?'
+ 512  B2C2 C3 C7 B2     	JP	GETEXT3
+ 513  B2C5 77           GETEXT2:LD	(HL),A
+ 514  B2C6 13           	INC	DE
+ 515  B2C7 05           GETEXT3:DEC	B
+ 516  B2C8 C2 B4 B2     	JP	NZ,GETEXT1
+ 517  B2CB CD 1C B2     GETEXT4:CALL	CHECK
+ 518  B2CE CA DC B2     	JP	Z,GETEXT6
+ 519  B2D1 13           	INC	DE
+ 520  B2D2 C3 CB B2     	JP	GETEXT4
+ 521  B2D5 23           GETEXT5:INC	HL
+ 522  B2D6 36 20        	LD	(HL),' '
+ 523  B2D8 05           	DEC	B
+ 524  B2D9 C2 D5 B2     	JP	NZ,GETEXT5
+ 525  B2DC 06 03        GETEXT6:LD	B,3
+ 526  B2DE 23           GETEXT7:INC	HL
+ 527  B2DF 36 00        	LD	(HL),0
+ 528  B2E1 05           	DEC	B
+ 529  B2E2 C2 DE B2     	JP	NZ,GETEXT7
+ 530  B2E5 EB           	EX	DE,HL
+ 531  B2E6 22 88 B0     	LD	(INPOINT),HL	;save input line pointer.
+ 532  B2E9 E1           	POP	HL
+ 533  B2EA              ;
+ 534  B2EA              ;   Check to see if this is an ambigeous file name specification.
+ 535  B2EA              ; Set the (A) register to non zero if it is.
+ 536  B2EA              ;
+ 537  B2EA 01 0B 00     	LD	BC,11		;set name length.
+ 538  B2ED 23           GETEXT8:INC	HL
+ 539  B2EE 7E           	LD	A,(HL)
+ 540  B2EF FE 3F        	CP	'?'		;any question marks?
+ 541  B2F1 C2 F5 B2     	JP	NZ,GETEXT9
+ 542  B2F4 04           	INC	B		;count them.
+ 543  B2F5 0D           GETEXT9:DEC	C
+ 544  B2F6 C2 ED B2     	JP	NZ,GETEXT8
+ 545  B2F9 78           	LD	A,B
+ 546  B2FA B7           	OR	A
+ 547  B2FB C9           	RET
+ 548  B2FC              ;
+ 549  B2FC              ;   CP/M command table. Note commands can be either 3 or 4 characters long.
+ 550  B2FC              ;
+ 551  B2FC              NUMCMDS EQU	9		;number of commands
+ 552  B2FC 44 49 52 20  CMDTBL:	DEFB	'DIR '
+ 553  B300 45 52 41 20  	DEFB	'ERA '
+ 554  B304 54 59 50 45  	DEFB	'TYPE'
+ 555  B308 53 41 56 45  	DEFB	'SAVE'
+ 556  B30C 52 45 4E 20  	DEFB	'REN '
+ 557  B310 55 53 45 52  	DEFB	'USER'
+ 558  B314 49 4D 50 20  	DEFB	'IMP '		; John's IMPort command to get files in from SD card to CP/M disks
+ 559  B318 45 58 50 20  	DEFB	'EXP '		; John's EXPort command to send files out to SD card from CP/M disks
+ 560  B31C 44 55 20 20  	DEFB	'DU  '		; John's Disk Usage command to see how blocks are allocated
+ 561  B320              ;
+ 562  B320              ;
+ 563  B320              ;   Search the command table for a match with what has just
+ 564  B320              ; been entered. If a match is found, then we jump to the
+ 565  B320              ; proper section. Else jump to (UNKNOWN).
+ 566  B320              ; On return, the (C) register is set to the command number
+ 567  B320              ; that matched (or NUMCMDS+1 if no match).
+ 568  B320              ;
+ 569  B320 21 FC B2     SEARCH:	LD	HL,CMDTBL
+ 570  B323 0E 00        	LD	C,0
+ 571  B325 79           SEARCH1:LD	A,C
+ 572  B326 FE 09        	CP	NUMCMDS		;this commands exists.
+ 573  B328 D0           	RET	NC
+ 574  B329 11 05 BB     	LD	DE,FCB+1	;check this one.
+ 575  B32C 06 04        	LD	B,4		;max command length.
+ 576  B32E 1A           SEARCH2:LD	A,(DE)
+ 577  B32F BE           	CP	(HL)
+ 578  B330 C2 41 B3     	JP	NZ,SEARCH3	;not a match.
+ 579  B333 13           	INC	DE
+ 580  B334 23           	INC	HL
+ 581  B335 05           	DEC	B
+ 582  B336 C2 2E B3     	JP	NZ,SEARCH2
+ 583  B339 1A           	LD	A,(DE)		;allow a 3 character command to match.
+ 584  B33A FE 20        	CP	' '
+ 585  B33C C2 46 B3     	JP	NZ,SEARCH4
+ 586  B33F 79           	LD	A,C		;set return register for this command.
+ 587  B340 C9           	RET
+ 588  B341 23           SEARCH3:INC	HL
+ 589  B342 05           	DEC	B
+ 590  B343 C2 41 B3     	JP	NZ,SEARCH3
+ 591  B346 0C           SEARCH4:INC	C
+ 592  B347 C3 25 B3     	JP	SEARCH1
+ 593  B34A              ;
+ 594  B34A              ;   Set the input buffer to empty and then start the command
+ 595  B34A              ; processor (ccp).
+ 596  B34A              ;
+ 597  B34A              CLEARBUF:
+ 598  B34A AF               XOR	A
+ 599  B34B 32 07 B0     	LD	(INBUFF+1),A	;second byte is actual length.
+ 600  B34E              ;
+ 601  B34E              ;**************************************************************
+ 602  B34E              ;*
+ 603  B34E              ;*
+ 604  B34E              ;* C C P  -   C o n s o l e   C o m m a n d   P r o c e s s o r
+ 605  B34E              ;*
+ 606  B34E              ;**************************************************************
+ 607  B34E              ;*
+ 608  B34E              COMMAND:
+ 609  B34E 31 E0 BA         LD	SP, CCPSTACK		;setup stack area.
+ 610  B351              	;CALL	CORE_message
+ 611  B351              	;db 'Vou parar',13,10,0
+ 612  B351
+ 613  B351              	;halt
+ 614  B351 C5           	PUSH	BC			;note that (C) should be equal to:
+ 615  B352
+ 616  B352 60 69        	ld	hl, bc
+ 617  B354 CD 75 BA         call display_hl32_digit
+ 618  B357 C1           	pop bc
+ 619  B358 C5           	push bc
+ 620  B359
+ 621  B359 79           	LD	A,C				;(uuuudddd) where 'uuuu' is the user number
+ 622  B35A 1F           	RRA					;and 'dddd' is the drive number.
+ 623  B35B 1F           	RRA
+ 624  B35C 1F           	RRA
+ 625  B35D 1F           	RRA
+ 626  B35E E6 0F        	AND	0FH				;isolate the user number.
+ 627  B360 5F           	LD	E,A
+ 628  B361 CD 15 B1     	CALL	GETSETUC	;and set it.
+ 629  B364 CD B8 B0     	CALL	RESDSK		;reset the disk system.
+ 630  B367 32 E2 BA     	LD	(BATCH),A		;clear batch mode flag.
+ 631  B36A C1           	POP	BC
+ 632  B36B 79           	LD	A,C
+ 633  B36C E6 0F        	AND	0FH				;isolate the drive number.
+ 634  B36E 32 26 BB     	LD	(CDRIVE),A		;and save.
+ 635  B371 CD BD B0     	CALL	DSKSEL		;...and select.
+ 636  B374 3A 07 B0     	LD	A,(INBUFF+1)
+ 637  B377 B7           	OR	A				;anything in input buffer already?
+ 638  B378 C2 91 B3     	JP	NZ,CMMND2		;yes, we just process it.
+ 639  B37B              ;
+ 640  B37B              ;   Entry point to get a command line from the console.
+ 641  B37B              ;
+ 642  B37B 31 E0 BA     CMMND1:	LD	SP,CCPSTACK	;set stack straight.
+ 643  B37E CD 98 B0     	CALL	CRLF		;start a new line on the screen.
+ 644  B381 CD D0 B1     	CALL	GETDSK		;get current drive.
+ 645  B384 C6 41        	ADD	A,'A'
+ 646  B386 CD 8C B0     	CALL	PRINT		;print current drive.
+ 647  B389 3E 3E        	LD	A,'>'
+ 648  B38B CD 8C B0     	CALL	PRINT		;and add prompt.
+ 649  B38E CD 39 B1     	CALL	GETINP		;get line from user.
+ 650  B391              ;
+ 651  B391              ;   Process command line here.
+ 652  B391              ;
+ 653  B391 11 80 00     CMMND2:	LD	DE,TBUFF
+ 654  B394 CD D8 B1     	CALL	DMASET		;set standard dma address.
+ 655  B397 CD D0 B1     	CALL	GETDSK
+ 656  B39A 32 26 BB     	LD	(CDRIVE),A	;set current drive.
+ 657  B39D CD 4A B2     	CALL	CONVFST		;convert name typed in.
+ 658  B3A0 C4 F5 B1     	CALL	NZ,SYNERR	;wild cards are not allowed.
+ 659  B3A3 3A 27 BB     	LD	A,(CHGDRV)	;if a change in drives was indicated,
+ 660  B3A6 B7           	OR	A		;then treat this as an unknown command
+ 661  B3A7 C2 28 B9     	JP	NZ,UNKNOWN	;which gets executed.
+ 662  B3AA CD 20 B3     	CALL	SEARCH		;else search command table for a match.
+ 663  B3AD              ;
+ 664  B3AD              ;   Note that an unknown command returns
+ 665  B3AD              ; with (A) pointing to the last address
+ 666  B3AD              ; in our table which is (UNKNOWN).
+ 667  B3AD              ;
+ 668  B3AD 21 BA B3     	LD	HL,CMDADR	;now, look thru our address table for command (A).
+ 669  B3B0 5F           	LD	E,A		;set (DE) to command number.
+ 670  B3B1 16 00        	LD	D,0
+ 671  B3B3 19           	ADD	HL,DE
+ 672  B3B4 19           	ADD	HL,DE		;(HL)=(CMDADR)+2*(command number).
+ 673  B3B5 7E           	LD	A,(HL)		;now pick out this address.
+ 674  B3B6 23           	INC	HL
+ 675  B3B7 66           	LD	H,(HL)
+ 676  B3B8 6F           	LD	L,A
+ 677  B3B9 E9           	JP	(HL)		;now execute it.
+ 678  B3BA              ;
+ 679  B3BA              ;   CP/M command address table.
+ 680  B3BA              ;
+ 681  B3BA 76 B4 1A B5  CMDADR:	DEFW	DIRECT,ERASE,TYPE,SAVE
+ 681  B3BE 58 B5 A8 B5
+ 682  B3C2 0B B6 89 B6  	DEFW	RENAME,USER,IMPORT_COMMAND,EXPORT_COMMAND,DU_COMMAND,UNKNOWN
+ 682  B3C6 A4 B6 87 B7
+ 682  B3CA 5D B8 28 B9
+ 683  B3CE              ;
+ 684  B3CE              ;   Halt the system. Reason for this is unknown at present.
+ 685  B3CE              ;
+ 686  B3CE 21 F3 76     HALTX:	LD	HL,76F3H	;'DI HLT' instructions.
+ 687  B3D1 22 00 B0     	LD	(CBASE),HL
+ 688  B3D4 21 00 B0     	LD	HL,CBASE
+ 689  B3D7 E9           	JP	(HL)
+ 690  B3D8              ;
+ 691  B3D8              ;   Read error while TYPEing a file.
+ 692  B3D8              ;
+ 693  B3D8 01 DE B3     RDERROR:LD	BC,RDERR
+ 694  B3DB C3 A7 B0     	JP	PLINE
+ 695  B3DE 52 65 61 64  RDERR:	DEFB	'Read error',0
+ 695  B3E2 20 65 72 72
+ 695  B3E6 6F 72 00
+ 696  B3E9              ;
+ 697  B3E9              ;   Required file was not located.
+ 698  B3E9              ;
+ 699  B3E9 01 EF B3     NONE:	LD	BC,NOFILE
+ 700  B3EC C3 A7 B0     	JP	PLINE
+ 701  B3EF 4E 6F 20 66  NOFILE:	DEFB	'No file',0
+ 701  B3F3 69 6C 65 00
+ 702  B3F7              ;
+ 703  B3F7              ;   Decode a command of the form 'A>filename number{ filename}.
+ 704  B3F7              ; Note that a drive specifier is not allowed on the first file
+ 705  B3F7              ; name. On return, the number is in register (A). Any error
+ 706  B3F7              ; causes 'filename?' to be printed and the command is aborted.
+ 707  B3F7              ;
+ 708  B3F7 CD 4A B2     DECODE:	CALL	CONVFST		;convert filename.
+ 709  B3FA 3A 27 BB     	LD	A,(CHGDRV)	;do not allow a drive to be specified.
+ 710  B3FD B7           	OR	A
+ 711  B3FE C2 F5 B1     	JP	NZ,SYNERR
+ 712  B401 21 05 BB     	LD	HL,FCB+1	;convert number now.
+ 713  B404 01 0B 00     	LD	BC,11		;(B)=sum register, (C)=max digit count.
+ 714  B407 7E           DECODE1:LD	A,(HL)
+ 715  B408 FE 20        	CP	' '		;a space terminates the numeral.
+ 716  B40A CA 32 B4     	JP	Z,DECODE3
+ 717  B40D 23           	INC	HL
+ 718  B40E D6 30        	SUB	'0'		;make binary from ascii.
+ 719  B410 FE 0A        	CP	10		;legal digit?
+ 720  B412 D2 F5 B1     	JP	NC,SYNERR
+ 721  B415 57           	LD	D,A		;yes, save it in (D).
+ 722  B416 78           	LD	A,B		;compute (B)=(B)*10 and check for overflow.
+ 723  B417 E6 E0        	AND	0E0H
+ 724  B419 C2 F5 B1     	JP	NZ,SYNERR
+ 725  B41C 78           	LD	A,B
+ 726  B41D 07           	RLCA
+ 727  B41E 07           	RLCA
+ 728  B41F 07           	RLCA			;(A)=(B)*8
+ 729  B420 80           	ADD	A,B		;.......*9
+ 730  B421 DA F5 B1     	JP	C,SYNERR
+ 731  B424 80           	ADD	A,B		;.......*10
+ 732  B425 DA F5 B1     	JP	C,SYNERR
+ 733  B428 82           	ADD	A,D		;add in new digit now.
+ 734  B429 DA F5 B1     DECODE2:JP	C,SYNERR
+ 735  B42C 47           	LD	B,A		;and save result.
+ 736  B42D 0D           	DEC	C		;only look at 11 digits.
+ 737  B42E C2 07 B4     	JP	NZ,DECODE1
+ 738  B431 C9           	RET
+ 739  B432 7E           DECODE3:LD	A,(HL)		;spaces must follow (why?).
+ 740  B433 FE 20        	CP	' '
+ 741  B435 C2 F5 B1     	JP	NZ,SYNERR
+ 742  B438 23           	INC	HL
+ 743  B439 0D           DECODE4:DEC	C
+ 744  B43A C2 32 B4     	JP	NZ,DECODE3
+ 745  B43D 78           	LD	A,B		;set (A)=the numeric value entered.
+ 746  B43E C9           	RET
+ 747  B43F              ;
+ 748  B43F              ;   Move 3 bytes from (HL) to (DE). Note that there is only
+ 749  B43F              ; one reference to this at (A2D5h).
+ 750  B43F              ;
+ 751  B43F 06 03        MOVE3:	LD	B,3
+ 752  B441              ;
+ 753  B441              ;   Move (B) bytes from (HL) to (DE).
+ 754  B441              ;
+ 755  B441 7E           HL2DE:	LD	A,(HL)
+ 756  B442 12           	LD	(DE),A
+ 757  B443 23           	INC	HL
+ 758  B444 13           	INC	DE
+ 759  B445 05           	DEC	B
+ 760  B446 C2 41 B4     	JP	NZ,HL2DE
+ 761  B449 C9           	RET
+ 762  B44A              ;
+ 763  B44A              ;   Compute (HL)=(TBUFF)+(A)+(C) and get the byte that's here.
+ 764  B44A              ;
+ 765  B44A 21 80 00     EXTRACT:LD	HL,TBUFF
+ 766  B44D 81           	ADD	A,C
+ 767  B44E CD 45 B2     	CALL	ADDHL
+ 768  B451 7E           	LD	A,(HL)
+ 769  B452 C9           	RET
+ 770  B453              ;
+ 771  B453              ;  Check drive specified. If it means a change, then the new
+ 772  B453              ; drive will be selected. In any case, the drive byte of the
+ 773  B453              ; fcb will be set to null (means use current drive).
+ 774  B453              ;
+ 775  B453 AF           DSELECT:XOR	A		;null out first byte of fcb.
+ 776  B454 32 04 BB     	LD	(FCB),A
+ 777  B457 3A 27 BB     	LD	A,(CHGDRV)	;a drive change indicated?
+ 778  B45A B7           	OR	A
+ 779  B45B C8           	RET	Z
+ 780  B45C 3D           	DEC	A		;yes, is it the same as the current drive?
+ 781  B45D 21 26 BB     	LD	HL,CDRIVE
+ 782  B460 BE           	CP	(HL)
+ 783  B461 C8           	RET	Z
+ 784  B462 C3 BD B0     	JP	DSKSEL		;no. Select it then.
+ 785  B465              ;
+ 786  B465              ;   Check the drive selection and reset it to the previous
+ 787  B465              ; drive if it was changed for the preceeding command.
+ 788  B465              ;
+ 789  B465 3A 27 BB     RESETDR:LD	A,(CHGDRV)	;drive change indicated?
+ 790  B468 B7           	OR	A
+ 791  B469 C8           	RET	Z
+ 792  B46A 3D           	DEC	A		;yes, was it a different drive?
+ 793  B46B 21 26 BB     	LD	HL,CDRIVE
+ 794  B46E BE           	CP	(HL)
+ 795  B46F C8           	RET	Z
+ 796  B470 3A 26 BB     	LD	A,(CDRIVE)	;yes, re-select our old drive.
+ 797  B473 C3 BD B0     	JP	DSKSEL
+ 798  B476              ;
+ 799  B476              ;**************************************************************
+ 800  B476              ;*
+ 801  B476              ;*           D I R E C T O R Y   C O M M A N D
+ 802  B476              ;*
+ 803  B476              ;**************************************************************
+ 804  B476              ;
+ 805  B476              DIRECT:
+ 806  B476 CD 4A B2     	CALL	CONVFST		;convert file name.
+ 807  B479 CD 53 B4     	CALL	DSELECT		;select indicated drive.
+ 808  B47C 21 05 BB     	LD	HL,FCB+1		;was any file indicated?
+ 809  B47F 7E           	LD	A,(HL)
+ 810  B480 FE 20        	CP	' '
+ 811  B482 C2 8E B4     	JP	NZ,DIRECT2
+ 812  B485 06 0B        	LD	B,11			;no. Fill field with '?' - same as *.*.
+ 813  B487 36 3F        DIRECT1:LD	(HL),'?'
+ 814  B489 23           	INC	HL
+ 815  B48A 05           	DEC	B
+ 816  B48B C2 87 B4     	JP	NZ,DIRECT1
+ 817  B48E 1E 00        DIRECT2:LD	E,0			;set initial cursor position.
+ 818  B490 D5           	PUSH	DE
+ 819  B491 CD E9 B0     	CALL	SRCHFCB		;get first file name.
+ 820  B494 CC E9 B3     	CALL	Z,NONE		;none found at all?
+ 821  B497              DIRECT3:
+ 822  B497 CA 16 B5     	JP	Z,DIRECT9		;terminate if no more names.
+ 823  B49A 3A 25 BB     	LD	A,(RTNCODE)		;get file's position in segment (0-3).
+ 824  B49D 0F           	RRCA
+ 825  B49E 0F           	RRCA
+ 826  B49F 0F           	RRCA
+ 827  B4A0 E6 60        	AND	60H				;(A)=position*32
+ 828  B4A2 4F           	LD	C,A
+ 829  B4A3 3E 0A        	LD	A,10
+ 830  B4A5 CD 4A B4     	CALL	EXTRACT		;extract the tenth entry in fcb.
+ 831  B4A8 17           	RLA					;check system file status bit.
+ 832  B4A9 DA 10 B5     	JP	C,DIRECT8		;we don't list them.
+ 833  B4AC D1           	POP	DE
+ 834  B4AD 7B           	LD	A,E				;bump name count.
+ 835  B4AE 1C           	INC	E
+ 836  B4AF D5           	PUSH	DE
+ 837  B4B0 E6 03        	AND	03H				;at end of line?
+ 838  B4B2 F5           	PUSH	AF
+ 839  B4B3 C2 CB B4     	JP	NZ,DIRECT4
+ 840  B4B6 CD 98 B0     	CALL	CRLF		;yes, end this line and start another.
+ 841  B4B9 C5           	PUSH	BC
+ 842  B4BA CD D0 B1     	CALL	GETDSK		;start line with ('A:').
+ 843  B4BD C1           	POP	BC
+ 844  B4BE C6 41        	ADD	A,'A'
+ 845  B4C0 CD 92 B0     	CALL	PRINTB
+ 846  B4C3 3E 3A        	LD	A,':'
+ 847  B4C5 CD 92 B0     	CALL	PRINTB
+ 848  B4C8 C3 D3 B4     	JP	DIRECT5
+ 849  B4CB              DIRECT4:
+ 850  B4CB CD A2 B0     	CALL	SPACE		;add seperator between file names.
+ 851  B4CE 3E 7C        	LD	A,'|'			; [JSS: Changed this from colon to pipe]
+ 852  B4D0 CD 92 B0     	CALL	PRINTB
+ 853  B4D3 CD A2 B0     DIRECT5:CALL	SPACE
+ 854  B4D6 06 01        	LD	B,1				;'extract' each file name character at a time.
+ 855  B4D8 78           DIRECT6:LD	A,B
+ 856  B4D9 CD 4A B4     	CALL	EXTRACT
+ 857  B4DC E6 7F        	AND	7FH				;strip bit 7 (status bit).
+ 858  B4DE FE 20        	CP	' '				;are we at the end of the name?
+ 859  B4E0 C2 F8 B4     	JP	NZ,DRECT65
+ 860  B4E3 F1           	POP	AF				;yes, don't print spaces at the end of a line.
+ 861  B4E4 F5           	PUSH	AF
+ 862  B4E5 FE 03        	CP	3
+ 863  B4E7 C2 F6 B4     	JP	NZ,DRECT63
+ 864  B4EA 3E 09        	LD	A,9				;first check for no extension.
+ 865  B4EC CD 4A B4     	CALL	EXTRACT
+ 866  B4EF E6 7F        	AND	7FH
+ 867  B4F1 FE 20        	CP	' '
+ 868  B4F3 CA 0F B5     	JP	Z,DIRECT7		;don't print spaces.
+ 869  B4F6              DRECT63:
+ 870  B4F6 3E 20        	LD	A,' '		;else print them.
+ 871  B4F8              DRECT65:
+ 872  B4F8 CD 92 B0     	CALL	PRINTB
+ 873  B4FB 04           	INC	B				;bump to next character position.
+ 874  B4FC 78           	LD	A,B
+ 875  B4FD FE 0C        	CP	12				;end of the name?
+ 876  B4FF D2 0F B5     	JP	NC,DIRECT7
+ 877  B502 FE 09        	CP	9				;nope, starting extension?
+ 878  B504 C2 D8 B4     	JP	NZ,DIRECT6
+ 879  B507 3E 2E        	LD	A,'.'			; [JSS: Changed this from space to dot]
+ 880  B509 CD 92 B0     	CALL	PRINTB
+ 881  B50C C3 D8 B4     	JP	DIRECT6
+ 882  B50F              DIRECT7:
+ 883  B50F F1           	POP	AF		;get the next file name.
+ 884  B510              DIRECT8:
+ 885  B510              	;CALL	CHKCON		;first check console, quit on anything.
+ 886  B510              	;JP	NZ,DIRECT9
+ 887  B510 CD E4 B0     	CALL	SRCHNXT		;get next name.
+ 888  B513 C3 97 B4     	JP	DIRECT3		;and continue with our list.
+ 889  B516              DIRECT9:
+ 890  B516 D1           	POP	DE		;restore the stack and return to command level.
+ 891  B517 C3 1D BA     	JP	GETBACK
+ 892  B51A              ;
+ 893  B51A              ;**************************************************************
+ 894  B51A              ;*
+ 895  B51A              ;*                E R A S E   C O M M A N D
+ 896  B51A              ;*
+ 897  B51A              ;**************************************************************
+ 898  B51A              ;
+ 899  B51A CD 4A B2     ERASE:	CALL	CONVFST		;convert file name.
+ 900  B51D FE 0B        	CP	11		;was '*.*' entered?
+ 901  B51F C2 3D B5     	JP	NZ,ERASE1
+ 902  B522 01 4D B5     	LD	BC,YESNO	;yes, ask for confirmation.
+ 903  B525 CD A7 B0     	CALL	PLINE
+ 904  B528 CD 39 B1     	CALL	GETINP
+ 905  B52B 21 07 B0     	LD	HL,INBUFF+1
+ 906  B52E 35           	DEC	(HL)		;must be exactly 'y'.
+ 907  B52F C2 7B B3     	JP	NZ,CMMND1
+ 908  B532 23           	INC	HL
+ 909  B533 7E           	LD	A,(HL)
+ 910  B534 FE 59        	CP	'Y'
+ 911  B536 C2 7B B3     	JP	NZ,CMMND1
+ 912  B539 23           	INC	HL
+ 913  B53A 22 88 B0     	LD	(INPOINT),HL	;save input line pointer.
+ 914  B53D CD 53 B4     ERASE1:	CALL	DSELECT		;select desired disk.
+ 915  B540 11 04 BB     	LD	DE,FCB
+ 916  B543 CD EF B0     	CALL	DELETE		;delete the file.
+ 917  B546 3C           	INC	A
+ 918  B547 CC E9 B3     	CALL	Z,NONE		;not there?
+ 919  B54A C3 1D BA     	JP	GETBACK		;return to command level now.
+ 920  B54D 41 6C 6C 20  YESNO:	DEFB	'All (y/n)?',0
+ 920  B551 28 79 2F 6E
+ 920  B555 29 3F 00
+ 921  B558              ;
+ 922  B558              ;**************************************************************
+ 923  B558              ;*
+ 924  B558              ;*            T Y P E   C O M M A N D
+ 925  B558              ;*
+ 926  B558              ;**************************************************************
+ 927  B558              ;
+ 928  B558 CD 4A B2     TYPE:	CALL	CONVFST		;convert file name.
+ 929  B55B C2 F5 B1     	JP	NZ,SYNERR	;wild cards not allowed.
+ 930  B55E CD 53 B4     	CALL	DSELECT		;select indicated drive.
+ 931  B561 CD D0 B0     	CALL	OPENFCB		;open the file.
+ 932  B564 CA A2 B5     	JP	Z,TYPE5		;not there?
+ 933  B567 CD 98 B0     	CALL	CRLF		;ok, start a new line on the screen.
+ 934  B56A 21 28 BB     	LD	HL,NBYTES	;initialize byte counter.
+ 935  B56D 36 FF        	LD	(HL),0FFH	;set to read first sector.
+ 936  B56F 21 28 BB     TYPE1:	LD	HL,NBYTES
+ 937  B572 7E           TYPE2:	LD	A,(HL)		;have we written the entire sector?
+ 938  B573 FE 80        	CP	128
+ 939  B575 DA 82 B5     	JP	C,TYPE3
+ 940  B578 E5           	PUSH	HL		;yes, read in the next one.
+ 941  B579 CD FE B0     	CALL	READFCB
+ 942  B57C E1           	POP	HL
+ 943  B57D C2 9B B5     	JP	NZ,TYPE4	;end or error?
+ 944  B580 AF           	XOR	A		;ok, clear byte counter.
+ 945  B581 77           	LD	(HL),A
+ 946  B582 34           TYPE3:	INC	(HL)		;count this byte.
+ 947  B583 21 80 00     	LD	HL,TBUFF	;and get the (A)th one from the buffer (TBUFF).
+ 948  B586 CD 45 B2     	CALL	ADDHL
+ 949  B589 7E           	LD	A,(HL)
+ 950  B58A FE 1A        	CP	CNTRLZ		;end of file mark?
+ 951  B58C CA 1D BA     	JP	Z,GETBACK
+ 952  B58F CD 8C B0     	CALL	PRINT		;no, print it.
+ 953  B592 CD C2 B1     	CALL	CHKCON		;check console, quit if anything ready.
+ 954  B595 C2 1D BA     	JP	NZ,GETBACK
+ 955  B598 C3 6F B5     	JP	TYPE1
+ 956  B59B              ;
+ 957  B59B              ;   Get here on an end of file or read error.
+ 958  B59B              ;
+ 959  B59B 3D           TYPE4:	DEC	A		;read error?
+ 960  B59C CA 1D BA     	JP	Z,GETBACK
+ 961  B59F CD D8 B3     	CALL	RDERROR		;yes, print message.
+ 962  B5A2 CD 65 B4     TYPE5:	CALL	RESETDR		;and reset proper drive
+ 963  B5A5 C3 F5 B1     	JP	SYNERR		;now print file name with problem.
+ 964  B5A8              ;
+ 965  B5A8              ;**************************************************************
+ 966  B5A8              ;*
+ 967  B5A8              ;*            S A V E   C O M M A N D
+ 968  B5A8              ;*
+ 969  B5A8              ;**************************************************************
+ 970  B5A8              ;
+ 971  B5A8 CD F7 B3     SAVE:	CALL	DECODE		;get numeric number that follows SAVE.
+ 972  B5AB F5           	PUSH	AF		;save number of pages to write.
+ 973  B5AC CD 4A B2     	CALL	CONVFST		;convert file name.
+ 974  B5AF C2 F5 B1     	JP	NZ,SYNERR	;wild cards not allowed.
+ 975  B5B2 CD 53 B4     	CALL	DSELECT		;select specified drive.
+ 976  B5B5 11 04 BB     	LD	DE,FCB		;now delete this file.
+ 977  B5B8 D5           	PUSH	DE
+ 978  B5B9 CD EF B0     	CALL	DELETE
+ 979  B5BC D1           	POP	DE
+ 980  B5BD CD 09 B1     	CALL	CREATE		;and create it again.
+ 981  B5C0 CA F6 B5     	JP	Z,SAVE3		;can't create?
+ 982  B5C3 AF           	XOR	A		;clear record number byte.
+ 983  B5C4 32 24 BB     	LD	(FCB+32),A
+ 984  B5C7 F1           	POP	AF		;convert pages to sectors.
+ 985  B5C8 6F           	LD	L,A
+ 986  B5C9 26 00        	LD	H,0
+ 987  B5CB 29           	ADD	HL,HL		;(HL)=number of sectors to write.
+ 988  B5CC 11 00 01     	LD	DE,TBASE	;and we start from here.
+ 989  B5CF 7C           SAVE1:	LD	A,H		;done yet?
+ 990  B5D0 B5           	OR	L
+ 991  B5D1 CA EC B5     	JP	Z,SAVE2
+ 992  B5D4 2B           	DEC	HL		;nope, count this and compute the start
+ 993  B5D5 E5           	PUSH	HL		;of the next 128 byte sector.
+ 994  B5D6 21 80 00     	LD	HL,128
+ 995  B5D9 19           	ADD	HL,DE
+ 996  B5DA E5           	PUSH	HL		;save it and set the transfer address.
+ 997  B5DB CD D8 B1     	CALL	DMASET
+ 998  B5DE 11 04 BB     	LD	DE,FCB		;write out this sector now.
+ 999  B5E1 CD 04 B1     	CALL	WRTREC
+1000  B5E4 D1           	POP	DE		;reset (DE) to the start of the last sector.
+1001  B5E5 E1           	POP	HL		;restore sector count.
+1002  B5E6 C2 F6 B5     	JP	NZ,SAVE3	;write error?
+1003  B5E9 C3 CF B5     	JP	SAVE1
+1004  B5EC              ;
+1005  B5EC              ;   Get here after writing all of the file.
+1006  B5EC              ;
+1007  B5EC 11 04 BB     SAVE2:	LD	DE,FCB		;now close the file.
+1008  B5EF CD DA B0     	CALL	CLOSE
+1009  B5F2 3C           	INC	A		;did it close ok?
+1010  B5F3 C2 FC B5     	JP	NZ,SAVE4
+1011  B5F6              ;
+1012  B5F6              ;   Print out error message (no space).
+1013  B5F6              ;
+1014  B5F6 01 02 B6     SAVE3:	LD	BC,NOSPACE
+1015  B5F9 CD A7 B0     	CALL	PLINE
+1016  B5FC CD D5 B1     SAVE4:	CALL	STDDMA		;reset the standard dma address.
+1017  B5FF C3 1D BA     	JP	GETBACK
+1018  B602 4E 6F 20 73  NOSPACE:DEFB	'No space',0
+1018  B606 70 61 63 65
+1018  B60A 00
+1019  B60B              ;
+1020  B60B              ;**************************************************************
+1021  B60B              ;*
+1022  B60B              ;*           R E N A M E   C O M M A N D
+1023  B60B              ;*
+1024  B60B              ;**************************************************************
+1025  B60B              ;
+1026  B60B              RENAME:
+1027  B60B CD 4A B2     	CALL	CONVFST			;convert first file name.
+1028  B60E C2 F5 B1     	JP	NZ,SYNERR			;wild cards not allowed.
+1029  B611 3A 27 BB     	LD	A,(CHGDRV)			;remember any change in drives specified.
+1030  B614 F5           	PUSH	AF
+1031  B615 CD 53 B4     	CALL	DSELECT			;and select this drive.
+1032  B618 CD E9 B0     	CALL	SRCHFCB			;is this file present?
+1033  B61B C2 74 B6     	JP	NZ,RENAME6			;yes, print error message.
+1034  B61E 21 04 BB     	LD	HL,FCB				;yes, move this name into second slot.
+1035  B621 11 14 BB     	LD	DE,FCB+16
+1036  B624 06 10        	LD	B,16
+1037  B626 CD 41 B4     	CALL	HL2DE
+1038  B629 2A 88 B0     	LD	HL,(INPOINT)		;get input pointer.
+1039  B62C EB           	EX	DE,HL
+1040  B62D CD 3B B2     	CALL	NONBLANK		;get next non blank character.
+1041  B630 FE 3D        	CP	'='					;only allow an '=' or '<' seperator.
+1042  B632 CA 3A B6     	JP	Z,RENAME1
+1043  B635 FE 3C        	CP	'<'
+1044  B637 C2 6E B6     	JP	NZ,RENAME5
+1045  B63A              RENAME1:
+1046  B63A EB           	EX	DE,HL
+1047  B63B 23           	INC	HL					;ok, skip seperator.
+1048  B63C 22 88 B0     	LD	(INPOINT),HL		;save input line pointer.
+1049  B63F CD 4A B2     	CALL	CONVFST			;convert this second file name now.
+1050  B642 C2 6E B6     	JP	NZ,RENAME5			;again, no wild cards.
+1051  B645 F1           	POP	AF					;if a drive was specified, then it
+1052  B646 47           	LD	B,A					;must be the same as before.
+1053  B647 21 27 BB     	LD	HL,CHGDRV
+1054  B64A 7E           	LD	A,(HL)
+1055  B64B B7           	OR	A
+1056  B64C CA 54 B6     	JP	Z,RENAME2
+1057  B64F B8           	CP	B
+1058  B650 70           	LD	(HL),B
+1059  B651 C2 6E B6     	JP	NZ,RENAME5			;they were different, error.
+1060  B654              RENAME2:
+1061  B654 70           	LD	(HL),B				;	reset as per the first file specification.
+1062  B655 AF           	XOR	A
+1063  B656 32 04 BB     	LD	(FCB),A				;clear the drive byte of the fcb.
+1064  B659              RENAME3:
+1065  B659 CD E9 B0     	CALL	SRCHFCB			;and go look for second file.
+1066  B65C CA 68 B6     	JP	Z,RENAME4			;doesn't exist?
+1067  B65F 11 04 BB     	LD	DE,FCB
+1068  B662 CD 0E B1     	CALL	RENAM			;ok, rename the file.
+1069  B665 C3 1D BA     	JP	GETBACK
+1070  B668              ;
+1071  B668              ;   Process rename errors here.
+1072  B668              ;
+1073  B668              RENAME4:
+1074  B668 CD E9 B3     	CALL	NONE		;file not there.
+1075  B66B C3 1D BA     	JP	GETBACK
+1076  B66E              RENAME5:
+1077  B66E CD 65 B4     	CALL	RESETDR		;bad command format.
+1078  B671 C3 F5 B1     	JP	SYNERR
+1079  B674              RENAME6:
+1080  B674 01 7D B6     	LD	BC,EXISTS	;destination file already exists.
+1081  B677 CD A7 B0     	CALL	PLINE
+1082  B67A C3 1D BA     	JP	GETBACK
+1083  B67D              EXISTS:
+1084  B67D 46 69 6C 65  	DEFB	'File exists',0
+1084  B681 20 65 78 69
+1084  B685 73 74 73 00
+1085  B689              ;
+1086  B689              ;**************************************************************
+1087  B689              ;*
+1088  B689              ;*             U S E R   C O M M A N D
+1089  B689              ;*
+1090  B689              ;**************************************************************
+1091  B689              ;
+1092  B689              USER:
+1093  B689 CD F7 B3     	CALL	DECODE		;get numeric value following command.
+1094  B68C FE 10        	CP	16		;legal user number?
+1095  B68E D2 F5 B1     	JP	NC,SYNERR
+1096  B691 5F           	LD	E,A		;yes but is there anything else?
+1097  B692 3A 05 BB     	LD	A,(FCB+1)
+1098  B695 FE 20        	CP	' '
+1099  B697 CA F5 B1     	JP	Z,SYNERR	;yes, that is not allowed.
+1100  B69A CD 15 B1     	CALL	GETSETUC	;ok, set user code.
+1101  B69D C3 20 BA     	JP	GETBACK1
+1102  B6A0
+1103  B6A0              ;
+1104  B6A0              ;**************************************************************
+1105  B6A0              ;*
+1106  B6A0              ;*             I M P O R T   C O M M A N D
+1107  B6A0              ;*
+1108  B6A0              ;**************************************************************
+1109  B6A0              ;
+1110  B6A0              ; This takes the name of a file from the command line.
+1111  B6A0              ; It asks the Arduino for the size of this file. This is done by sending the appropriate command
+1112  B6A0              ; to Arduino, which reads the name of the file from the FCB by DMA. It responds with the size of
+1113  B6A0              ; the file (placed in the DMA area). This is 5 bytes long. The first byte is 0 if the
+1114  B6A0              ; file doesn't exist. The next 4 are the file size in bytes.
+1115  B6A0              ; This command then creates a file of the name from the FCB.
+1116  B6A0              ; It then reads 128 byte blocks of data from the Arduino taken from this file.
+1117  B6A0              ; It saves each one to disk.
+1118  B6A0              ; Finally it closes the file it just created.
+1119  B6A0              ;
+1120  B6A0              importbyteslow:
+1121  B6A0 00 00        	dw 0
+1122  B6A2              importbyteshigh:
+1123  B6A2 00 00        	dw 0
+1124  B6A4
+1125  B6A4              IMPORT_COMMAND:
+1126  B6A4 CD 98 B0     	call 	CRLF
+1127  B6A7 11 50 B7     	ld 	de, IMPORT_MESSAGE_INTRO
+1128  B6AA 0E 09        	ld 	c, 9		; Print String
+1129  B6AC CD 05 00     	call	ENTRY		; Call BDOS to print it
+1130  B6AF CD 98 B0     	call 	CRLF
+1131  B6B2
+1132  B6B2 CD 4A B2     	CALL	CONVFST		;convert file name.
+1133  B6B5 C2 F5 B1     	JP	NZ,SYNERR	;wild cards not allowed.
+1134  B6B8 CD 53 B4     	CALL	DSELECT		;and select this drive.
+1135  B6BB CD E9 B0     	CALL	SRCHFCB		;is this file present?
+1136  B6BE C2 74 B6     	JP	NZ,RENAME6	;yes, print error message.
+1137  B6C1
+1138  B6C1 11 80 00     	ld de, TBUFF			; Copy the file name from FCB to the DMA location
+1139  B6C4 21 04 BB     	ld hl, FCB
+1140  B6C7 01 0C 00     	ld bc, 12
+1141  B6CA ED B0        	ldir
+1142  B6CC              	;out 	(IMPORTFILE_PORT), a
+1143  B6CC
+1144  B6CC              	; Get info on whether file exists
+1145  B6CC
+1146  B6CC 11 80 00     	ld de, TBUFF	; Get pointer to DMA area
+1147  B6CF
+1148  B6CF 1A           	ld a, (de)
+1149  B6D0 FE 00        	cp 0
+1150  B6D2 CA 05 B8     	jp z, EXPORT_ERROR_FILE_NOT_FOUND
+1151  B6D5
+1152  B6D5 11 04 BB     	ld	de, FCB
+1153  B6D8 0E 16        	ld 	c, 22		; Create file
+1154  B6DA CD 05 00     	call	ENTRY		; Call BDOS to make file
+1155  B6DD
+1156  B6DD              	;jp GETBACK
+1157  B6DD
+1158  B6DD              	; Import the data, 128 bytes at a time
+1159  B6DD
+1160  B6DD              IMPORT_MAIN_LOOP:
+1161  B6DD
+1162  B6DD CD D5 B1     	call	STDDMA		; Set the standard DMA address
+1163  B6E0              	;out (GETFILE_PORT), a 	; Get the 128 bytes from Arduino
+1164  B6E0
+1165  B6E0 11 04 BB     	ld 	de, FCB
+1166  B6E3 0E 15        	ld	c, 21
+1167  B6E5 CD 05 00     	call 	ENTRY		; Call BDOS to write these bytes to file
+1168  B6E8 FE 02        	cp	2
+1169  B6EA 28 24        	jr      z, IMPORT_DISK_FULL
+1170  B6EC FE 01        	cp 	1
+1171  B6EE 28 2E        	jr      z, IMPORT_NO_DIR
+1172  B6F0
+1173  B6F0 3A FF FF     	ld a, (65535)
+1174  B6F3 FE 00        	cp 0
+1175  B6F5 28 03        	jr z, IMPORT_FINISHED
+1176  B6F7
+1177  B6F7 C3 DD B6     	jp	IMPORT_MAIN_LOOP
+1178  B6FA
+1179  B6FA              IMPORT_FINISHED:
+1180  B6FA              	; Finished so close file
+1181  B6FA
+1182  B6FA 11 04 BB     	ld	de, FCB
+1183  B6FD 0E 10        	ld 	c, 16		; Close file
+1184  B6FF CD 05 00     	call	ENTRY		; Call BDOS to close file
+1185  B702
+1186  B702 CD 98 B0     	call 	CRLF
+1187  B705 11 74 B7     	ld 	de, IMPORT_MESSAGE_SUCCESS
+1188  B708 0E 09        	ld 	c, 9		; Print String
+1189  B70A CD 05 00     	call	ENTRY		; Call BDOS to print it
+1190  B70D C3 1D BA     	JP	GETBACK
+1191  B710
+1192  B710              IMPORT_DISK_FULL:
+1193  B710 CD 98 B0     	call 	CRLF
+1194  B713 11 2C B7     	ld 	de, IMPORT_MESSAGE_DISK_FULL
+1195  B716 0E 09        	ld 	c, 9		; Print String
+1196  B718 CD 05 00     	call	ENTRY		; Call BDOS to print it
+1197  B71B C3 1D BA     	jp	GETBACK
+1198  B71E
+1199  B71E              IMPORT_NO_DIR:
+1200  B71E CD 98 B0     	call 	CRLF
+1201  B721 11 37 B7     	ld 	de, IMPORT_MESSAGE_NO_DIR
+1202  B724 0E 09        	ld 	c, 9		; Print String
+1203  B726 CD 05 00     	call	ENTRY		; Call BDOS to print it
+1204  B729 C3 1D BA     	jp	GETBACK
+1205  B72C
+1206  B72C              IMPORT_MESSAGE_DISK_FULL:
+1207  B72C 44 69 73 6B  	defb	"Disk full!$"
+1207  B730 20 66 75 6C
+1207  B734 6C 21 24
+1208  B737              IMPORT_MESSAGE_NO_DIR:
+1209  B737 4E 6F 20 64  	defb	"No directory space left!$"
+1209  B73B 69 72 65 63
+1209  B73F 74 6F 72 79
+1209  B743 20 73 70 61
+1209  B747 63 65 20 6C
+1209  B74B 65 66 74 21
+1209  B74F 24
+1210  B750
+1211  B750              IMPORT_MESSAGE_INTRO:
+1212  B750 49 6D 70 6F  	defb "Importing a file from PC to CP/M...$"
+1212  B754 72 74 69 6E
+1212  B758 67 20 61 20
+1212  B75C 66 69 6C 65
+1212  B760 20 66 72 6F
+1212  B764 6D 20 50 43
+1212  B768 20 74 6F 20
+1212  B76C 43 50 2F 4D
+1212  B770 2E 2E 2E 24
+1213  B774              IMPORT_MESSAGE_SUCCESS:
+1214  B774 46 69 6C 65  	defb "File imported!$"
+1214  B778 20 69 6D 70
+1214  B77C 6F 72 74 65
+1214  B780 64 21 24
+1215  B783
+1216  B783              ;
+1217  B783              ;**************************************************************
+1218  B783              ;*
+1219  B783              ;*             E X P O R T   C O M M A N D
+1220  B783              ;*
+1221  B783              ;**************************************************************
+1222  B783              ;
+1223  B783              ; This takes the name of a file from the command line.
+1224  B783              ; It first checks that the file is present on disk.
+1225  B783              ; It then opens the file and works its way through it one sector at a time.
+1226  B783              ; It reads data from the file and sends it to the Arduino.
+1227  B783              ; The arduino saves sector on to SD card.
+1228  B783              ; Finally we close the file.
+1229  B783              ;
+1230  B783              exportbyteslow:
+1231  B783 00 00        	dw 0
+1232  B785              exportbyteshigh:
+1233  B785 00 00        	dw 0
+1234  B787
+1235  B787              EXPORT_COMMAND:
+1236  B787 CD D5 B1     	call	STDDMA		; Set the standard DMA address
+1237  B78A
+1238  B78A CD 98 B0     	call 	CRLF
+1239  B78D 11 2A B8     	ld 	de, EXPORT_MESSAGE_INTRO
+1240  B790 0E 09        	ld 	c, 9		; Print String
+1241  B792 CD 05 00     	call	ENTRY		; Call BDOS to print it
+1242  B795 CD 98 B0     	call 	CRLF
+1243  B798
+1244  B798 CD 4A B2     	CALL	CONVFST		;convert file name.
+1245  B79B C2 F5 B1     	JP	NZ,SYNERR	;wild cards not allowed.
+1246  B79E CD 53 B4     	CALL	DSELECT		;and select this drive.
+1247  B7A1 CD E9 B0     	CALL	SRCHFCB		;is this file present?
+1248  B7A4 CA 05 B8     	JP	Z,EXPORT_ERROR_FILE_NOT_FOUND	;no, print error message.
+1249  B7A7
+1250  B7A7              	;ld 	a, StartExportCommand
+1251  B7A7              	;out 	(port), a
+1252  B7A7 21 05 BB     	ld 	hl, FCB+1
+1253  B7AA 06 0B        	ld 	b, 11
+1254  B7AC              EXPORT_COMMAND_SEND_NAME_LOOP:
+1255  B7AC 7E           	ld 	a, (hl)		; Send the filename to the Arduino, 8 + 3 letters
+1256  B7AD              	;out	(port), a
+1257  B7AD 23           	inc 	hl
+1258  B7AE 10 FC        	djnz	EXPORT_COMMAND_SEND_NAME_LOOP
+1259  B7B0
+1260  B7B0              	;call debug
+1261  B7B0              	;db "CCP open the file", 13, 10, 0
+1262  B7B0
+1263  B7B0              	; Open the file
+1264  B7B0 11 04 BB     	ld	de, FCB
+1265  B7B3 0E 0F        	ld 	c, 15		; Open file
+1266  B7B5 CD 05 00     	call	ENTRY		; Call BDOS to open file
+1267  B7B8
+1268  B7B8              	;call debug
+1269  B7B8              	;db "CCP read a sector", 13, 10, 0
+1270  B7B8
+1271  B7B8              	; Loop through getting each sector in turn until none remainder
+1272  B7B8              	; We read it into the standard DMA location (TBUFF), then send each
+1273  B7B8              	; byte to the Arduino
+1274  B7B8              EXPORT_LOOP:
+1275  B7B8 11 80 00     	ld	de, TBUFF
+1276  B7BB 0E 1A        	ld 	c, 26			; Set DMA address
+1277  B7BD CD 05 00     	call	ENTRY			; Call BDOS
+1278  B7C0
+1279  B7C0 11 04 BB     	ld	de, FCB
+1280  B7C3 0E 14        	ld 	c, 20			; Read sequential
+1281  B7C5 CD 05 00     	call	ENTRY			; Call BDOS
+1282  B7C8 FE 00        	cp	0
+1283  B7CA 20 0B        	jr	nz, EXPORT_NO_MORE_DATA
+1284  B7CC
+1285  B7CC              	;call debug
+1286  B7CC              	;db "CCP export a sector", 13, 10, 0
+1287  B7CC
+1288  B7CC              	;ld 	a, ContinueExportCommand	; Every block of 128 bytes is preceeded by a "continue" command
+1289  B7CC              	;out 	(port), a
+1290  B7CC
+1291  B7CC 21 80 00     	ld	hl, TBUFF		; Point to start of the DMA buffer
+1292  B7CF 06 80        	ld 	b, 128			; Count for 128 bytes of this sector
+1293  B7D1              EXPORT_BYTE_LOOP:
+1294  B7D1 7E           	ld	a, (hl)
+1295  B7D2              	;out	(port), a		; Send a byte to the Arduino
+1296  B7D2 23           	inc	hl			; Point to next byte
+1297  B7D3 10 FC        	djnz	EXPORT_BYTE_LOOP	; Do all 128 bytes
+1298  B7D5 18 E1        	jr	EXPORT_LOOP		; Continue to next sector
+1299  B7D7
+1300  B7D7              EXPORT_NO_MORE_DATA:
+1301  B7D7              	; Close the file
+1302  B7D7
+1303  B7D7 CD 81 BA     	call debug
+1304  B7DA 43 43 50 20  	db "CCP close the file", 13, 10, 0
+1304  B7DE 63 6C 6F 73
+1304  B7E2 65 20 74 68
+1304  B7E6 65 20 66 69
+1304  B7EA 6C 65 0D 0A
+1304  B7EE 00
+1305  B7EF
+1306  B7EF 11 04 BB     	ld	de, FCB
+1307  B7F2 0E 10        	ld 	c, 16		; Close file
+1308  B7F4 CD 05 00     	call	ENTRY		; Call BDOS to close file
+1309  B7F7
+1310  B7F7              	;ld 	a, EndExportCommand
+1311  B7F7              	;out 	(port), a
+1312  B7F7
+1313  B7F7 CD 98 B0     	call 	CRLF
+1314  B7FA 11 4E B8     	ld 	de, EXPORT_MESSAGE_SUCCESS
+1315  B7FD 0E 09        	ld 	c, 9		; Print String
+1316  B7FF CD 05 00     	call	ENTRY		; Call BDOS to print it
+1317  B802 C3 1D BA     	JP	GETBACK
+1318  B805
+1319  B805              EXPORT_ERROR_FILE_NOT_FOUND:
+1320  B805 CD 98 B0     	call 	CRLF
+1321  B808 11 13 B8     	ld 	de, EXPORT_MESSAGE_FILE_NOT_FOUND
+1322  B80B 0E 09        	ld 	c, 9		; Print String
+1323  B80D CD 05 00     	call	ENTRY		; Call BDOS to print it
+1324  B810 C3 1D BA     	jp	GETBACK
+1325  B813
+1326  B813              EXPORT_MESSAGE_FILE_NOT_FOUND:
+1327  B813 45 52 52 4F  	defb "ERROR: File not found.$"
+1327  B817 52 3A 20 46
+1327  B81B 69 6C 65 20
+1327  B81F 6E 6F 74 20
+1327  B823 66 6F 75 6E
+1327  B827 64 2E 24
+1328  B82A              EXPORT_MESSAGE_INTRO:
+1329  B82A 45 78 70 6F  	defb "Exporting a file from CP/M to SD...$"
+1329  B82E 72 74 69 6E
+1329  B832 67 20 61 20
+1329  B836 66 69 6C 65
+1329  B83A 20 66 72 6F
+1329  B83E 6D 20 43 50
+1329  B842 2F 4D 20 74
+1329  B846 6F 20 53 44
+1329  B84A 2E 2E 2E 24
+1330  B84E              EXPORT_MESSAGE_SUCCESS:
+1331  B84E 46 69 6C 65  	defb "File exported!$"
+1331  B852 20 65 78 70
+1331  B856 6F 72 74 65
+1331  B85A 64 21 24
+1332  B85D
+1333  B85D
+1334  B85D              ;**************************************************************
+1335  B85D              ;
+1336  B85D              ;	Disk Usage (DU) command
+1337  B85D              ;
+1338  B85D              ;**************************************************************
+1339  B85D
+1340  B85D              DU_COMMAND:
+1341  B85D CD 98 B0     	call	CRLF
+1342  B860
+1343  B860 CD 81 BA     	call 	debug
+1344  B863 3D 20 44 55  	db 	"= DU", 13, 10, 0
+1344  B867 0D 0A 00
+1345  B86A
+1346  B86A              	;call	CRLF
+1347  B86A              	;jp 	GETBACK
+1348  B86A
+1349  B86A              	;; Loop through all 700 records in my large.txt file, showing them on screen
+1350  B86A
+1351  B86A 21 16 B9     	ld 	hl, DU_SECTOR_COUNTER
+1352  B86D 36 00        	ld	(hl), 0
+1353  B86F
+1354  B86F 11 04 BB     	ld 	de, FCB
+1355  B872 21 18 B9     	ld	hl, LARGE_TXT_FCB
+1356  B875 01 10 00     	ld	bc, 16
+1357  B878 ED B0        	ldir				; Copy file name into FCB
+1358  B87A
+1359  B87A CD 81 BA     	call 	debug
+1360  B87D 3D 20 4F 70  	db 	"= Open", 13, 10, 0
+1360  B881 65 6E 0D 0A
+1360  B885 00
+1361  B886
+1362  B886 11 04 BB     	ld	de, FCB
+1363  B889 0E 0F        	ld	c, 15			; open file
+1364  B88B CD 05 00     	call	ENTRY			; by calling BDOS
+1365  B88E
+1366  B88E CD 81 BA     	call 	debug
+1367  B891 3D 20 52 65  	db 	"= Result = ", 0
+1367  B895 73 75 6C 74
+1367  B899 20 3D 20 00
+1368  B89D
+1369  B89D 4F           	ld	c, a			; Get error code if any
+1370  B89E CD A5 BA     	call 	show_c_in_hex
+1371  B8A1
+1372  B8A1 CD 81 BA     	call	debug
+1373  B8A4 0D 0A 3D 20  	db	13, 10, "= DMA", 13, 10, 0
+1373  B8A8 44 4D 41 0D
+1373  B8AC 0A 00
+1374  B8AE
+1375  B8AE              SECTOR_COUNTER_LOOP:
+1376  B8AE 11 80 00     	ld	de, TBUFF
+1377  B8B1 0E 1A        	ld 	c, 26			; Set DMA address
+1378  B8B3 CD 05 00     	call	ENTRY			; by calling BDOS
+1379  B8B6
+1380  B8B6 21 04 BB     	ld	hl, FCB
+1381  B8B9 11 21 00     	ld	de, 021H
+1382  B8BC 19           	add	hl, de			; HL points to random record area of FCB
+1383  B8BD
+1384  B8BD ED 4B 16 B9  	ld	bc, (DU_SECTOR_COUNTER)	; get sector counter
+1385  B8C1 71           	ld	(hl), c			; Put bc into random record area of FCB
+1386  B8C2 23           	inc	hl
+1387  B8C3 70           	ld	(hl), b			; FCB now set for read
+1388  B8C4
+1389  B8C4 11 04 BB     	ld	de, FCB
+1390  B8C7 0E 21        	ld 	c, 33			; Read a "random access" record
+1391  B8C9 CD 05 00     	call	ENTRY			; by calling BDOS
+1392  B8CC
+1393  B8CC              	; Display the sector
+1394  B8CC 21 80 00     	ld	hl, TBUFF
+1395  B8CF 06 80        	ld	b, 128
+1396  B8D1 16 40        	ld	d, 64
+1397  B8D3              SHOW_SECTOR_LOOP:
+1398  B8D3              	;ld	c, (hl)
+1399  B8D3              	;call	show_c_in_hex
+1400  B8D3              	;ld	a, ' '
+1401  B8D3 7E           	ld	a, (hl)
+1402  B8D4 D3 00        	out	(0), a
+1403  B8D6 15           	dec	d
+1404  B8D7 20 0A        	jr	nz, NOT_END_OF_LINE
+1405  B8D9
+1406  B8D9 3E 0D        	ld 	a, 13
+1407  B8DB D3 00        	out	(0), a
+1408  B8DD 3E 0A        	ld 	a, 10
+1409  B8DF D3 00        	out	(0), a
+1410  B8E1 16 40        	ld	d, 64
+1411  B8E3
+1412  B8E3              NOT_END_OF_LINE:
+1413  B8E3 23           	inc	hl
+1414  B8E4 10 ED        	djnz	SHOW_SECTOR_LOOP
+1415  B8E6
+1416  B8E6 2A 16 B9     	ld	hl, (DU_SECTOR_COUNTER)	; get sector counter
+1417  B8E9 23           	inc	hl
+1418  B8EA 22 16 B9     	ld	(DU_SECTOR_COUNTER), hl	; set sector counter
+1419  B8ED 11 44 FD     	ld	de, -700
+1420  B8F0 19           	add	hl, de
+1421  B8F1
+1422  B8F1
+1423  B8F1 7D           	ld 	a, l
+1424  B8F2 FE 00        	cp	0
+1425  B8F4 20 B8        	jr	nz, 	SECTOR_COUNTER_LOOP
+1426  B8F6 7C           	ld 	a, h
+1427  B8F7 FE 00        	cp	0
+1428  B8F9 20 B3        	jr	nz, 	SECTOR_COUNTER_LOOP
+1429  B8FB
+1430  B8FB
+1431  B8FB
+1432  B8FB
+1433  B8FB CD 81 BA     	call	debug
+1434  B8FE 3D 20 43 4C  	db	"= CLOSE", 13, 10, 0
+1434  B902 4F 53 45 0D
+1434  B906 0A 00
+1435  B908
+1436  B908              	; Close the file
+1437  B908 11 04 BB     	ld	de, FCB
+1438  B90B 0E 10        	ld	c, 16			; close the file
+1439  B90D CD 05 00     	call	ENTRY			; by calling BDOS
+1440  B910
+1441  B910 CD 98 B0     	call	CRLF
+1442  B913 C3 1D BA     	jp 	GETBACK
+1443  B916
+1444  B916              DU_SECTOR_COUNTER:
+1445  B916 00 00        	dw	0
+1446  B918
+1447  B918              LARGE_TXT_FCB:
+1448  B918 10 4C 41 52  	db	16, "LARGE   TXT", 0, 0, 0, 0
+1448  B91C 47 45 20 20
+1448  B920 20 54 58 54
+1448  B924 00 00 00 00
+1449  B928
+1450  B928
+1451  B928              ;
+1452  B928              ;**************************************************************
+1453  B928              ;*
+1454  B928              ;*        T R A N S I E N T   P R O G R A M   C O M M A N D
+1455  B928              ;*
+1456  B928              ;**************************************************************
+1457  B928              ;
+1458  B928              UNKNOWN:
+1459  B928 3A 05 BB     	LD	A,(FCB+1)	;anything to execute?
+1460  B92B FE 20        	CP	' '
+1461  B92D C2 44 B9     	JP	NZ,UNKWN1
+1462  B930 3A 27 BB     	LD	A,(CHGDRV)	;nope, only a drive change?
+1463  B933 B7           	OR	A
+1464  B934 CA 20 BA     	JP	Z,GETBACK1	;neither???
+1465  B937 3D           	DEC	A
+1466  B938 32 26 BB     	LD	(CDRIVE),A	;ok, store new drive.
+1467  B93B CD 29 B1     	CALL	MOVECD		;set (TDRIVE) also.
+1468  B93E CD BD B0     	CALL	DSKSEL		;and select this drive.
+1469  B941 C3 20 BA     	JP	GETBACK1	;then return.
+1470  B944              ;
+1471  B944              ;   Here a file name was typed. Prepare to execute it.
+1472  B944              ;
+1473  B944              UNKWN1:
+1474  B944 11 0D BB     	LD	DE,FCB+9	;an extension specified?
+1475  B947 1A           	LD	A,(DE)
+1476  B948 FE 20        	CP	' '
+1477  B94A C2 F5 B1     	JP	NZ,SYNERR	;yes, not allowed.
+1478  B94D              UNKWN2:
+1479  B94D D5           	PUSH	DE
+1480  B94E CD 53 B4     	CALL	DSELECT		;select specified drive.
+1481  B951 D1           	POP	DE
+1482  B952 21 1A BA     	LD	HL,COMFILE	;set the extension to 'COM'.
+1483  B955 CD 3F B4     	CALL	MOVE3
+1484  B958 CD D0 B0     	CALL	OPENFCB		;and open this file.
+1485  B95B CA EB B9     	JP	Z,UNKWN9	;not present?
+1486  B95E              ;
+1487  B95E              ;   Load in the program.
+1488  B95E              ;
+1489  B95E 21 00 01     	LD	HL,TBASE	;store the program starting here.
+1490  B961              UNKWN3:
+1491  B961 E5           	PUSH	HL
+1492  B962 EB           	EX	DE,HL
+1493  B963 CD D8 B1     	CALL	DMASET		;set transfer address.
+1494  B966 11 04 BB     	LD	DE,FCB		;and read the next record.
+1495  B969 CD F9 B0     	CALL	RDREC
+1496  B96C C2 81 B9     	JP	NZ,UNKWN4	;end of file or read error?
+1497  B96F E1           	POP	HL		;nope, bump pointer for next sector.
+1498  B970 11 80 00     	LD	DE,128
+1499  B973 19           	ADD	HL,DE
+1500  B974 11 00 B0     	LD	DE,CBASE	;enough room for the whole file?
+1501  B977 7D           	LD	A,L
+1502  B978 93           	SUB	E
+1503  B979 7C           	LD	A,H
+1504  B97A 9A           	SBC	A,D
+1505  B97B D2 F1 B9     	JP	NC,UNKWN0	;no, it can't fit.
+1506  B97E C3 61 B9     	JP	UNKWN3
+1507  B981              ;
+1508  B981              ;   Get here after finished reading.
+1509  B981              ;
+1510  B981              UNKWN4:
+1511  B981 E1           	POP	HL
+1512  B982 3D           	DEC	A		;normal end of file?
+1513  B983 C2 FA B9     	JP	NZ,UNKWN99
+1514  B986 CD 65 B4     	CALL	RESETDR		;yes, reset previous drive.
+1515  B989 CD 4A B2     	CALL	CONVFST		;convert the first file name that follows
+1516  B98C 21 27 BB     	LD	HL,CHGDRV	;command name.
+1517  B98F E5           	PUSH	HL
+1518  B990 7E           	LD	A,(HL)		;set drive code in default fcb.
+1519  B991 32 04 BB     	LD	(FCB),A
+1520  B994 3E 10        	LD	A,16		;put second name 16 bytes later.
+1521  B996 CD 4C B2     	CALL	CONVERT		;convert second file name.
+1522  B999 E1           	POP	HL
+1523  B99A 7E           	LD	A,(HL)		;and set the drive for this second file.
+1524  B99B 32 14 BB     	LD	(FCB+16),A
+1525  B99E AF           	XOR	A		;clear record byte in fcb.
+1526  B99F 32 24 BB     	LD	(FCB+32),A
+1527  B9A2 11 5C 00     	LD	DE,TFCB		;move it into place at(005Ch).
+1528  B9A5 21 04 BB     	LD	HL,FCB
+1529  B9A8 06 21        	LD	B,33
+1530  B9AA CD 41 B4     	CALL	HL2DE
+1531  B9AD 21 08 B0     	LD	HL,INBUFF+2	;now move the remainder of the input
+1532  B9B0              UNKWN5:
+1533  B9B0 7E           	LD	A,(HL)		;line down to (0080h). Look for a non blank.
+1534  B9B1 B7           	OR	A		;or a null.
+1535  B9B2 CA BE B9     	JP	Z,UNKWN6
+1536  B9B5 FE 20        	CP	' '
+1537  B9B7 CA BE B9     	JP	Z,UNKWN6
+1538  B9BA 23           	INC	HL
+1539  B9BB C3 B0 B9     	JP	UNKWN5
+1540  B9BE              ;
+1541  B9BE              ;   Do the line move now. It ends in a null byte.
+1542  B9BE              ;
+1543  B9BE              UNKWN6:
+1544  B9BE 06 00        	LD	B,0		;keep a character count.
+1545  B9C0 11 81 00     	LD	DE,TBUFF+1	;data gets put here.
+1546  B9C3              UNKWN7:
+1547  B9C3 7E           	LD	A,(HL)		;move it now.
+1548  B9C4 12           	LD	(DE),A
+1549  B9C5 B7           	OR	A
+1550  B9C6 CA CF B9     	JP	Z,UNKWN8
+1551  B9C9 04           	INC	B
+1552  B9CA 23           	INC	HL
+1553  B9CB 13           	INC	DE
+1554  B9CC C3 C3 B9     	JP	UNKWN7
+1555  B9CF              UNKWN8:
+1556  B9CF 78           	LD	A,B		;now store the character count.
+1557  B9D0 32 80 00     	LD	(TBUFF),A
+1558  B9D3 CD 98 B0     	CALL	CRLF		;clean up the screen.
+1559  B9D6 CD D5 B1     	CALL	STDDMA		;set standard transfer address.
+1560  B9D9 CD 1A B1     	CALL	SETCDRV		;reset current drive.
+1561  B9DC CD 00 01     	CALL	TBASE		;and execute the program.
+1562  B9DF              ;
+1563  B9DF              ;   Transiant programs return here (or reboot).
+1564  B9DF              ;
+1565  B9DF 31 E2 BA     	LD	SP,BATCH	;set stack first off.
+1566  B9E2 CD 29 B1     	CALL	MOVECD		;move current drive into place (TDRIVE).
+1567  B9E5 CD BD B0     	CALL	DSKSEL		;and reselect it.
+1568  B9E8 C3 7B B3     	JP	CMMND1		;back to comand mode.
+1569  B9EB              ;
+1570  B9EB              ;   Get here if some error occured.
+1571  B9EB              ;
+1572  B9EB              UNKWN9:
+1573  B9EB CD 65 B4     	CALL	RESETDR		;inproper format.
+1574  B9EE C3 F5 B1     	JP	SYNERR
+1575  B9F1              UNKWN0:
+1576  B9F1 01 03 BA     	LD	BC,BADLOAD	;read error or won't fit.
+1577  B9F4 CD A7 B0     	CALL	PLINE
+1578  B9F7 C3 1D BA     	JP	GETBACK
+1579  B9FA              UNKWN99:
+1580  B9FA 01 0E BA     	LD	BC,BADLOAD99	;read error or won't fit.
+1581  B9FD CD A7 B0     	CALL	PLINE
+1582  BA00 C3 1D BA     	JP	GETBACK
+1583  BA03              BADLOAD:
+1584  BA03 42 61 64 20  	DEFB	'Bad load 0',0
+1584  BA07 6C 6F 61 64
+1584  BA0B 20 30 00
+1585  BA0E              BADLOAD99:
+1586  BA0E 42 61 64 20  	DEFB	'Bad load 99',0
+1586  BA12 6C 6F 61 64
+1586  BA16 20 39 39 00
+1587  BA1A              COMFILE:
+1588  BA1A 43 4F 4D     	DEFB	'COM'		;command file extension.
+1589  BA1D              ;
+1590  BA1D              ;   Get here to return to command level. We will reset the
+1591  BA1D              ; previous active drive and then either return to command
+1592  BA1D              ; level directly or print error message and then return.
+1593  BA1D              ;
+1594  BA1D CD 65 B4     GETBACK:CALL	RESETDR		;reset previous drive.
+1595  BA20 CD 4A B2     GETBACK1: CALL	CONVFST		;convert first name in (FCB).
+1596  BA23 3A 05 BB     	LD	A,(FCB+1)	;if this was just a drive change request,
+1597  BA26 D6 20        	SUB	' '		;make sure it was valid.
+1598  BA28 21 27 BB     	LD	HL,CHGDRV
+1599  BA2B B6           	OR	(HL)
+1600  BA2C C2 F5 B1     	JP	NZ,SYNERR
+1601  BA2F C3 7B B3     	JP	CMMND1		;ok, return to command level.
+1602  BA32
+1603  BA32              ; Some subroutines added by John Squires to help with the new IMPort command
+1604  BA32
+1605  BA32              ; 32-bit addition.
+1606  BA32              ; Input:
+1607  BA32              ; 32-bit number in H'L'HL
+1608  BA32              ; 32-bit number in D'E'DE
+1609  BA32              ; Result:
+1610  BA32              ; H'L'HL = H'L'HL + D'E'DE
+1611  BA32              ADD32:
+1612  BA32 B7           	or	a	; Clear carry flag
+1613  BA33 ED 5A            adc	hl, de	; First, perform 16 bit addition for least-significant 16 bits
+1614  BA35 D9               exx
+1615  BA36 ED 5A            adc     hl, de 	; Now deal with upper 16 bits, including carry from first stage
+1616  BA38 D9               exx
+1617  BA39 C9               ret
+1618  BA3A
+1619  BA3A              ; 32-bit subtraction.
+1620  BA3A              ; Input:
+1621  BA3A              ; 32-bit number in H'L'HL
+1622  BA3A              ; 32-bit number in D'E'DE
+1623  BA3A              ; Result:
+1624  BA3A              ; H'L'HL = H'L'HL - D'E'DE
+1625  BA3A              SUBTRACT32:
+1626  BA3A B7           	or	a	; Clear carry flag
+1627  BA3B ED 52            sbc	hl, de	; First, perform 16 bit subtraction for least-significant 16 bits
+1628  BA3D D9               exx
+1629  BA3E ED 52            sbc     hl, de 	; Now deal with upper 16 bits, including carry from first stage
+1630  BA40 D9               exx
+1631  BA41 C9               ret
+1632  BA42
+1633  BA42              ; Display 32 bit number in h'l'hl
+1634  BA42              display_hl32:
+1635  BA42 11 A0 86     	ld	de,34464
+1636  BA45 D9           	exx
+1637  BA46 11 01 00     	ld 	de, 1
+1638  BA49 D9           	exx
+1639  BA4A CD 75 BA     	call	display_hl32_digit
+1640  BA4D
+1641  BA4D 11 10 27     	ld	de, 10000
+1642  BA50 D9           	exx
+1643  BA51 11 00 00     	ld 	de, 0
+1644  BA54 D9           	exx
+1645  BA55 CD 75 BA     	call	display_hl32_digit
+1646  BA58
+1647  BA58 11 E8 03     	ld	de, 1000
+1648  BA5B D9           	exx
+1649  BA5C 11 00 00     	ld 	de, 0
+1650  BA5F D9           	exx
+1651  BA60 CD 75 BA     	call	display_hl32_digit
+1652  BA63
+1653  BA63 11 64 00     	ld	de, 100
+1654  BA66 D9           	exx
+1655  BA67 11 00 00     	ld 	de, 0
+1656  BA6A D9           	exx
+1657  BA6B
+1658  BA6B CD 75 BA     	call	display_hl32_digit
+1659  BA6E 1E 0A        	ld	e, 10
+1660  BA70 CD 75 BA     	call	display_hl32_digit
+1661  BA73 1E 01        	ld	e, 1
+1662  BA75              display_hl32_digit:
+1663  BA75 3E 2F        	ld	a, '0'-1
+1664  BA77              display_hl32_digit_loop:
+1665  BA77 3C           	inc	a
+1666  BA78 CD 3A BA     	call	SUBTRACT32
+1667  BA7B 30 FA        	jr	nc,display_hl32_digit_loop
+1668  BA7D CD 32 BA     	call	ADD32
+1669  BA80              	;out 	(PRINTCHAR_PORT), a
+1670  BA80 C9           	ret
+1671  BA81
+1672  BA81              ; --------------------------------------------
+1673  BA81              ; A temporary funciton to help with debugging
+1674  BA81
+1675  BA81              debug:
+1676  BA81              	; This expects to be called from code where the message follows the "call debug" line, like this:
+1677  BA81              	; ld a, 10
+1678  BA81              	; call debug
+1679  BA81              	; db "my message", 0
+1680  BA81              	; ld b, 10
+1681  BA81              	;
+1682  BA81              	; When we return we make sure sp is pointing to the next line of code after the message.
+1683  BA81
+1684  BA81 F5           	push af			; We have stored af, but decreased sp by 2
+1685  BA82 33           	inc sp
+1686  BA83 33           	inc sp			; adjust the stack to overlook the stored "af"
+1687  BA84
+1688  BA84 22 A1 BA     	ld (store_hl), hl	; temporarily store hl
+1689  BA87 EB           	ex de, hl
+1690  BA88 22 A3 BA     	ld (store_de), hl	; temporarily store de
+1691  BA8B
+1692  BA8B
+1693  BA8B E3           	ex (sp), hl		; top of stack is now mangled, but hl is pointing to our message
+1694  BA8C
+1695  BA8C              debug_message_loop:
+1696  BA8C 7E           	ld a, (hl)
+1697  BA8D FE 00        	cp 0
+1698  BA8F 28 03        	jr z, debug_message_complete
+1699  BA91 23           	inc hl
+1700  BA92              	;out (PRINTCHAR_PORT), a 		; print it
+1701  BA92 18 F8        	jr debug_message_loop
+1702  BA94
+1703  BA94              debug_message_complete:
+1704  BA94 23           	inc hl
+1705  BA95 E3           	ex (sp), hl		; restore top of stack, after we have incremented it so it points to the subsequent instruction
+1706  BA96
+1707  BA96 2A A3 BA     	ld hl, (store_de)	; restore de
+1708  BA99 EB           	ex de, hl
+1709  BA9A 2A A1 BA     	ld hl, (store_hl)	; restore hl
+1710  BA9D
+1711  BA9D 3B           	dec sp
+1712  BA9E 3B           	dec sp			; adjust stack because of our pushed "af"
+1713  BA9F F1           	pop af			; we have restored af
+1714  BAA0
+1715  BAA0 C9           	ret			; return to the instruction after the debug message
+1716  BAA1
+1717  BAA1              store_hl:
+1718  BAA1 00 00        	defw 0			; Temporary store for hl
+1719  BAA3              store_de:
+1720  BAA3 00 00        	defw 0			; Temporary store for de
+1721  BAA5
+1722  BAA5              show_c_in_hex:
+1723  BAA5 F5           	push af
+1724  BAA6 E5           	push hl
+1725  BAA7 C5           	push bc
+1726  BAA8 CD B4 BA     	call show_c_in_hex_inner
+1727  BAAB C1           	pop bc
+1728  BAAC E1           	pop hl
+1729  BAAD F1           	pop af
+1730  BAAE C9           	ret
+1731  BAAF
+1732  BAAF              show_hl_in_hex_inner:
+1733  BAAF 4C           	ld  c,h
+1734  BAB0 CD B4 BA     	call  show_c_in_hex_inner
+1735  BAB3 4D           	ld  c,l
+1736  BAB4              show_c_in_hex_inner:
+1737  BAB4 79           	ld  a,c
+1738  BAB5 1F           	rra
+1739  BAB6 1F           	rra
+1740  BAB7 1F           	rra
+1741  BAB8 1F           	rra
+1742  BAB9 CD BD BA     	call convert_nibble_to_char
+1743  BABC 79           	ld  a,c
+1744  BABD              convert_nibble_to_char:
+1745  BABD E6 0F        	and  $0F
+1746  BABF C6 90        	add  a,$90
+1747  BAC1 27           	daa
+1748  BAC2 CE 40        	adc  a,$40
+1749  BAC4 27           	daa
+1750  BAC5              	;out (PRINTCHAR_PORT), a
+1751  BAC5 C9           	ret
+1752  BAC6
+1753  BAC6              ;------------------------------------
+1754  BAC6
+1755  BAC6              ;
+1756  BAC6              ;   ccp stack area.
+1757  BAC6              ;
+1758  BAC6 00 00 00 00  	DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+1758  BACA 00 00 00 00
+1758  BACE 00 00 00 00
+1758  BAD2 00 00 00 00
+1758  BAD6 00 00 00 00
+1758  BADA 00 00 00 00
+1758  BADE 00 00
+1759  BAE0              CCPSTACK:
+1760  BAE0 00 00        	defb 0,0		; I changed the syntax here in case my assembler was unable to understand what "$" means.
+1761  BAE2              ;
+1762  BAE2              ;   Batch (or SUBMIT) processing information storage.
+1763  BAE2              ;
+1764  BAE2 00           BATCH:	DEFB	0		;batch mode flag (0=not active).
+1765  BAE3 00 24 24 24  BATCHFCB: DEFB	0,'$$$     SUB',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+1765  BAE7 20 20 20 20
+1765  BAEB 20 53 55 42
+1765  BAEF 00 00 00 00
+1765  BAF3 00 00 00 00
+1765  BAF7 00 00 00 00
+1765  BAFB 00 00 00 00
+1765  BAFF 00 00 00 00
+1765  BB03 00
+1766  BB04              ;
+1767  BB04              ;   File control block setup by the CCP.
+1768  BB04              ;
+1769  BB04 00 20 20 20  FCB:	DEFB	0,'           ',0,0,0,0,0,'           ',0,0,0,0,0
+1769  BB08 20 20 20 20
+1769  BB0C 20 20 20 20
+1769  BB10 00 00 00 00
+1769  BB14 00 20 20 20
+1769  BB18 20 20 20 20
+1769  BB1C 20 20 20 20
+1769  BB20 00 00 00 00
+1769  BB24 00
+1770  BB25 00           RTNCODE:DEFB	0		;status returned from bdos call.
+1771  BB26 00           CDRIVE:	DEFB	0		;currently active drive.
+1772  BB27 00           CHGDRV:	DEFB	0		;change in drives flag (0=no change).
+1773  BB28 00 00        NBYTES:	DEFW	0		;byte counter used by TYPE.
+1774  BB2A              ;
+1775  BB2A                 include "core_jump.asm"
+# file opened: core_jump.asm
+   1+ BB2A              ; core_jump.asm
+   2+ BB2A              ;
+   3+ BB2A              ; This is the jump table for the CORE routines.
+   4+ BB2A              ; Instead of including core.asm, you can just include this, assuming that core.bin is already loaded.
+   5+ BB2A              ;
+   6+ BB2A                  include "port_numbers.asm"
+# file opened: port_numbers.asm
+   1++BB2A              ; port_numbers.asm
+   2++BB2A
+   3++BB2A              ; Here are the port numbers for various UART registers:
+   4++BB2A              uart_tx_rx 		equ   0xB8   ; 	8
+   5++BB2A              uart_IER 		equ   0xB9   ; 	9
+   6++BB2A              uart_ISR 		equ   0xBA   ;  10  ; Also known as FCR
+   7++BB2A              uart_LCR 		equ   0xBB   ;  11
+   8++BB2A              uart_MCR 		equ   0xBC   ;  12  ; modem control reg
+   9++BB2A              uart_LSR 		equ   0xBD   ;  13
+  10++BB2A              uart_MSR 		equ   0xBE   ;  14
+  11++BB2A              uart_scratch 	equ   0xBF   ;  15
+  12++BB2A
+  13++BB2A              PIO_A	equ	0xA8		; CA80 user 8255 base address 	  (port A)
+  14++BB2A              PIO_B	equ	0xA9		; CA80 user 8255 base address + 1 (port B)
+  15++BB2A              PIO_C	equ	0xAA		; CA80 user 8255 base address + 2 (fport C)
+  16++BB2A              PIO_M	equ	0xAB		; CA80 user 8255 control register
+  17++BB2A
+# file closed: port_numbers.asm
+   7+ BB2A
+   8+ BB2A
+   9+ BB2A              CORE_start_monitor equ CORE_START+0
+  10+ BB2A              CORE_configure_uart  equ CORE_START+3
+  11+ BB2A              CORE_print_a equ CORE_START+6
+  12+ BB2A              CORE_char_in equ CORE_START+9
+  13+ BB2A              CORE_char_available equ CORE_START+12
+  14+ BB2A              CORE_short_pause equ CORE_START+15
+  15+ BB2A              CORE_medium_pause equ CORE_START+18
+  16+ BB2A              CORE_long_pause equ CORE_START+21
+  17+ BB2A              CORE_disk_toggle equ CORE_START+24
+  18+ BB2A              CORE_disk_on equ CORE_START+27
+  19+ BB2A              CORE_disk_off equ CORE_START+30
+  20+ BB2A              CORE_user_toggle equ CORE_START+33
+  21+ BB2A              CORE_user_on equ CORE_START+36
+  22+ BB2A              CORE_user_off equ CORE_START+39
+  23+ BB2A              CORE_rom_toggle equ CORE_START+42
+  24+ BB2A              CORE_rom_on equ CORE_START+45
+  25+ BB2A              CORE_rom_off equ CORE_START+48
+  26+ BB2A              CORE_newline equ CORE_START+51
+  27+ BB2A              CORE_space equ CORE_START+54
+  28+ BB2A              CORE_message equ CORE_START+57
+  29+ BB2A              CORE_show_hl_as_hex equ CORE_START+60
+  30+ BB2A              CORE_show_all equ CORE_START+63
+  31+ BB2A              CORE_dir equ CORE_START+66
+  32+ BB2A              CORE_dir_next equ CORE_START+69
+  33+ BB2A              CORE_load_bin_file equ CORE_START+72
+  34+ BB2A              CORE_dir_info_read equ CORE_START+75
+  35+ BB2A              CORE_dir_info_write equ CORE_START+78
+  36+ BB2A              CORE_write_to_file equ CORE_START+81
+  37+ BB2A              CORE_erase_file equ CORE_START+84
+  38+ BB2A              CORE_check_cpmdisks_structure equ CORE_START+87
+  39+ BB2A              CORE_move_to_file_pointer equ CORE_START+90
+  40+ BB2A              CORE_set_random_pointer_in_fcb equ CORE_START+93
+  41+ BB2A              CORE_copy_filename_to_buffer equ CORE_START+96
+  42+ BB2A              CORE_open_file equ CORE_START+99
+  43+ BB2A              CORE_create_directory equ CORE_START+102
+  44+ BB2A              CORE_close_file equ CORE_START+105
+  45+ BB2A              CORE_read_from_file equ CORE_START+108
+  46+ BB2A              CORE_connect_to_disk equ CORE_START+111
+  47+ BB2A              CORE_mount_disk equ CORE_START+114
+  48+ BB2A              CORE_create_file equ CORE_START+117
+  49+ BB2A              CORE_show_a_as_hex equ CORE_START+120
+  50+ BB2A              CORE_convert_user_number_to_folder_name equ CORE_START+123
+  51+ BB2A              CORE_set_file_size_in_fcb equ CORE_START+126
+  52+ BB2A              CORE_change_to_slot2 equ CORE_START+129
+  53+ BB2A
+  54+ BB2A
+  55+ BB2A              filename_buffer equ 65535-20
+  56+ BB2A              DRIVE_NAME equ filename_buffer-2
+  57+ BB2A              disk_buffer equ DRIVE_NAME-36
+  58+ BB2A
+  59+ BB2A              core_location equ disk_buffer-2         ; Stores the core_start location
+  60+ BB2A              bios_location equ core_location-2       ; Stores the bios_start location
+  61+ BB2A              bdos_location equ bios_location-2       ; Stores the bdos_start location
+  62+ BB2A              ccp_location equ bdos_location-2        ; Stores the ccp_start location
+  63+ BB2A              ccp_name equ ccp_location-13            ; stores the name of the ccp file, e.g. MYCCP.BIN with a zero terminator
+  64+ BB2A
+  65+ BB2A
+  66+ BB2A
+  67+ BB2A
+  68+ BB2A
+  69+ BB2A
+# file closed: core_jump.asm
+1776  BB2A
+1777  BB2A              CCP_END	equ $
+1778  BB2A                  IF CCP_END-CCP_START>CCP_SIZE
+1779  BB2A ~                    .WARNING "The BDOS is too big! ",CCP_SIZE," bytes max!"
+1780  BB2A                  ENDIF
+1781  BB2A
 # file closed: ccp.asm

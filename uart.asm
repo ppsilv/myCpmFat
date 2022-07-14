@@ -129,9 +129,6 @@ UART_TX:	PUSH 	HL
 2:			POP	AF							; Good to send at this point, so
 			OUT	(uart_tx_rx),A			; Write the character to the UART transmit buffer
 			call	delay2
-			call	delay2
-			call	delay2
-			call	delay2
 			POP	BC							; Restore the stack
 			POP DE 
 			POP	HL

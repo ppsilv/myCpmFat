@@ -117,17 +117,21 @@ CORE_convert_user_number_to_folder_name:
     jp convert_user_number_to_folder_name
 CORE_set_file_size_in_fcb:
     jp set_file_size_in_fcb
-
+CORE_change_to_slot2:    
+    jp change_to_slot2
+    
     include "uart.asm"
     include "message.asm"
     include "memorystick.asm"
+    include "PPI.asm"
+    include "cpm000.asm"
 
-filename_buffer equ 65535-20
-DRIVE_NAME equ filename_buffer-2
-disk_buffer equ DRIVE_NAME-36
+filename_buffer 	equ 65535-20
+DRIVE_NAME 			equ filename_buffer-2
+disk_buffer 		equ DRIVE_NAME-36
 
 CORE_END equ $
 
-    IF CORE_END-CORE_START>3072
-        .WARNING "The CORE is too big! 3072 bytes max!"
+    IF CORE_END-CORE_START>CORE_SIZE
+        .WARNING "The CORE is too big! CORE_SIZE bytes max!"
     ENDIF

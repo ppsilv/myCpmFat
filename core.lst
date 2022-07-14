@@ -14,2022 +14,2142 @@
   1+  0000              ; locations.asm
   2+  0000              ; Stores the ORG values for the CCP, BDOS, BIOS and CORE
   3+  0000
-  4+  0000              CORE_START  equ $F600    ; $FFFF - 2.5K
-  5+  0000              BIOS_START  equ $F400    ; $F600 - 0.5K
-  6+  0000              BDOS_START  equ $EA00    ; $F400 - 2.5K
-  7+  0000              CCP_START   equ $DE00    ; $EA00 - 3.0K
+  4+  0000              ;CORE_START  equ $F600    ; $FFFF - 2.5K
+  5+  0000              ;BIOS_START  equ $F400    ; $F600 - 0.5K
+  6+  0000              ;BDOS_START  equ $EA00    ; $F400 - 2.5K
+  7+  0000              ;CCP_START   equ $DE00    ; $EA00 - 3.0K
   8+  0000
+  9+  0000              CORE_START  equ $EC00    ; 5119
+ 10+  0000              BIOS_START  equ $DC00    ; 4096
+ 11+  0000              BDOS_START  equ $D000    ; 3072
+ 12+  0000              CCP_START   equ $B000    ; 8192
+ 13+  0000
+ 14+  0000              CORE_SIZE   equ 0xFFFF-CORE_START
+ 15+  0000              BIOS_SIZE   equ CORE_START-BIOS_START
+ 16+  0000              BDOS_SIZE   equ BIOS_START-BDOS_START
+ 17+  0000              CCP_SIZE    equ BDOS_START-CCP_START
 # file closed: locations.asm
  12   0000
  13   0000                  org CORE_START
- 14   F600
- 15   F600              ; CORE internal jump table
- 16   F600              ; For future-proofing, all calls are via this jump table.
- 17   F600              ; From external code just jump to "CORE_configure_uart" or similar, which then jumps to "configure_uart".
- 18   F600              ; That way you can change the value of CORE_ORG, re-assemble this file, then in other files
- 19   F600              ; just include the external jump table.
- 20   F600              ; That way it doesn't matter if these routines change location or size, you can always access them from the jump table.
- 21   F600              CORE_start_monitor:
- 22   F600                  ; Start the debugging monitor
- 23   F600 C3 81 F6         jp unimplemented_start_monitor
- 24   F603              CORE_configure_uart:
- 25   F603                  ; Configures the 16550 UART after a reset, setting the baud rate etc.
- 26   F603 C3 91 F6         jp configure_uart
- 27   F606              CORE_print_a:
- 28   F606                  ; Prints whatever is in A to the screen, as a character.
- 29   F606 C3 BE F6         jp print_a
- 30   F609              CORE_char_in:
- 31   F609                  ; Reads a character from the keyboard into A
- 32   F609 C3 05 F7         jp char_in
- 33   F60C              CORE_char_available:
- 34   F60C                  ; Checks whether a character is available from the keyboard, without actually reading it
- 35   F60C C3 12 F7         jp char_available
- 36   F60F              CORE_short_pause:
- 37   F60F C3 29 F7         jp short_pause
- 38   F612              CORE_medium_pause:
- 39   F612 C3 24 F7         jp medium_pause
- 40   F615              CORE_long_pause:
- 41   F615 C3 1F F7         jp long_pause
- 42   F618
- 43   F618              CORE_disk_toggle:
- 44   F618 C3 33 F7         jp disk_toggle
- 45   F61B              CORE_disk_on:
- 46   F61B C3 40 F7         jp disk_on
- 47   F61E              CORE_disk_off:
- 48   F61E C3 39 F7         jp disk_off
- 49   F621
- 50   F621              CORE_user_toggle:
- 51   F621 C3 4E F7         jp user_toggle
- 52   F624              CORE_user_on:
- 53   F624 C3 47 F7         jp user_on
- 54   F627              CORE_user_off:
- 55   F627 C3 54 F7         jp user_off
- 56   F62A
- 57   F62A              CORE_rom_toggle:
- 58   F62A C3 5B F7         jp rom_toggle
- 59   F62D              CORE_rom_on:
- 60   F62D C3 61 F7         jp rom_on
- 61   F630              CORE_rom_off:
- 62   F630 C3 68 F7         jp rom_off
- 63   F633
- 64   F633              CORE_newline:
- 65   F633                  ; Prints a CR/NL combo
- 66   F633 C3 F4 F6         jp newline
- 67   F636              CORE_space:
- 68   F636                  ; prints a space
- 69   F636 C3 FF F6         jp space
- 70   F639
- 71   F639              CORE_message:
- 72   F639 C3 6F F7         jp message
- 73   F63C              CORE_show_hl_as_hex:
- 74   F63C C3 84 F7         jp show_hl_as_hex
- 75   F63F              CORE_show_all:
- 76   F63F C3 B0 F7         jp show_all
- 77   F642
- 78   F642              CORE_dir:
- 79   F642 C3 14 F8         jp dir
- 80   F645              CORE_dir_next:
- 81   F645 C3 18 F9         jp dir_next
- 82   F648              CORE_load_bin_file:
- 83   F648 C3 23 F9         jp load_bin_file
- 84   F64B              CORE_dir_info_read:
- 85   F64B C3 B1 F9         jp dir_info_read
- 86   F64E              CORE_dir_info_write:
- 87   F64E C3 D1 F9         jp dir_info_write
- 88   F651              CORE_write_to_file:
- 89   F651 C3 0B FA         jp write_to_file
- 90   F654              CORE_erase_file:
- 91   F654 C3 48 FA         jp erase_file
- 92   F657              CORE_check_cpmdisks_structure:
- 93   F657 C3 CC FA         jp check_cpmdisks_structure
- 94   F65A              CORE_move_to_file_pointer:
- 95   F65A C3 68 FB         jp move_to_file_pointer
- 96   F65D              CORE_set_random_pointer_in_fcb:
- 97   F65D C3 92 FB         jp set_random_pointer_in_fcb
- 98   F660              CORE_copy_filename_to_buffer:
- 99   F660 C3 10 FE         jp copy_filename_to_buffer
-100   F663              CORE_open_file:
-101   F663 C3 88 FD         jp open_file
-102   F666              CORE_create_directory
-103   F666 C3 A9 FD         jp create_directory
-104   F669              CORE_close_file:
-105   F669 C3 9B FD         jp close_file
-106   F66C              CORE_read_from_file:
-107   F66C C3 C2 FD         jp read_from_file
-108   F66F              CORE_connect_to_disk:
-109   F66F C3 AE FC         jp connect_to_disk
-110   F672              CORE_mount_disk:
-111   F672 C3 DD FC         jp mount_disk
-112   F675              CORE_create_file:
-113   F675 C3 73 FD         jp create_file
-114   F678              CORE_show_a_as_hex:
-115   F678 C3 8D F7         jp show_a_as_hex
-116   F67B              CORE_convert_user_number_to_folder_name:
-117   F67B C3 E2 FB         jp convert_user_number_to_folder_name
-118   F67E              CORE_set_file_size_in_fcb:
-119   F67E C3 A1 FB         jp set_file_size_in_fcb
-120   F681
-121   F681                  include "uart.asm"
+ 14   EC00
+ 15   EC00              ; CORE internal jump table
+ 16   EC00              ; For future-proofing, all calls are via this jump table.
+ 17   EC00              ; From external code just jump to "CORE_configure_uart" or similar, which then jumps to "configure_uart".
+ 18   EC00              ; That way you can change the value of CORE_ORG, re-assemble this file, then in other files
+ 19   EC00              ; just include the external jump table.
+ 20   EC00              ; That way it doesn't matter if these routines change location or size, you can always access them from the jump table.
+ 21   EC00              CORE_start_monitor:
+ 22   EC00                  ; Start the debugging monitor
+ 23   EC00 C3 84 EC         jp unimplemented_start_monitor
+ 24   EC03              CORE_configure_uart:
+ 25   EC03                  ; Configures the 16550 UART after a reset, setting the baud rate etc.
+ 26   EC03 C3 94 EC         jp configure_uart
+ 27   EC06              CORE_print_a:
+ 28   EC06                  ; Prints whatever is in A to the screen, as a character.
+ 29   EC06 C3 C1 EC         jp print_a
+ 30   EC09              CORE_char_in:
+ 31   EC09                  ; Reads a character from the keyboard into A
+ 32   EC09 C3 FF EC         jp char_in
+ 33   EC0C              CORE_char_available:
+ 34   EC0C                  ; Checks whether a character is available from the keyboard, without actually reading it
+ 35   EC0C C3 0C ED         jp char_available
+ 36   EC0F              CORE_short_pause:
+ 37   EC0F C3 23 ED         jp short_pause
+ 38   EC12              CORE_medium_pause:
+ 39   EC12 C3 1E ED         jp medium_pause
+ 40   EC15              CORE_long_pause:
+ 41   EC15 C3 19 ED         jp long_pause
+ 42   EC18
+ 43   EC18              CORE_disk_toggle:
+ 44   EC18 C3 2D ED         jp disk_toggle
+ 45   EC1B              CORE_disk_on:
+ 46   EC1B C3 3A ED         jp disk_on
+ 47   EC1E              CORE_disk_off:
+ 48   EC1E C3 33 ED         jp disk_off
+ 49   EC21
+ 50   EC21              CORE_user_toggle:
+ 51   EC21 C3 48 ED         jp user_toggle
+ 52   EC24              CORE_user_on:
+ 53   EC24 C3 41 ED         jp user_on
+ 54   EC27              CORE_user_off:
+ 55   EC27 C3 4E ED         jp user_off
+ 56   EC2A
+ 57   EC2A              CORE_rom_toggle:
+ 58   EC2A C3 55 ED         jp rom_toggle
+ 59   EC2D              CORE_rom_on:
+ 60   EC2D C3 5B ED         jp rom_on
+ 61   EC30              CORE_rom_off:
+ 62   EC30 C3 62 ED         jp rom_off
+ 63   EC33
+ 64   EC33              CORE_newline:
+ 65   EC33                  ; Prints a CR/NL combo
+ 66   EC33 C3 EE EC         jp newline
+ 67   EC36              CORE_space:
+ 68   EC36                  ; prints a space
+ 69   EC36 C3 F9 EC         jp space
+ 70   EC39
+ 71   EC39              CORE_message:
+ 72   EC39 C3 69 ED         jp message
+ 73   EC3C              CORE_show_hl_as_hex:
+ 74   EC3C C3 7E ED         jp show_hl_as_hex
+ 75   EC3F              CORE_show_all:
+ 76   EC3F C3 AA ED         jp show_all
+ 77   EC42
+ 78   EC42              CORE_dir:
+ 79   EC42 C3 0E EE         jp dir
+ 80   EC45              CORE_dir_next:
+ 81   EC45 C3 12 EF         jp dir_next
+ 82   EC48              CORE_load_bin_file:
+ 83   EC48 C3 1D EF         jp load_bin_file
+ 84   EC4B              CORE_dir_info_read:
+ 85   EC4B C3 AB EF         jp dir_info_read
+ 86   EC4E              CORE_dir_info_write:
+ 87   EC4E C3 CB EF         jp dir_info_write
+ 88   EC51              CORE_write_to_file:
+ 89   EC51 C3 05 F0         jp write_to_file
+ 90   EC54              CORE_erase_file:
+ 91   EC54 C3 42 F0         jp erase_file
+ 92   EC57              CORE_check_cpmdisks_structure:
+ 93   EC57 C3 C6 F0         jp check_cpmdisks_structure
+ 94   EC5A              CORE_move_to_file_pointer:
+ 95   EC5A C3 62 F1         jp move_to_file_pointer
+ 96   EC5D              CORE_set_random_pointer_in_fcb:
+ 97   EC5D C3 8C F1         jp set_random_pointer_in_fcb
+ 98   EC60              CORE_copy_filename_to_buffer:
+ 99   EC60 C3 0A F4         jp copy_filename_to_buffer
+100   EC63              CORE_open_file:
+101   EC63 C3 82 F3         jp open_file
+102   EC66              CORE_create_directory
+103   EC66 C3 A3 F3         jp create_directory
+104   EC69              CORE_close_file:
+105   EC69 C3 95 F3         jp close_file
+106   EC6C              CORE_read_from_file:
+107   EC6C C3 BC F3         jp read_from_file
+108   EC6F              CORE_connect_to_disk:
+109   EC6F C3 A8 F2         jp connect_to_disk
+110   EC72              CORE_mount_disk:
+111   EC72 C3 D7 F2         jp mount_disk
+112   EC75              CORE_create_file:
+113   EC75 C3 6D F3         jp create_file
+114   EC78              CORE_show_a_as_hex:
+115   EC78 C3 87 ED         jp show_a_as_hex
+116   EC7B              CORE_convert_user_number_to_folder_name:
+117   EC7B C3 DC F1         jp convert_user_number_to_folder_name
+118   EC7E              CORE_set_file_size_in_fcb:
+119   EC7E C3 9B F1         jp set_file_size_in_fcb
+120   EC81              CORE_change_to_slot2:
+121   EC81 C3 A0 F4         jp change_to_slot2
+122   EC84
+123   EC84                  include "uart.asm"
 # file opened: uart.asm
-  1+  F681              ; uart routines
-  2+  F681              ; These are routines connected with the 16C550 uart.
-  3+  F681
-  4+  F681              unimplemented_start_monitor:
-  5+  F681              	; Not implemented yet
-  6+  F681 C9           	ret
-  7+  F682
-  8+  F682              UART_FREQUENCY: EQU 19660800	; 82C50 | 16C550 CLOCK
-  9+  F682
- 10+  F682 80 00        UART_BAUD_9600:		DW	UART_FREQUENCY/(9600 * 16)
- 11+  F684 55 00        UART_BAUD_14400:	DW	UART_FREQUENCY/(14400 * 16)
- 12+  F686 40 00        UART_BAUD_19200:	DW	UART_FREQUENCY/(19200 * 16)
- 13+  F688 20 00        UART_BAUD_38400:	DW	UART_FREQUENCY/(38400 * 16)
- 14+  F68A 15 00        UART_BAUD_57600:	DW	UART_FREQUENCY/(57600 * 16)
- 15+  F68C 0A 00        UART_BAUD_115200:	DW	UART_FREQUENCY/(115200 * 16)
- 16+  F68E
- 17+  F68E              ; Initialises the 16c550c UART for input/output
- 18+  F68E              ;configure_uart:
- 19+  F68E              	; Configure the UART 16550 after a reset.
- 20+  F68E              	; For the sake of definitely getting the job done, let's pause here for ages before doing it.
- 21+  F68E              	; Without this pause the Z80 can get started before the UART is ready.
- 22+  F68E              	; Don't ask me how I know this.
- 23+  F68E              	;
- 24+  F68E              	; Pass in the required BAUD rate divisor in b.
- 25+  F68E              	; Pass in the required hardware flow control in c.
- 26+  F68E              ;	push bc
- 27+  F68E              ;	call long_pause
- 28+  F68E              ;	pop bc
- 29+  F68E
- 30+  F68E              ;	LD		A,	0x00
- 31+  F68E              ;	OUT 	(uart_IER),A			; Disable interrupts
- 32+  F68E
- 33+  F68E              ;    ld 		A,	80H                 ; Go into "Divisor Latch Setting mode"
- 34+  F68E              ;    out 	(uart_LCR),a            ; by writing 1 into bit 7 of the Line Control register
- 35+  F68E              ;    nop								; These tiny "nop" pauses probably do nothing. TODO: Try removing them!
- 36+  F68E
- 37+  F68E              ;    ld 		A, b                    ; low byte of divisor
- 38+  F68E              ;    out 	(uart_tx_rx), A
- 39+  F68E              ;    nop
- 40+  F68E              ;    ld 		A, 0                          ; high byte
- 41+  F68E              ;    out 	(uart_IER), A
- 42+  F68E              ;    nop
- 43+  F68E
- 44+  F68E              ;    ld a,03H                        ; Configure stop bits etc, and exit
- 45+  F68E                                                  ; "Divisor latch setting mode"
- 46+  F68E
- 47+  F68E              ;    out (uart_LCR),a                ; 8 bits, no parity, 1 stop bit, bit 7 = 0
- 48+  F68E              ;	nop								; a slight pause to allow the UART to get going
- 49+  F68E
- 50+  F68E              ;	ld a, 0x81 						;%10000001					; Turn on FIFO, with trigger level of 8.
- 51+  F68E              ;	out (uart_ISR), a				; This definitely helps receive 16 chars very fast!
- 52+  F68E
- 53+  F68E              	;ld a, c
- 54+  F68E              	;cp 0
- 55+  F68E              	;jr z, flowcontrol_done
- 56+  F68E
- 57+  F68E              	;LD      A,0x00                  ;no flow control
- 58+  F68E              	;ld a, %00100010
- 59+  F68E              	;out (uart_MCR), a				; Enable auto flow control for /RTS and /CTS
- 60+  F68E              ;	ret
- 61+  F68E              flowcontrol_done:
- 62+  F68E 00           	nop
- 63+  F68F 00           	nop
- 64+  F690 C9               ret
- 65+  F691
- 66+  F691              configure_uart:
- 67+  F691 F5           UART_INIT:	PUSH	AF
- 68+  F692 7E           			LD		A,(HL)
- 69+  F693 23           			INC 	HL
- 70+  F694 66           			LD		H,(HL)
- 71+  F695 6F           			LD 		L,A
- 72+  F696 3E 00        			LD		A,0x00
- 72+  F698 D3 B9          OUT (uart_IER),A	; Disable interrupts
- 73+  F69A 3E 80        			LD		A,0x80
- 73+  F69C D3 BB          OUT (uart_LCR),A 	; Turn DLAB on
- 74+  F69E 7D           			LD		A,L
- 74+  F69F D3 B8         	OUT (uart_tx_rx),A	; Set divisor low
- 75+  F6A1 7C           			LD		A,H
- 75+  F6A2 D3 B9         	OUT (uart_IER),A	; Set divisor high
- 76+  F6A4 F1           			POP		AF
- 76+  F6A5 D3 BB         		OUT (uart_LCR),A	; Write out flow control bits 8,1,N
- 77+  F6A7 3E 81        			LD 		A, 0x81						; Turn on FIFO, with trigger level of 8.
- 78+  F6A9 D3 BA        			OUT (uart_ISR), A					; This turn on the 16bytes buffer!
- 79+  F6AB C9           			RET
- 80+  F6AC
- 81+  F6AC              UART_TX_WAIT		EQU	600		; Count before a TX times out
- 82+  F6AC
- 83+  F6AC              ; A: Data read
- 84+  F6AC              ; Returns:
- 85+  F6AC              ; F = C if character read
- 86+  F6AC              ; F = NC if no character read
- 87+  F6AC              ;
- 88+  F6AC DB BD        UART_RX:	IN	A,(uart_LSR)		; Get the line status register
- 89+  F6AE E6 01        			AND 	0x01				; Check for characters in buffer
- 90+  F6B0 C8           			ret	Z					; Just ret (with carry clear) if no characters
- 91+  F6B1 DB B8        			IN	A,(uart_tx_rx)		; Read the character from the UART receive buffer
- 92+  F6B3 37           			SCF 						; Set the carry flag
- 93+  F6B4 C9           			RET
- 94+  F6B5
- 95+  F6B5              ; Read a character - waits for input
- 96+  F6B5              ; NB is the non-blocking variant
- 97+  F6B5              ;  A: ASCII character read
- 98+  F6B5              ;  F: NC if no character read (non-blocking)
- 99+  F6B5              ;  F:  C if character read (non-blocking)
-100+  F6B5              ;
-101+  F6B5 CD AC F6     Read_Char:              CALL    UART_RX
-102+  F6B8 30 FB                                JR      NC,Read_Char
-103+  F6BA C9                                   RET
-104+  F6BB              ; Read a character - NO waits for input
-105+  F6BB              ; NB is the non-blocking variant
-106+  F6BB              ;  A: ASCII character read
-107+  F6BB              ;  F: NC if no character read (non-blocking)
-108+  F6BB              ;  F:  C if character read (non-blocking)
-109+  F6BB C3 AC F6     Read_Char_NB:           JP      UART_RX
-110+  F6BE
-111+  F6BE              ; Print A to the screen as an ASCII character, preserving all registers.
-112+  F6BE              print_a:
-113+  F6BE E5           UART_TX:	PUSH 	HL
-114+  F6BF D5           			PUSH 	DE
-115+  F6C0 C5           			PUSH	BC						; Stack BC
-116+  F6C1 F5           			PUSH	AF 						; Stack AF
-117+  F6C2 06 58        			LD	B,low  UART_TX_WAIT			; Set CB to the transmit timeout
-118+  F6C4 0E 02        			LD	C,high UART_TX_WAIT
-119+  F6C6 DB BD        1:			IN	A,(uart_LSR)			; Get the line status register
-120+  F6C8 E6 60        			AND 	0x60					; Check for TX empty
-121+  F6CA 20 0B        			JR	NZ,2F						; If set, then TX is empty, goto transmit
-122+  F6CC 10 F8        			DJNZ	1B
-122+  F6CE 0D             DEC	C
-122+  F6CF 20 F5          JR NZ,1B		; Otherwise loop
-123+  F6D1 F1           			POP	AF							; We've timed out at this point so
-124+  F6D2 B7           			OR	A							; Clear the carry flag and preserve A
-125+  F6D3 C1           			POP	BC							; Restore the stack
-126+  F6D4 D1           			POP DE
-127+  F6D5 E1           			POP	HL
-128+  F6D6 C9           			RET
-129+  F6D7 F1           2:			POP	AF							; Good to send at this point, so
-130+  F6D8 D3 B8        			OUT	(uart_tx_rx),A			; Write the character to the UART transmit buffer
-131+  F6DA CD EB F6     			call	delay2
-132+  F6DD CD EB F6     			call	delay2
-133+  F6E0 CD EB F6     			call	delay2
-134+  F6E3 CD EB F6     			call	delay2
-135+  F6E6 C1           			POP	BC							; Restore the stack
-136+  F6E7 D1           			POP DE
-137+  F6E8 E1           			POP	HL
-138+  F6E9 37           			SCF								; Set the carry flag
-139+  F6EA C9           			RET
-140+  F6EB              ;******************************************************************
-141+  F6EB              ; This routine delay 746us
-142+  F6EB              delay2:
-143+  F6EB F5           			PUSH   AF
-144+  F6EC 3E FF        			LD     A, 0xFF
-145+  F6EE 3D           delay2loop: DEC    A
-146+  F6EF C2 EE F6     			JP     NZ, delay2loop  ; JUMP TO DELAYLOOP2 IF A <> 0.
-147+  F6F2 F1           			POP    AF
-148+  F6F3 C9           			RET
-149+  F6F4
-150+  F6F4              ;    push af                         ; Store A for a bit
-151+  F6F4              ;print_a1:
-152+  F6F4              ;    in a,(uart_LSR)                 ; check UART is ready to send.
-153+  F6F4              ;    bit 5,a                         ; zero flag set to true if bit 5 is 0
-154+  F6F4              ;    jp z, print_a1                  ; non-zero = ready for next char.;
-155+  F6F4
-156+  F6F4              ;    pop af                          ; UART IS READY, GET OLD "A" BACK
-157+  F6F4              ;    out (uart_tx_rx),a              ; AND SEND IT OUT
-158+  F6F4              ;	ret
-159+  F6F4
-160+  F6F4              newline:
-161+  F6F4 3E 0D        	ld a,13
-162+  F6F6 CD BE F6     	call print_a
-163+  F6F9 3E 0A        	ld a,10
-164+  F6FB CD BE F6     	call print_a
-165+  F6FE C9           	ret
-166+  F6FF
-167+  F6FF              space:
-168+  F6FF 3E 20        	ld a,32
-169+  F701 CD BE F6     	call print_a
-170+  F704 C9           	ret
-171+  F705
-172+  F705              ; To receive a char over Serial we need to check if there is one. If not we return 0.
-173+  F705              ; If there is, we get it and return it (in a).
-174+  F705              char_in:
-175+  F705 DB BD        	in a,(uart_LSR)			; get status from Line Status Register
-176+  F707 CB 47        	bit 0,a					; zero flag set to true if bit 0 is 0 (bit 0 = Receive Data Ready)
-177+  F709              							; "logic 0 = no data in receive holding register."
-178+  F709 CA 0F F7     	jp z,char_in1    		; zero = no char received
-179+  F70C DB B8        	in a,(uart_tx_rx)		; Get the incoming char
-180+  F70E C9           	ret						; Return it in A
-181+  F70F              char_in1:
-182+  F70F 3E 00        	ld a,0					; Return a zero in A
-183+  F711 C9           	ret
-184+  F712
-185+  F712              char_available:
-186+  F712 DB BD        	in a,(uart_LSR)			; get status from Line Status Register
-187+  F714 CB 47        	bit 0,a					; zero flag set to true if bit 0 is 0 (bit 0 = Receive Data Ready)
-188+  F716              							; "logic 0 = no data in receive holding register."
-189+  F716 CA 1C F7     	jp z,char_available1	; zero = no char received
-190+  F719 3E FF        	ld a, $FF		        ; return true
-191+  F71B C9           	ret						; in A
-192+  F71C              char_available1:
-193+  F71C 3E 00        	ld a,0					; Return a zero in A
-194+  F71E C9           	ret
-195+  F71F
-196+  F71F
-197+  F71F              long_pause:
-198+  F71F 01 E8 FD     	ld bc,65000
-199+  F722 18 08            jr pause0
-200+  F724              medium_pause:
-201+  F724 01 C8 AF     	ld bc,45000
-202+  F727 18 03            jr pause0
-203+  F729              short_pause:
-204+  F729 01 64 00     	ld bc,100
-205+  F72C              pause0:
-206+  F72C 0B           	dec bc
-207+  F72D 78           	ld a,b
-208+  F72E B1           	or c
-209+  F72F C2 2C F7     	jp nz,pause0
-210+  F732 C9           	ret
-211+  F733
-212+  F733              disk_toggle:
-213+  F733 DB BC        	in a, (uart_MCR)
-214+  F735 E6 04        	and %00000100
-215+  F737 28 07        	jr z, disk_on
-216+  F739              	; fall through to...
-217+  F739              disk_off:
-218+  F739               	; disk light off
-219+  F739 DB BC        	in a, (uart_MCR)
-220+  F73B E6 FB        	and %11111011
-221+  F73D D3 BC        	out (uart_MCR), a
-222+  F73F C9           	ret
-223+  F740
-224+  F740              disk_on:
-225+  F740              	; disk light on
-226+  F740 DB BC        	in a, (uart_MCR)
-227+  F742 F6 04        	or %00000100
-228+  F744 D3 BC        	out (uart_MCR), a
-229+  F746 C9           	ret
-230+  F747
-231+  F747              user_on:
-232+  F747              	; user light on
-233+  F747 DB BC        	in a, (uart_MCR)
-234+  F749 F6 01        	or %00000001
-235+  F74B D3 BC        	out (uart_MCR), a
-236+  F74D C9           	ret
-237+  F74E
-238+  F74E              user_toggle:
-239+  F74E              	; user1 light invert
-240+  F74E DB BC        	in a, (uart_MCR)
-241+  F750 E6 01        	and %00000001
-242+  F752 28 F3        	jr z, user_on
-243+  F754              	; fall through to...
-244+  F754              user_off:
-245+  F754               	; user light off
-246+  F754 DB BC        	in a, (uart_MCR)
-247+  F756 E6 FE        	and %11111110
-248+  F758 D3 BC        	out (uart_MCR), a
-249+  F75A C9           	ret
-250+  F75B
-251+  F75B              rom_toggle:
-252+  F75B DB BC        	in a, (uart_MCR)
-253+  F75D E6 08        	and %00001000
-254+  F75F 28 07        	jr z, rom_off
-255+  F761              	; fall through to...
-256+  F761              rom_on:
-257+  F761              	; rom light on
-258+  F761 DB BC        	in a, (uart_MCR)
-259+  F763 E6 F7        	and %11110111
-260+  F765 D3 BC        	out (uart_MCR), a
-261+  F767 C9           	ret
-262+  F768
-263+  F768              rom_off:
-264+  F768              	; rom light off
-265+  F768 DB BC        	in a, (uart_MCR)
-266+  F76A F6 08        	or %00001000
-267+  F76C D3 BC        	out (uart_MCR), a
-268+  F76E C9           	ret
-269+  F76F
-270+  F76F              	include "port_numbers.asm"
+  1+  EC84              ; uart routines
+  2+  EC84              ; These are routines connected with the 16C550 uart.
+  3+  EC84
+  4+  EC84              unimplemented_start_monitor:
+  5+  EC84              	; Not implemented yet
+  6+  EC84 C9           	ret
+  7+  EC85
+  8+  EC85              UART_FREQUENCY: EQU 19660800	; 82C50 | 16C550 CLOCK
+  9+  EC85
+ 10+  EC85 80 00        UART_BAUD_9600:		DW	UART_FREQUENCY/(9600 * 16)
+ 11+  EC87 55 00        UART_BAUD_14400:	DW	UART_FREQUENCY/(14400 * 16)
+ 12+  EC89 40 00        UART_BAUD_19200:	DW	UART_FREQUENCY/(19200 * 16)
+ 13+  EC8B 20 00        UART_BAUD_38400:	DW	UART_FREQUENCY/(38400 * 16)
+ 14+  EC8D 15 00        UART_BAUD_57600:	DW	UART_FREQUENCY/(57600 * 16)
+ 15+  EC8F 0A 00        UART_BAUD_115200:	DW	UART_FREQUENCY/(115200 * 16)
+ 16+  EC91
+ 17+  EC91              ; Initialises the 16c550c UART for input/output
+ 18+  EC91              ;configure_uart:
+ 19+  EC91              	; Configure the UART 16550 after a reset.
+ 20+  EC91              	; For the sake of definitely getting the job done, let's pause here for ages before doing it.
+ 21+  EC91              	; Without this pause the Z80 can get started before the UART is ready.
+ 22+  EC91              	; Don't ask me how I know this.
+ 23+  EC91              	;
+ 24+  EC91              	; Pass in the required BAUD rate divisor in b.
+ 25+  EC91              	; Pass in the required hardware flow control in c.
+ 26+  EC91              ;	push bc
+ 27+  EC91              ;	call long_pause
+ 28+  EC91              ;	pop bc
+ 29+  EC91
+ 30+  EC91              ;	LD		A,	0x00
+ 31+  EC91              ;	OUT 	(uart_IER),A			; Disable interrupts
+ 32+  EC91
+ 33+  EC91              ;    ld 		A,	80H                 ; Go into "Divisor Latch Setting mode"
+ 34+  EC91              ;    out 	(uart_LCR),a            ; by writing 1 into bit 7 of the Line Control register
+ 35+  EC91              ;    nop								; These tiny "nop" pauses probably do nothing. TODO: Try removing them!
+ 36+  EC91
+ 37+  EC91              ;    ld 		A, b                    ; low byte of divisor
+ 38+  EC91              ;    out 	(uart_tx_rx), A
+ 39+  EC91              ;    nop
+ 40+  EC91              ;    ld 		A, 0                          ; high byte
+ 41+  EC91              ;    out 	(uart_IER), A
+ 42+  EC91              ;    nop
+ 43+  EC91
+ 44+  EC91              ;    ld a,03H                        ; Configure stop bits etc, and exit
+ 45+  EC91                                                  ; "Divisor latch setting mode"
+ 46+  EC91
+ 47+  EC91              ;    out (uart_LCR),a                ; 8 bits, no parity, 1 stop bit, bit 7 = 0
+ 48+  EC91              ;	nop								; a slight pause to allow the UART to get going
+ 49+  EC91
+ 50+  EC91              ;	ld a, 0x81 						;%10000001					; Turn on FIFO, with trigger level of 8.
+ 51+  EC91              ;	out (uart_ISR), a				; This definitely helps receive 16 chars very fast!
+ 52+  EC91
+ 53+  EC91              	;ld a, c
+ 54+  EC91              	;cp 0
+ 55+  EC91              	;jr z, flowcontrol_done
+ 56+  EC91
+ 57+  EC91              	;LD      A,0x00                  ;no flow control
+ 58+  EC91              	;ld a, %00100010
+ 59+  EC91              	;out (uart_MCR), a				; Enable auto flow control for /RTS and /CTS
+ 60+  EC91              ;	ret
+ 61+  EC91              flowcontrol_done:
+ 62+  EC91 00           	nop
+ 63+  EC92 00           	nop
+ 64+  EC93 C9               ret
+ 65+  EC94
+ 66+  EC94              configure_uart:
+ 67+  EC94 F5           UART_INIT:	PUSH	AF
+ 68+  EC95 7E           			LD		A,(HL)
+ 69+  EC96 23           			INC 	HL
+ 70+  EC97 66           			LD		H,(HL)
+ 71+  EC98 6F           			LD 		L,A
+ 72+  EC99 3E 00        			LD		A,0x00
+ 72+  EC9B D3 B9          OUT (uart_IER),A	; Disable interrupts
+ 73+  EC9D 3E 80        			LD		A,0x80
+ 73+  EC9F D3 BB          OUT (uart_LCR),A 	; Turn DLAB on
+ 74+  ECA1 7D           			LD		A,L
+ 74+  ECA2 D3 B8         	OUT (uart_tx_rx),A	; Set divisor low
+ 75+  ECA4 7C           			LD		A,H
+ 75+  ECA5 D3 B9         	OUT (uart_IER),A	; Set divisor high
+ 76+  ECA7 F1           			POP		AF
+ 76+  ECA8 D3 BB         		OUT (uart_LCR),A	; Write out flow control bits 8,1,N
+ 77+  ECAA 3E 81        			LD 		A, 0x81						; Turn on FIFO, with trigger level of 8.
+ 78+  ECAC D3 BA        			OUT (uart_ISR), A					; This turn on the 16bytes buffer!
+ 79+  ECAE C9           			RET
+ 80+  ECAF
+ 81+  ECAF              UART_TX_WAIT		EQU	600		; Count before a TX times out
+ 82+  ECAF
+ 83+  ECAF              ; A: Data read
+ 84+  ECAF              ; Returns:
+ 85+  ECAF              ; F = C if character read
+ 86+  ECAF              ; F = NC if no character read
+ 87+  ECAF              ;
+ 88+  ECAF DB BD        UART_RX:	IN	A,(uart_LSR)		; Get the line status register
+ 89+  ECB1 E6 01        			AND 	0x01				; Check for characters in buffer
+ 90+  ECB3 C8           			ret	Z					; Just ret (with carry clear) if no characters
+ 91+  ECB4 DB B8        			IN	A,(uart_tx_rx)		; Read the character from the UART receive buffer
+ 92+  ECB6 37           			SCF 						; Set the carry flag
+ 93+  ECB7 C9           			RET
+ 94+  ECB8
+ 95+  ECB8              ; Read a character - waits for input
+ 96+  ECB8              ; NB is the non-blocking variant
+ 97+  ECB8              ;  A: ASCII character read
+ 98+  ECB8              ;  F: NC if no character read (non-blocking)
+ 99+  ECB8              ;  F:  C if character read (non-blocking)
+100+  ECB8              ;
+101+  ECB8 CD AF EC     Read_Char:              CALL    UART_RX
+102+  ECBB 30 FB                                JR      NC,Read_Char
+103+  ECBD C9                                   RET
+104+  ECBE              ; Read a character - NO waits for input
+105+  ECBE              ; NB is the non-blocking variant
+106+  ECBE              ;  A: ASCII character read
+107+  ECBE              ;  F: NC if no character read (non-blocking)
+108+  ECBE              ;  F:  C if character read (non-blocking)
+109+  ECBE C3 AF EC     Read_Char_NB:           JP      UART_RX
+110+  ECC1
+111+  ECC1              ; Print A to the screen as an ASCII character, preserving all registers.
+112+  ECC1              print_a:
+113+  ECC1 E5           UART_TX:	PUSH 	HL
+114+  ECC2 D5           			PUSH 	DE
+115+  ECC3 C5           			PUSH	BC						; Stack BC
+116+  ECC4 F5           			PUSH	AF 						; Stack AF
+117+  ECC5 06 58        			LD	B,low  UART_TX_WAIT			; Set CB to the transmit timeout
+118+  ECC7 0E 02        			LD	C,high UART_TX_WAIT
+119+  ECC9 DB BD        1:			IN	A,(uart_LSR)			; Get the line status register
+120+  ECCB E6 60        			AND 	0x60					; Check for TX empty
+121+  ECCD 20 0B        			JR	NZ,2F						; If set, then TX is empty, goto transmit
+122+  ECCF 10 F8        			DJNZ	1B
+122+  ECD1 0D             DEC	C
+122+  ECD2 20 F5          JR NZ,1B		; Otherwise loop
+123+  ECD4 F1           			POP	AF							; We've timed out at this point so
+124+  ECD5 B7           			OR	A							; Clear the carry flag and preserve A
+125+  ECD6 C1           			POP	BC							; Restore the stack
+126+  ECD7 D1           			POP DE
+127+  ECD8 E1           			POP	HL
+128+  ECD9 C9           			RET
+129+  ECDA F1           2:			POP	AF							; Good to send at this point, so
+130+  ECDB D3 B8        			OUT	(uart_tx_rx),A			; Write the character to the UART transmit buffer
+131+  ECDD CD E5 EC     			call	delay2
+132+  ECE0 C1           			POP	BC							; Restore the stack
+133+  ECE1 D1           			POP DE
+134+  ECE2 E1           			POP	HL
+135+  ECE3 37           			SCF								; Set the carry flag
+136+  ECE4 C9           			RET
+137+  ECE5              ;******************************************************************
+138+  ECE5              ; This routine delay 746us
+139+  ECE5              delay2:
+140+  ECE5 F5           			PUSH   AF
+141+  ECE6 3E FF        			LD     A, 0xFF
+142+  ECE8 3D           delay2loop: DEC    A
+143+  ECE9 C2 E8 EC     			JP     NZ, delay2loop  ; JUMP TO DELAYLOOP2 IF A <> 0.
+144+  ECEC F1           			POP    AF
+145+  ECED C9           			RET
+146+  ECEE
+147+  ECEE              ;    push af                         ; Store A for a bit
+148+  ECEE              ;print_a1:
+149+  ECEE              ;    in a,(uart_LSR)                 ; check UART is ready to send.
+150+  ECEE              ;    bit 5,a                         ; zero flag set to true if bit 5 is 0
+151+  ECEE              ;    jp z, print_a1                  ; non-zero = ready for next char.;
+152+  ECEE
+153+  ECEE              ;    pop af                          ; UART IS READY, GET OLD "A" BACK
+154+  ECEE              ;    out (uart_tx_rx),a              ; AND SEND IT OUT
+155+  ECEE              ;	ret
+156+  ECEE
+157+  ECEE              newline:
+158+  ECEE 3E 0D        	ld a,13
+159+  ECF0 CD C1 EC     	call print_a
+160+  ECF3 3E 0A        	ld a,10
+161+  ECF5 CD C1 EC     	call print_a
+162+  ECF8 C9           	ret
+163+  ECF9
+164+  ECF9              space:
+165+  ECF9 3E 20        	ld a,32
+166+  ECFB CD C1 EC     	call print_a
+167+  ECFE C9           	ret
+168+  ECFF
+169+  ECFF              ; To receive a char over Serial we need to check if there is one. If not we return 0.
+170+  ECFF              ; If there is, we get it and return it (in a).
+171+  ECFF              char_in:
+172+  ECFF DB BD        	in a,(uart_LSR)			; get status from Line Status Register
+173+  ED01 CB 47        	bit 0,a					; zero flag set to true if bit 0 is 0 (bit 0 = Receive Data Ready)
+174+  ED03              							; "logic 0 = no data in receive holding register."
+175+  ED03 CA 09 ED     	jp z,char_in1    		; zero = no char received
+176+  ED06 DB B8        	in a,(uart_tx_rx)		; Get the incoming char
+177+  ED08 C9           	ret						; Return it in A
+178+  ED09              char_in1:
+179+  ED09 3E 00        	ld a,0					; Return a zero in A
+180+  ED0B C9           	ret
+181+  ED0C
+182+  ED0C              char_available:
+183+  ED0C DB BD        	in a,(uart_LSR)			; get status from Line Status Register
+184+  ED0E CB 47        	bit 0,a					; zero flag set to true if bit 0 is 0 (bit 0 = Receive Data Ready)
+185+  ED10              							; "logic 0 = no data in receive holding register."
+186+  ED10 CA 16 ED     	jp z,char_available1	; zero = no char received
+187+  ED13 3E FF        	ld a, $FF		        ; return true
+188+  ED15 C9           	ret						; in A
+189+  ED16              char_available1:
+190+  ED16 3E 00        	ld a,0					; Return a zero in A
+191+  ED18 C9           	ret
+192+  ED19
+193+  ED19
+194+  ED19              long_pause:
+195+  ED19 01 E8 FD     	ld bc,65000
+196+  ED1C 18 08            jr pause0
+197+  ED1E              medium_pause:
+198+  ED1E 01 C8 AF     	ld bc,45000
+199+  ED21 18 03            jr pause0
+200+  ED23              short_pause:
+201+  ED23 01 64 00     	ld bc,100
+202+  ED26              pause0:
+203+  ED26 0B           	dec bc
+204+  ED27 78           	ld a,b
+205+  ED28 B1           	or c
+206+  ED29 C2 26 ED     	jp nz,pause0
+207+  ED2C C9           	ret
+208+  ED2D
+209+  ED2D              disk_toggle:
+210+  ED2D DB BC        	in a, (uart_MCR)
+211+  ED2F E6 04        	and %00000100
+212+  ED31 28 07        	jr z, disk_on
+213+  ED33              	; fall through to...
+214+  ED33              disk_off:
+215+  ED33               	; disk light off
+216+  ED33 DB BC        	in a, (uart_MCR)
+217+  ED35 E6 FB        	and %11111011
+218+  ED37 D3 BC        	out (uart_MCR), a
+219+  ED39 C9           	ret
+220+  ED3A
+221+  ED3A              disk_on:
+222+  ED3A              	; disk light on
+223+  ED3A DB BC        	in a, (uart_MCR)
+224+  ED3C F6 04        	or %00000100
+225+  ED3E D3 BC        	out (uart_MCR), a
+226+  ED40 C9           	ret
+227+  ED41
+228+  ED41              user_on:
+229+  ED41              	; user light on
+230+  ED41 DB BC        	in a, (uart_MCR)
+231+  ED43 F6 01        	or %00000001
+232+  ED45 D3 BC        	out (uart_MCR), a
+233+  ED47 C9           	ret
+234+  ED48
+235+  ED48              user_toggle:
+236+  ED48              	; user1 light invert
+237+  ED48 DB BC        	in a, (uart_MCR)
+238+  ED4A E6 01        	and %00000001
+239+  ED4C 28 F3        	jr z, user_on
+240+  ED4E              	; fall through to...
+241+  ED4E              user_off:
+242+  ED4E               	; user light off
+243+  ED4E DB BC        	in a, (uart_MCR)
+244+  ED50 E6 FE        	and %11111110
+245+  ED52 D3 BC        	out (uart_MCR), a
+246+  ED54 C9           	ret
+247+  ED55
+248+  ED55              rom_toggle:
+249+  ED55 DB BC        	in a, (uart_MCR)
+250+  ED57 E6 08        	and %00001000
+251+  ED59 28 07        	jr z, rom_off
+252+  ED5B              	; fall through to...
+253+  ED5B              rom_on:
+254+  ED5B              	; rom light on
+255+  ED5B DB BC        	in a, (uart_MCR)
+256+  ED5D E6 F7        	and %11110111
+257+  ED5F D3 BC        	out (uart_MCR), a
+258+  ED61 C9           	ret
+259+  ED62
+260+  ED62              rom_off:
+261+  ED62              	; rom light off
+262+  ED62 DB BC        	in a, (uart_MCR)
+263+  ED64 F6 08        	or %00001000
+264+  ED66 D3 BC        	out (uart_MCR), a
+265+  ED68 C9           	ret
+266+  ED69
+267+  ED69              	include "port_numbers.asm"
 # file opened: port_numbers.asm
-  1++ F76F              ; port_numbers.asm
-  2++ F76F
-  3++ F76F              ; Here are the port numbers for various UART registers:
-  4++ F76F              uart_tx_rx 		equ   0xB8   ; 	8
-  5++ F76F              uart_IER 		equ   0xB9   ; 	9
-  6++ F76F              uart_ISR 		equ   0xBA   ;  10  ; Also known as FCR
-  7++ F76F              uart_LCR 		equ   0xBB   ;  11
-  8++ F76F              uart_MCR 		equ   0xBC   ;  12  ; modem control reg
-  9++ F76F              uart_LSR 		equ   0xBD   ;  13
- 10++ F76F              uart_MSR 		equ   0xBE   ;  14
- 11++ F76F              uart_scratch 	equ   0xBF   ;  15
+  1++ ED69              ; port_numbers.asm
+  2++ ED69
+  3++ ED69              ; Here are the port numbers for various UART registers:
+  4++ ED69              uart_tx_rx 		equ   0xB8   ; 	8
+  5++ ED69              uart_IER 		equ   0xB9   ; 	9
+  6++ ED69              uart_ISR 		equ   0xBA   ;  10  ; Also known as FCR
+  7++ ED69              uart_LCR 		equ   0xBB   ;  11
+  8++ ED69              uart_MCR 		equ   0xBC   ;  12  ; modem control reg
+  9++ ED69              uart_LSR 		equ   0xBD   ;  13
+ 10++ ED69              uart_MSR 		equ   0xBE   ;  14
+ 11++ ED69              uart_scratch 	equ   0xBF   ;  15
+ 12++ ED69
+ 13++ ED69              PIO_A	equ	0xA8		; CA80 user 8255 base address 	  (port A)
+ 14++ ED69              PIO_B	equ	0xA9		; CA80 user 8255 base address + 1 (port B)
+ 15++ ED69              PIO_C	equ	0xAA		; CA80 user 8255 base address + 2 (fport C)
+ 16++ ED69              PIO_M	equ	0xAB		; CA80 user 8255 control register
+ 17++ ED69
 # file closed: port_numbers.asm
-271+  F76F
+268+  ED69
 # file closed: uart.asm
-122   F76F                  include "message.asm"
+124   ED69                  include "message.asm"
 # file opened: message.asm
-  1+  F76F              ; message
-  2+  F76F              message:
-  3+  F76F E3           	ex (sp), hl                   ; top of stack is now mangled, but hl is pointing to our message
-  4+  F770 F5           	push	af
-  5+  F771 C5           	push	bc
-  6+  F772 D5           	push	de
-  7+  F773
-  8+  F773              message_loop_001:
-  9+  F773 7E           	ld a, (hl)
- 10+  F774 FE 00        	cp 0
- 11+  F776 28 06        	jr z, message_complete_001
- 12+  F778 23           	inc hl
- 13+  F779 CD BE F6     	call print_a                  ; print a character (Mangles 2 items below top of stack)
- 14+  F77C 18 F5        	jr message_loop_001               ; Loop until done
- 15+  F77E
- 16+  F77E              message_complete_001:
- 17+  F77E D1           	pop de
- 18+  F77F C1           	pop bc
- 19+  F780 F1           	pop af
- 20+  F781 23           	inc hl
- 21+  F782 E3           	ex (sp), hl
- 22+  F783 C9           	ret
- 23+  F784
- 24+  F784
- 25+  F784              ; -------------------------------------------------------------------------------------------------
- 26+  F784
- 27+  F784              ;message:
- 28+  F784              ;	; Use this handy helper function to display an inline message easily.
- 29+  F784              ;	; It preserves all registers (which was tricky to do).
- 30+  F784              ;	; This expects to be called from code where the message follows the "call debug" in-line, like this:
- 31+  F784              ;	;
- 32+  F784              ;	; ld a, 10 ; (or whatever code you like)
- 33+  F784              ;	; call message
- 34+  F784              ;	; db "my message", 0
- 35+  F784              ;	; ld b, 10 ; (or whatever code you like)
- 36+  F784              ;	;
- 37+  F784              ;	; When we return we make sure sp is pointing to the next line of code after the message.
- 38+  F784              ;
- 39+  F784              ;							; sp -> ret-addr
- 40+  F784              ;
- 41+  F784              ;	push af					; We have stored af
- 42+  F784              ;	push af					; We do this 3 times
- 43+  F784              ;	push af					; to allow spare stack space.
- 44+  F784              ;							; sp -> AF, AF, AF, ret-addr
- 45+  F784              ;	push bc					; sp -> BC, AF, AF, AF, ret-addr
- 46+  F784              ;	push de					; sp -> DE, BC, AF, AF, AF, ret-addr
- 47+  F784              ;	push hl					; sp -> HL, DE, BC, AF, AF, AF, ret-addr
- 48+  F784              ;
- 49+  F784              ;	inc sp
- 50+  F784              ;	inc sp					; adjust the stack to overlook the stored afx3, BC, DE & HL
- 51+  F784              ;							; HL, sp -> DE, BC, AF, AF, AF, ret-addr
- 52+  F784              ;	inc sp
- 53+  F784              ;	inc sp					; HL, DE, sp -> BC, AF, AF, AF, ret-addr
- 54+  F784              ;
- 55+  F784              ;	inc sp
- 56+  F784              ;	inc sp					; HL, DE, BC, sp -> AF, AF, AF, ret-addr
- 57+  F784              ;
- 58+  F784              ;	inc sp
- 59+  F784              ;	inc sp
- 60+  F784              ;
- 61+  F784              ;	inc sp
- 62+  F784              ;	inc sp
- 63+  F784              ;
- 64+  F784              ;	inc sp
- 65+  F784              ;	inc sp					; HL, DE, BC, AF, AF, AF, sp -> ret-addr
- 66+  F784              ;
- 67+  F784              ;	ex (sp), hl				; top of stack is now mangled, but hl is pointing to our message
- 68+  F784              ;							; HL, DE, BC, AF, AF, AF, sp -> HL
- 69+  F784              ;
- 70+  F784              ;message_loop:
- 71+  F784              ;	ld a, (hl)
- 72+  F784              ;	cp 0
- 73+  F784              ;	jr z,message_complete
- 74+  F784              ;	inc hl
- 75+  F784              ;	call print_a			; print a character (Mangles 2 items below top of stack)
- 76+  F784              ;	jr message_loop			; Loop until done
- 77+  F784              ;							; HL, DE, BC, AF, XX, XX, sp -> HL
- 78+  F784              ;
- 79+  F784              ;message_complete:
- 80+  F784              ;	inc hl
- 81+  F784              ;	ex (sp), hl				; restore top of stack, after we have incremented it so it points to the subsequent instruction
- 82+  F784              ;							; HL, DE, BC, AF, XX, XX, sp -> new-ret-addr
- 83+  F784              ;	dec sp
- 84+  F784              ;	dec sp
- 85+  F784              ;
- 86+  F784              ;	dec sp
- 87+  F784              ;	dec sp
- 88+  F784              ;
- 89+  F784              ;	dec sp
- 90+  F784              ;	dec sp					; adjust stack because of our pushed "af"
- 91+  F784              ;							; HL, DE, BC, sp -> AF, XX, XX, new-ret-addr
- 92+  F784              ;	dec sp
- 93+  F784              ;	dec sp					; adjust stack because of our pushed "BC"
- 94+  F784              ;							; HL, DE, sp -> BC, AF, XX, XX, new-ret-addr
- 95+  F784              ;	dec sp
- 96+  F784              ;	dec sp					; adjust stack because of our pushed "DE"
- 97+  F784              ;							; HL, sp -> DE, BC, AF, XX, XX, new-ret-addr
- 98+  F784              ;	dec sp
- 99+  F784              ;	dec sp					; adjust stack because of our pushed "HL"
-100+  F784              ;							; sp -> HL, DE, BC, AF, XX, XX, new-ret-addr
-101+  F784              ;
-102+  F784              ;	pop hl					; HL is restored
-103+  F784              ;							; sp -> DE, BC, AF, XX, XX, new-ret-addr
-104+  F784              ;	pop de					; DE is restored
-105+  F784              ;							; sp -> BC, AF, XX, XX, new-ret-addr
-106+  F784              ;	pop bc					; BC is restored
-107+  F784              ;							; sp -> AF, XX, XX, new-ret-addr
-108+  F784              ;	pop af					; we have restored af
-109+  F784              ;							; sp -> XX, XX, new-ret-addr
-110+  F784              ;
-111+  F784              ;	inc sp
-112+  F784              ;	inc sp
-113+  F784              ;	inc sp
-114+  F784              ;	inc sp
-115+  F784              ;							; sp -> new-ret-addr
-116+  F784              ;
-117+  F784              ;	ret						; return to the instruction after the message
-118+  F784
-119+  F784              show_hl_as_hex:
-120+  F784 7C               ld a, h
-121+  F785 CD 8D F7         call show_a_as_hex
-122+  F788 7D               ld a, l
-123+  F789 CD 8D F7         call show_a_as_hex
-124+  F78C C9               ret
-125+  F78D
-126+  F78D              show_a_as_hex:
-127+  F78D F5               push af
-128+  F78E CB 3F            srl a
-129+  F790 CB 3F            srl a
-130+  F792 CB 3F            srl a
-131+  F794 CB 3F            srl a
-132+  F796 C6 30            add a,'0'
-133+  F798 FE 3A        	cp ':'
-134+  F79A 38 02        	jr c, show_a_as_hex1
-135+  F79C C6 07        	add a, 7
-136+  F79E              show_a_as_hex1:
-137+  F79E CD BE F6         call print_a
-138+  F7A1 F1               pop af
-139+  F7A2 E6 0F            and %00001111
-140+  F7A4 C6 30            add a,'0'
-141+  F7A6 FE 3A        	cp ':'
-142+  F7A8 38 02        	jr c, show_a_as_hex2
-143+  F7AA C6 07        	add a, 7
-144+  F7AC              show_a_as_hex2:
-145+  F7AC CD BE F6         call print_a
-146+  F7AF C9               ret
-147+  F7B0
-148+  F7B0              ;---------------------------------------------------
-149+  F7B0              ; show_all shows all the CPU registers!
-150+  F7B0
-151+  F7B0              show_all:
-152+  F7B0 ED 73 0F F8  	ld (store_sp), sp
-153+  F7B4 F5           	push af
-154+  F7B5 E5           	push hl
-155+  F7B6 D5           	push de
-156+  F7B7 C5           	push bc
-157+  F7B8
-158+  F7B8 CD 6F F7     	call message
-159+  F7BB 41 3D 00     	db 'A=',0
-160+  F7BE CD 8D F7     	call show_a_as_hex
-161+  F7C1
-162+  F7C1 E1           	pop hl
-163+  F7C2 CD 6F F7     	call message
-164+  F7C5 2C 20 42 43  	db ', BC=',0
-164+  F7C9 3D 00
-165+  F7CB CD 84 F7     	call show_hl_as_hex
-166+  F7CE C5           	push bc
-167+  F7CF
-168+  F7CF C1           	pop bc
-169+  F7D0 E1           	pop hl
-170+  F7D1 CD 6F F7     	call message
-171+  F7D4 2C 20 44 45  	db ', DE=',0
-171+  F7D8 3D 00
-172+  F7DA CD 84 F7     	call show_hl_as_hex
-173+  F7DD D5           	push de
-174+  F7DE C5           	push bc
-175+  F7DF
-176+  F7DF C1           	pop bc
-177+  F7E0 D1           	pop de
-178+  F7E1 E1           	pop hl
-179+  F7E2 CD 6F F7     	call message
-180+  F7E5 2C 20 48 4C  	db ', HL=',0
-180+  F7E9 3D 00
-181+  F7EB CD 84 F7     	call show_hl_as_hex
-182+  F7EE E5           	push hl
-183+  F7EF D5           	push de
-184+  F7F0 C5           	push bc
-185+  F7F1
-186+  F7F1 CD 6F F7     	call message
-187+  F7F4 2C 20 53 50  	db ', SP=',0
-187+  F7F8 3D 00
-188+  F7FA 2A 0F F8     	ld hl, (store_sp)
-189+  F7FD CD 84 F7     	call show_hl_as_hex
-190+  F800
-191+  F800 3E 0D        	ld a, 13
-192+  F802 CD BE F6     	call print_a
-193+  F805 3E 0A        	ld a, 10
-194+  F807 CD BE F6     	call print_a
-195+  F80A
-196+  F80A C1           	pop bc
-197+  F80B D1           	pop de
-198+  F80C E1           	pop hl
-199+  F80D F1           	pop af
-200+  F80E C9           	ret
-201+  F80F
-202+  F80F              store_sp:
-203+  F80F 00 00        	 ds 2
+  1+  ED69              ; message
+  2+  ED69              message:
+  3+  ED69 E3           	ex (sp), hl                   ; top of stack is now mangled, but hl is pointing to our message
+  4+  ED6A F5           	push	af
+  5+  ED6B C5           	push	bc
+  6+  ED6C D5           	push	de
+  7+  ED6D
+  8+  ED6D              message_loop_001:
+  9+  ED6D 7E           	ld a, (hl)
+ 10+  ED6E FE 00        	cp 0
+ 11+  ED70 28 06        	jr z, message_complete_001
+ 12+  ED72 23           	inc hl
+ 13+  ED73 CD C1 EC     	call print_a                  ; print a character (Mangles 2 items below top of stack)
+ 14+  ED76 18 F5        	jr message_loop_001               ; Loop until done
+ 15+  ED78
+ 16+  ED78              message_complete_001:
+ 17+  ED78 D1           	pop de
+ 18+  ED79 C1           	pop bc
+ 19+  ED7A F1           	pop af
+ 20+  ED7B 23           	inc hl
+ 21+  ED7C E3           	ex (sp), hl
+ 22+  ED7D C9           	ret
+ 23+  ED7E
+ 24+  ED7E
+ 25+  ED7E              ; -------------------------------------------------------------------------------------------------
+ 26+  ED7E
+ 27+  ED7E              ;message:
+ 28+  ED7E              ;	; Use this handy helper function to display an inline message easily.
+ 29+  ED7E              ;	; It preserves all registers (which was tricky to do).
+ 30+  ED7E              ;	; This expects to be called from code where the message follows the "call debug" in-line, like this:
+ 31+  ED7E              ;	;
+ 32+  ED7E              ;	; ld a, 10 ; (or whatever code you like)
+ 33+  ED7E              ;	; call message
+ 34+  ED7E              ;	; db "my message", 0
+ 35+  ED7E              ;	; ld b, 10 ; (or whatever code you like)
+ 36+  ED7E              ;	;
+ 37+  ED7E              ;	; When we return we make sure sp is pointing to the next line of code after the message.
+ 38+  ED7E              ;
+ 39+  ED7E              ;							; sp -> ret-addr
+ 40+  ED7E              ;
+ 41+  ED7E              ;	push af					; We have stored af
+ 42+  ED7E              ;	push af					; We do this 3 times
+ 43+  ED7E              ;	push af					; to allow spare stack space.
+ 44+  ED7E              ;							; sp -> AF, AF, AF, ret-addr
+ 45+  ED7E              ;	push bc					; sp -> BC, AF, AF, AF, ret-addr
+ 46+  ED7E              ;	push de					; sp -> DE, BC, AF, AF, AF, ret-addr
+ 47+  ED7E              ;	push hl					; sp -> HL, DE, BC, AF, AF, AF, ret-addr
+ 48+  ED7E              ;
+ 49+  ED7E              ;	inc sp
+ 50+  ED7E              ;	inc sp					; adjust the stack to overlook the stored afx3, BC, DE & HL
+ 51+  ED7E              ;							; HL, sp -> DE, BC, AF, AF, AF, ret-addr
+ 52+  ED7E              ;	inc sp
+ 53+  ED7E              ;	inc sp					; HL, DE, sp -> BC, AF, AF, AF, ret-addr
+ 54+  ED7E              ;
+ 55+  ED7E              ;	inc sp
+ 56+  ED7E              ;	inc sp					; HL, DE, BC, sp -> AF, AF, AF, ret-addr
+ 57+  ED7E              ;
+ 58+  ED7E              ;	inc sp
+ 59+  ED7E              ;	inc sp
+ 60+  ED7E              ;
+ 61+  ED7E              ;	inc sp
+ 62+  ED7E              ;	inc sp
+ 63+  ED7E              ;
+ 64+  ED7E              ;	inc sp
+ 65+  ED7E              ;	inc sp					; HL, DE, BC, AF, AF, AF, sp -> ret-addr
+ 66+  ED7E              ;
+ 67+  ED7E              ;	ex (sp), hl				; top of stack is now mangled, but hl is pointing to our message
+ 68+  ED7E              ;							; HL, DE, BC, AF, AF, AF, sp -> HL
+ 69+  ED7E              ;
+ 70+  ED7E              ;message_loop:
+ 71+  ED7E              ;	ld a, (hl)
+ 72+  ED7E              ;	cp 0
+ 73+  ED7E              ;	jr z,message_complete
+ 74+  ED7E              ;	inc hl
+ 75+  ED7E              ;	call print_a			; print a character (Mangles 2 items below top of stack)
+ 76+  ED7E              ;	jr message_loop			; Loop until done
+ 77+  ED7E              ;							; HL, DE, BC, AF, XX, XX, sp -> HL
+ 78+  ED7E              ;
+ 79+  ED7E              ;message_complete:
+ 80+  ED7E              ;	inc hl
+ 81+  ED7E              ;	ex (sp), hl				; restore top of stack, after we have incremented it so it points to the subsequent instruction
+ 82+  ED7E              ;							; HL, DE, BC, AF, XX, XX, sp -> new-ret-addr
+ 83+  ED7E              ;	dec sp
+ 84+  ED7E              ;	dec sp
+ 85+  ED7E              ;
+ 86+  ED7E              ;	dec sp
+ 87+  ED7E              ;	dec sp
+ 88+  ED7E              ;
+ 89+  ED7E              ;	dec sp
+ 90+  ED7E              ;	dec sp					; adjust stack because of our pushed "af"
+ 91+  ED7E              ;							; HL, DE, BC, sp -> AF, XX, XX, new-ret-addr
+ 92+  ED7E              ;	dec sp
+ 93+  ED7E              ;	dec sp					; adjust stack because of our pushed "BC"
+ 94+  ED7E              ;							; HL, DE, sp -> BC, AF, XX, XX, new-ret-addr
+ 95+  ED7E              ;	dec sp
+ 96+  ED7E              ;	dec sp					; adjust stack because of our pushed "DE"
+ 97+  ED7E              ;							; HL, sp -> DE, BC, AF, XX, XX, new-ret-addr
+ 98+  ED7E              ;	dec sp
+ 99+  ED7E              ;	dec sp					; adjust stack because of our pushed "HL"
+100+  ED7E              ;							; sp -> HL, DE, BC, AF, XX, XX, new-ret-addr
+101+  ED7E              ;
+102+  ED7E              ;	pop hl					; HL is restored
+103+  ED7E              ;							; sp -> DE, BC, AF, XX, XX, new-ret-addr
+104+  ED7E              ;	pop de					; DE is restored
+105+  ED7E              ;							; sp -> BC, AF, XX, XX, new-ret-addr
+106+  ED7E              ;	pop bc					; BC is restored
+107+  ED7E              ;							; sp -> AF, XX, XX, new-ret-addr
+108+  ED7E              ;	pop af					; we have restored af
+109+  ED7E              ;							; sp -> XX, XX, new-ret-addr
+110+  ED7E              ;
+111+  ED7E              ;	inc sp
+112+  ED7E              ;	inc sp
+113+  ED7E              ;	inc sp
+114+  ED7E              ;	inc sp
+115+  ED7E              ;							; sp -> new-ret-addr
+116+  ED7E              ;
+117+  ED7E              ;	ret						; return to the instruction after the message
+118+  ED7E
+119+  ED7E              show_hl_as_hex:
+120+  ED7E 7C               ld a, h
+121+  ED7F CD 87 ED         call show_a_as_hex
+122+  ED82 7D               ld a, l
+123+  ED83 CD 87 ED         call show_a_as_hex
+124+  ED86 C9               ret
+125+  ED87
+126+  ED87              show_a_as_hex:
+127+  ED87 F5               push af
+128+  ED88 CB 3F            srl a
+129+  ED8A CB 3F            srl a
+130+  ED8C CB 3F            srl a
+131+  ED8E CB 3F            srl a
+132+  ED90 C6 30            add a,'0'
+133+  ED92 FE 3A        	cp ':'
+134+  ED94 38 02        	jr c, show_a_as_hex1
+135+  ED96 C6 07        	add a, 7
+136+  ED98              show_a_as_hex1:
+137+  ED98 CD C1 EC         call print_a
+138+  ED9B F1               pop af
+139+  ED9C E6 0F            and %00001111
+140+  ED9E C6 30            add a,'0'
+141+  EDA0 FE 3A        	cp ':'
+142+  EDA2 38 02        	jr c, show_a_as_hex2
+143+  EDA4 C6 07        	add a, 7
+144+  EDA6              show_a_as_hex2:
+145+  EDA6 CD C1 EC         call print_a
+146+  EDA9 C9               ret
+147+  EDAA
+148+  EDAA              ;---------------------------------------------------
+149+  EDAA              ; show_all shows all the CPU registers!
+150+  EDAA
+151+  EDAA              show_all:
+152+  EDAA ED 73 09 EE  	ld (store_sp), sp
+153+  EDAE F5           	push af
+154+  EDAF E5           	push hl
+155+  EDB0 D5           	push de
+156+  EDB1 C5           	push bc
+157+  EDB2
+158+  EDB2 CD 69 ED     	call message
+159+  EDB5 41 3D 00     	db 'A=',0
+160+  EDB8 CD 87 ED     	call show_a_as_hex
+161+  EDBB
+162+  EDBB E1           	pop hl
+163+  EDBC CD 69 ED     	call message
+164+  EDBF 2C 20 42 43  	db ', BC=',0
+164+  EDC3 3D 00
+165+  EDC5 CD 7E ED     	call show_hl_as_hex
+166+  EDC8 C5           	push bc
+167+  EDC9
+168+  EDC9 C1           	pop bc
+169+  EDCA E1           	pop hl
+170+  EDCB CD 69 ED     	call message
+171+  EDCE 2C 20 44 45  	db ', DE=',0
+171+  EDD2 3D 00
+172+  EDD4 CD 7E ED     	call show_hl_as_hex
+173+  EDD7 D5           	push de
+174+  EDD8 C5           	push bc
+175+  EDD9
+176+  EDD9 C1           	pop bc
+177+  EDDA D1           	pop de
+178+  EDDB E1           	pop hl
+179+  EDDC CD 69 ED     	call message
+180+  EDDF 2C 20 48 4C  	db ', HL=',0
+180+  EDE3 3D 00
+181+  EDE5 CD 7E ED     	call show_hl_as_hex
+182+  EDE8 E5           	push hl
+183+  EDE9 D5           	push de
+184+  EDEA C5           	push bc
+185+  EDEB
+186+  EDEB CD 69 ED     	call message
+187+  EDEE 2C 20 53 50  	db ', SP=',0
+187+  EDF2 3D 00
+188+  EDF4 2A 09 EE     	ld hl, (store_sp)
+189+  EDF7 CD 7E ED     	call show_hl_as_hex
+190+  EDFA
+191+  EDFA 3E 0D        	ld a, 13
+192+  EDFC CD C1 EC     	call print_a
+193+  EDFF 3E 0A        	ld a, 10
+194+  EE01 CD C1 EC     	call print_a
+195+  EE04
+196+  EE04 C1           	pop bc
+197+  EE05 D1           	pop de
+198+  EE06 E1           	pop hl
+199+  EE07 F1           	pop af
+200+  EE08 C9           	ret
+201+  EE09
+202+  EE09              store_sp:
+203+  EE09 00 00        	 ds 2
 # file closed: message.asm
-123   F811                  include "memorystick.asm"
+125   EE0B                  include "memorystick.asm"
 # file opened: memorystick.asm
-  1+  F811              ; memorystick.asm
-  2+  F811
-  3+  F811              store_de:
-  4+  F811 00 00            dw 0
-  5+  F813              store_a:
-  6+  F813 00               db 0
-  7+  F814              ;-----------------------------------------------------------------
-  8+  F814              ; For DIRectory listing, the filename is passed in the filename_buffer.
-  9+  F814              ; DE -> DMA AREA
- 10+  F814              ; a = Current User
- 11+  F814              ; It will be something like A/ffffffff.xxx
- 12+  F814              ; A result gets put into the area pointed to by DE, normally the DMA area, in 8.3 format
- 13+  F814              dir:
- 14+  F814 ED 53 11 F8      ld (store_de), de
- 15+  F818 32 13 F8         ld (store_a), a
- 16+  F81B
- 17+  F81B CD 40 F7         call disk_on
- 18+  F81E
- 19+  F81E 21 8E FE         ld hl, CPM_FOLDER_NAME                    ; Start at /CPM
- 20+  F821 CD 88 FD         call open_file
- 21+  F824 21 9B FE         ld hl, CPM_DISKS_NAME                    ; Then DISKS
- 22+  F827 CD 88 FD         call open_file
- 23+  F82A
- 24+  F82A 21 EB FF         ld hl, filename_buffer
- 25+  F82D 7E               ld a, (hl)
- 26+  F82E 21 E9 FF         ld hl, DRIVE_NAME                       ; Move to "A" .. "P" for required disk
- 27+  F831 77               ld (hl), a
- 28+  F832 23               inc hl
- 29+  F833 36 00            ld (hl), 0
- 30+  F835 2B               dec hl
- 31+  F836 CD 88 FD         call open_file
- 32+  F839
- 33+  F839                  ; Now user number (if greater than 0)
- 34+  F839 3A 13 F8         ld a, (store_a)
- 35+  F83C FE 00            cp 0
- 36+  F83E 28 0E            jr z, ignore_user
- 37+  F840
- 38+  F840 CD E2 FB         call convert_user_number_to_folder_name
- 39+  F843 21 E9 FF         ld hl, DRIVE_NAME                   ; Move to "1" .. "F" for required user
- 40+  F846 77               ld (hl), a
- 41+  F847 23               inc hl
- 42+  F848 36 00            ld (hl), 0
- 43+  F84A 2B               dec hl
- 44+  F84B CD 88 FD         call open_file
- 45+  F84E
- 46+  F84E              ignore_user:
- 47+  F84E 21 8C FE         ld hl, STAR_DOT_STAR                    ; Specify search pattern "*"
- 48+  F851 CD 88 FD         call open_file
- 49+  F854
- 50+  F854                  ; Read a file if there is something to read
- 51+  F854              dir_loop:
- 52+  F854                  ; at this point DE is in store_de, containing address of dma-area
- 53+  F854 FE 1D            cp USB_INT_DISK_READ
- 54+  F856 28 2E            jr z, dir_loop_good
- 55+  F858
- 56+  F858 FE 42            cp ERR_MISS_FILE    ; This is what you normally get at the end of a dir listing
- 57+  F85A 28 24            jr z, dir_no_file
- 58+  F85C
- 59+  F85C FE A1            cp ERR_BPB_ERROR    ; This means a disk format error
- 60+  F85E 20 20            jr nz, dir_no_file
- 61+  F860
- 62+  F860 CD 6F F7         call message
- 63+  F863 55 53 42 20      db 'USB Drive ERROR: FAT only!',13,10,0
- 63+  F867 44 72 69 76
- 63+  F86B 65 20 45 52
- 63+  F86F 52 4F 52 3A
- 63+  F873 20 46 41 54
- 63+  F877 20 6F 6E 6C
- 63+  F87B 79 21 0D 0A
- 63+  F87F 00
- 64+  F880              dir_no_file:
- 65+  F880 CD 39 F7         call disk_off
- 66+  F883 3E FF            ld a, 255
- 67+  F885 C9               ret
- 68+  F886
- 69+  F886              dir_loop_good:
- 70+  F886                  ; at this point DE is on stack, containing address of dma-area
- 71+  F886 3E 27            ld a, RD_USB_DATA0
- 72+  F888 CD 38 FE         call send_command_byte
- 73+  F88B CD 41 FE         call read_data_byte                 ; Find out how many bytes there are to read
- 74+  F88E
- 75+  F88E CD 47 FE         call read_data_bytes_into_buffer    ; read them into disk_buffer
- 76+  F891 FE 20            cp 32                               ; Did we read at least 32 bytes?
- 77+  F893 30 03            jr nc, good_length
- 78+  F895 C3 18 F9         jp dir_next
- 79+  F898
- 80+  F898              good_length:
- 81+  F898                  ; at this point DE is in store_de, containing address of dma-area
- 82+  F898                  ; Get the attributes for this entry. $02 = system, $04 = hidden, $10 = directory
- 83+  F898 CD 39 F7         call disk_off
- 84+  F89B 3A D0 FF         ld a, (disk_buffer+11)
- 85+  F89E E6 16            and $16                         ; Check for hidden or system files, or directories
- 86+  F8A0 CA A6 F8         jp z, it_is_not_system
- 87+  F8A3 C3 18 F9         jp dir_next                     ; and skip accordingly.
- 88+  F8A6
- 89+  F8A6              it_is_not_system:
- 90+  F8A6                  ; Does it match the search pattern?
- 91+  F8A6 06 0B            ld b, 11
- 92+  F8A8 21 C5 FF         ld hl, disk_buffer
- 93+  F8AB 11 ED FF         ld de, filename_buffer+2
- 94+  F8AE              matching_loop:
- 95+  F8AE                  ; If the filename_buffer has a '.' then skip over it
- 96+  F8AE                  ; and move disk_buffer to start of extension
- 97+  F8AE 1A               ld a, (de)
- 98+  F8AF FE 2E            cp '.'
- 99+  F8B1 20 06            jr nz, matching_loop1
-100+  F8B3
-101+  F8B3 13               inc de
-102+  F8B4 21 CD FF         ld hl, disk_buffer+8
-103+  F8B7 06 03            ld b, 3
-104+  F8B9
-105+  F8B9              matching_loop1
-106+  F8B9 1A               ld a, (de)
-107+  F8BA FE 3F            cp '?'
-108+  F8BC 28 05            jr z, matching_loop_good
-109+  F8BE BE               cp (hl)
-110+  F8BF 28 02            jr z, matching_loop_good
-111+  F8C1 18 55            jr dir_next
-112+  F8C3
-113+  F8C3              matching_loop_good:
-114+  F8C3 13               inc de
-115+  F8C4 23               inc hl
-116+  F8C5 10 E7            djnz matching_loop
-117+  F8C7
-118+  F8C7                  ; Copy 11 byte filename + extension
-119+  F8C7 01 0B 00         ld bc, 11
-120+  F8CA 21 C5 FF         ld hl, disk_buffer
-121+  F8CD ED 5B 11 F8      ld de, (store_de)
-122+  F8D1
-123+  F8D1                  ; The Usernumber goes into the first byte of the FCB
-124+  F8D1 3A 13 F8         ld a, (store_a)
-125+  F8D4 E6 0F            and %00001111
-126+  F8D6 12               ld (de), a                      ; Store user number in FCB result
-127+  F8D7 13               inc de
-128+  F8D8 ED B0            ldir                            ; Copy filename & extension
-129+  F8DA
-130+  F8DA                  ; Fill in a few more details. File size into normal place, plus random record info.
-131+  F8DA                  ; The filesize is a 32 bit number in FAT_DIR_INFO at loc $1C, 1D, 1E and 1F.
-132+  F8DA                  ; We want it in 128 byte sectors, so need to divide by 128.
-133+  F8DA 21 E1 FF         ld hl, disk_buffer+$1C
-134+  F8DD 5E               ld e, (hl)
-135+  F8DE 23               inc hl
-136+  F8DF 56               ld d, (hl)
-137+  F8E0 23               inc hl
-138+  F8E1 4E               ld c, (hl)
-139+  F8E2 23               inc hl
-140+  F8E3 46               ld b, (hl)                          ; BCDE has file size
-141+  F8E4 EB               ex de, hl                           ; 32-bit filesize now in BCHL
-142+  F8E5
-143+  F8E5                  ; Divide by 128
-144+  F8E5 CB 25            sla l                               ; Shift all left by 1 bit
-145+  F8E7 CB 14            rl h
-146+  F8E9 CB 11            rl c
-147+  F8EB CB 10            rl b
-148+  F8ED
-149+  F8ED 6C               ld l, h
-150+  F8EE 61               ld h, c
-151+  F8EF 48               ld c, b
-152+  F8F0 06 00            ld b, 0                             ; We've shifted right 8 bits, so effectively divided by 128!
-153+  F8F2
-154+  F8F2 ED 5B 11 F8      ld de, (store_de)
-155+  F8F6
-156+  F8F6 C5               push bc                             ; Store the size that is in bchl
-157+  F8F7 E5               push hl
-158+  F8F8 CD 92 FB         call set_random_pointer_in_fcb      ; store hl in FCB random pointer (bc is thrown away!)
-159+  F8FB E1               pop hl
-160+  F8FC C1               pop bc                              ; restore bchl
-161+  F8FD
-162+  F8FD EB               ex de, hl                           ; hl = fcb, bcde = filesize
-163+  F8FE 2A 11 F8         ld hl, (store_de)
-164+  F901 CD A1 FB         call set_file_size_in_fcb
-165+  F904
-166+  F904                  ; Clear all 16 disk allocation bytes. TODO: Actually, fill with sensible values
-167+  F904 ED 5B 11 F8      ld de, (store_de)
-168+  F908 21 10 00         ld hl, 16
-169+  F90B 19               add hl, de
-170+  F90C EB               ex de, hl
-171+  F90D 06 14            ld b, 16+4
-172+  F90F 3E 00            ld a, 0
-173+  F911              clear_allocation_loop:
-174+  F911 12               ld (de), a
-175+  F912 13               inc de
-176+  F913 10 FC            djnz clear_allocation_loop
-177+  F915              good_length1:
-178+  F915 3E 00            ld a, 0                                 ; 0 = success
-179+  F917 C9               ret
-180+  F918
-181+  F918              dir_next:
-182+  F918 3E 33            ld a, FILE_ENUM_GO                      ; Go to next entry in the directory
-183+  F91A CD 38 FE         call send_command_byte
-184+  F91D CD 7D FE         call read_status_byte
-185+  F920 C3 54 F8         jp dir_loop
-186+  F923
-187+  F923              ;-----------------------------------------
-188+  F923              ; Load bin File
-189+  F923              ; The filename needs to be in the filename buffer.
-190+  F923              ; The file must be in the /CPM folder.
-191+  F923              ; DE points to the location to load it into.
-192+  F923              ; The file is loaded into the workspace.
-193+  F923              ; There is no check whether the file is too big!!!!
-194+  F923              ; Returns zero flag set if success, zero flag cleared on file-not-found.
-195+  F923
-196+  F923              load_bin_file:
-197+  F923 D5               push de                             ; Store target location for later
-198+  F924 CD 40 F7         call disk_on
-199+  F927 CD AE FC         call connect_to_disk
-200+  F92A CD DD FC         call mount_disk
-201+  F92D
-202+  F92D 21 8E FE         ld hl, CPM_FOLDER_NAME              ; Start at /CPM
-203+  F930 CD 88 FD         call open_file
-204+  F933
-205+  F933 21 EB FF         ld hl, filename_buffer              ; Specify filename
-206+  F936 CD 88 FD         call open_file
-207+  F939
-208+  F939 28 2B            jr z, load_file_found
-209+  F93B CD 39 F7         call disk_off
-210+  F93E CD 6F F7         call message
-211+  F941 46 69 6C 65      db 'File not found ',0
-211+  F945 20 6E 6F 74
-211+  F949 20 66 6F 75
-211+  F94D 6E 64 20 00
-212+  F951 21 EB FF         ld hl, filename_buffer
-213+  F954              load_file1:
-214+  F954 7E               ld a, (hl)
-215+  F955 FE 00            cp 0
-216+  F957 28 06            jr z, load_file2
-217+  F959 CD BE F6         call print_a
-218+  F95C 23               inc hl
-219+  F95D 18 F5            jr load_file1
-220+  F95F              load_file2:
-221+  F95F CD F4 F6         call newline
-222+  F962 D1               pop de                              ; Keep stack clear!
-223+  F963 F6 01            or 1                                ; Clear zero flag for failure
-224+  F965 C9               ret
-225+  F966              load_file_found:
-226+  F966 CD 39 F7         call disk_off
-227+  F969 3E 3A            ld a, BYTE_READ
-228+  F96B CD 38 FE         call send_command_byte
-229+  F96E 3E FF            ld a, 255                           ; Request all of the file
-230+  F970 CD 1C FE         call send_data_byte
-231+  F973 3E FF            ld a, 255                           ; Yes, all!
-232+  F975 CD 1C FE         call send_data_byte
-233+  F978
-234+  F978 3E 22            ld a, GET_STATUS
-235+  F97A CD 38 FE         call send_command_byte
-236+  F97D CD 41 FE         call read_data_byte
-237+  F980 E1               pop hl                              ; Get back the target address
-238+  F981              load_loop1:
-239+  F981 FE 1D            cp USB_INT_DISK_READ
-240+  F983 20 25            jr nz, load_finished
-241+  F985
-242+  F985 E5               push hl
-243+  F986 CD 40 F7         call disk_on
-244+  F989 3E 27            ld a, RD_USB_DATA0
-245+  F98B CD 38 FE         call send_command_byte
-246+  F98E CD 41 FE         call read_data_byte
-247+  F991 E1               pop hl
-248+  F992 CD 4A FE         call read_data_bytes_into_hl        ; Read this block of data
-249+  F995 E5               push hl
-250+  F996 CD 39 F7         call disk_off
-251+  F999 3E 3B            ld a, BYTE_RD_GO
-252+  F99B CD 38 FE         call send_command_byte
-253+  F99E 3E 22            ld a, GET_STATUS
-254+  F9A0 CD 38 FE         call send_command_byte
-255+  F9A3 CD 41 FE         call read_data_byte
-256+  F9A6 E1               pop hl
-257+  F9A7 C3 81 F9         jp load_loop1
-258+  F9AA              load_finished:
-259+  F9AA E5               push hl
-260+  F9AB CD 9B FD         call close_file
-261+  F9AE E1               pop hl
-262+  F9AF BF               cp a                                ; set zero flag for success
-263+  F9B0 C9               ret
-264+  F9B1
-265+  F9B1              ; ---------------------------------
-266+  F9B1              ; Directory info read.
-267+  F9B1              ; Reads a directory entry (of the currently open file) into disk_buffer
-268+  F9B1              ; Returns ZERO FLAG = set if ok
-269+  F9B1              dir_info_read:
-270+  F9B1 3E 37            ld a, DIR_INFO_READ
-271+  F9B3 CD 38 FE         call send_command_byte
-272+  F9B6 3E FF            ld a, $FF                           ; Current open file
-273+  F9B8 CD 1C FE         call send_data_byte
-274+  F9BB
-275+  F9BB CD 7D FE         call read_status_byte
-276+  F9BE FE 14            cp USB_INT_SUCCESS
-277+  F9C0 C0               ret nz
-278+  F9C1
-279+  F9C1 3E 27            ld a, RD_USB_DATA0
-280+  F9C3 CD 38 FE         call send_command_byte
-281+  F9C6 CD 41 FE         call read_data_byte                 ; Find out how many bytes there are to read
-282+  F9C9
-283+  F9C9 CD 47 FE         call read_data_bytes_into_buffer
-284+  F9CC FE 20            cp $20                              ; Must have read 32 bytes
-285+  F9CE C0               ret nz                              ; or else it is an error
-286+  F9CF              ;     call message
-287+  F9CF              ;     db 'Read this many bytes: ',0
-288+  F9CF              ;     call show_a_as_hex
-289+  F9CF              ;     call newline
-290+  F9CF
-291+  F9CF              ;     ld b, $20
-292+  F9CF              ;     ld hl, disk_buffer
-293+  F9CF              ; dir_info_read1:
-294+  F9CF              ;     ld a, (hl)
-295+  F9CF              ;     push hl
-296+  F9CF              ;     push bc
-297+  F9CF              ;     call show_a_as_hex
-298+  F9CF              ;     ld a, ','
-299+  F9CF              ;     call print_a
-300+  F9CF              ;     pop bc
-301+  F9CF              ;     pop hl
-302+  F9CF              ;     inc hl
-303+  F9CF              ;     djnz dir_info_read1
-304+  F9CF              ;     call newline
-305+  F9CF
-306+  F9CF BF               cp a                                ; set zero flag for success
-307+  F9D0 C9               ret
-308+  F9D1
-309+  F9D1              ; DIR_INFO_WRITE
-310+  F9D1              ; writes a dir_info block from disk_buffer to the USB drive
-311+  F9D1              ; for the currently open file
-312+  F9D1              dir_info_write:
-313+  F9D1 3E 37            ld a, DIR_INFO_READ
-314+  F9D3 CD 38 FE         call send_command_byte
-315+  F9D6 3E FF            ld a, $FF                           ; Current open file
-316+  F9D8 CD 1C FE         call send_data_byte
-317+  F9DB
-318+  F9DB CD 7D FE         call read_status_byte
-319+  F9DE                  ;call report_on_status
-320+  F9DE FE 14            cp USB_INT_SUCCESS
-321+  F9E0 20 28            jr nz, dir_info_write2
-322+  F9E2
-323+  F9E2 3E 2E            ld a, WR_OFS_DATA
-324+  F9E4 CD 38 FE         call send_command_byte
-325+  F9E7 3E 00            ld a, 0
-326+  F9E9 CD 1C FE         call send_data_byte
-327+  F9EC 3E 20            ld a, $20
-328+  F9EE CD 1C FE         call send_data_byte
-329+  F9F1 06 20            ld b, $20
-330+  F9F3 21 C5 FF         ld hl, disk_buffer
-331+  F9F6              dir_info_write1:
-332+  F9F6 7E               ld a, (hl)
-333+  F9F7 E5               push hl
-334+  F9F8 C5               push bc
-335+  F9F9 CD 1C FE         call send_data_byte
-336+  F9FC C1               pop bc
-337+  F9FD E1               pop hl
-338+  F9FE 23               inc hl
-339+  F9FF 10 F5            djnz dir_info_write1
-340+  FA01
-341+  FA01 3E 38            ld a, DIR_INFO_SAVE
-342+  FA03 CD 38 FE         call send_command_byte
-343+  FA06 CD 41 FE         call read_data_byte
-344+  FA09                  ;call report_on_status
-345+  FA09 C9               ret
-346+  FA0A
-347+  FA0A              dir_info_write2:
-348+  FA0A C9               ret
-349+  FA0B
-350+  FA0B              ;----------------------------------
-351+  FA0B              ; WRITE TO FILE
-352+  FA0B
-353+  FA0B              write_to_file:
-354+  FA0B                  ; writes 128 bytes from current location pointed to by DE, to the open file
-355+  FA0B D5               push de
-356+  FA0C 3E 3C            ld a, BYTE_WRITE
-357+  FA0E CD 38 FE         call send_command_byte
-358+  FA11
-359+  FA11                  ; Send number of bytes we are about to write, as 16 bit number, low first
-360+  FA11 3E 80            ld a, 128
-361+  FA13 CD 1C FE         call send_data_byte
-362+  FA16 3E 00            ld a, 0
-363+  FA18 CD 1C FE         call send_data_byte
-364+  FA1B
-365+  FA1B E1               pop hl                              ; hl -> the data
-366+  FA1C
-367+  FA1C              write_loop
-368+  FA1C CD 7D FE         call read_status_byte
-369+  FA1F FE 1E            cp USB_INT_DISK_WRITE
-370+  FA21 20 24            jr nz, write_finished
-371+  FA23
-372+  FA23 E5               push hl
-373+  FA24                  ; Ask if we can send some bytes
-374+  FA24 3E 2D            ld a, WR_REQ_DATA
-375+  FA26 CD 38 FE         call send_command_byte
-376+  FA29 CD 41 FE         call read_data_byte
-377+  FA2C E1               pop hl
-378+  FA2D FE 00            cp 0
-379+  FA2F 28 16            jr z, write_finished
-380+  FA31
-381+  FA31                  ; push hl
-382+  FA31                  ; push af
-383+  FA31                  ; call message
-384+  FA31                  ; db 'Bytes to send: ',0
-385+  FA31                  ; pop af
-386+  FA31                  ; push af
-387+  FA31                  ; call show_a_as_hex
-388+  FA31                  ; call newline
-389+  FA31                  ; pop af
-390+  FA31                  ; pop hl
-391+  FA31
-392+  FA31 47               ld b, a
-393+  FA32              block_loop:
-394+  FA32 7E               ld a, (hl)
-395+  FA33 E5               push hl
-396+  FA34 C5               push bc
-397+  FA35 CD 1C FE         call send_data_byte
-398+  FA38 C1               pop bc
-399+  FA39 E1               pop hl
-400+  FA3A 23               inc hl
-401+  FA3B 10 F5            djnz block_loop
-402+  FA3D
-403+  FA3D E5               push hl
-404+  FA3E 3E 3D            ld a, BYTE_WR_GO
-405+  FA40 CD 38 FE         call send_command_byte
-406+  FA43 E1               pop hl
-407+  FA44 C3 1C FA         jp write_loop
-408+  FA47
-409+  FA47              write_finished:
-410+  FA47 C9               ret
-411+  FA48
-412+  FA48
-413+  FA48              ;-------------------------------------------
-414+  FA48              ; ERASE FILE
-415+  FA48
-416+  FA48              erase_file:
-417+  FA48 3E 2F            ld a, SET_FILE_NAME
-418+  FA4A CD 38 FE         call send_command_byte
-419+  FA4D 21 EB FF         ld hl, filename_buffer
-420+  FA50 CD 22 FE         call send_data_string
-421+  FA53 3E 35            ld a, FILE_ERASE
-422+  FA55 CD 38 FE         call send_command_byte
-423+  FA58 CD 7D FE         call read_status_byte
-424+  FA5B C9               ret
-425+  FA5C
-426+  FA5C              show_filename_buffer:
-427+  FA5C 21 EB FF         ld hl, filename_buffer
-428+  FA5F 06 14            ld b, 20
-429+  FA61              show_filename_buffer1:
-430+  FA61 7E               ld a, (hl)
-431+  FA62 FE 20            cp 32
-432+  FA64 38 0A            jr c, control_char
-433+  FA66              show_filename_buffer2
-434+  FA66 CD BE F6         call print_a
-435+  FA69 23               inc hl
-436+  FA6A 10 F5            djnz show_filename_buffer1
-437+  FA6C CD F4 F6         call newline
-438+  FA6F C9               ret
-439+  FA70
-440+  FA70              control_char:
-441+  FA70 C6 40            add a, 64
-442+  FA72 4F               ld c, a
-443+  FA73 3E 5E            ld a, '^'
-444+  FA75 CD BE F6         call print_a
-445+  FA78 79               ld a, c
-446+  FA79 18 EB            jr show_filename_buffer2
-447+  FA7B
-448+  FA7B              check_tbasic_structure:
-449+  FA7B                  ; Check that there is a /TBASIC folder
-450+  FA7B                  ; and if not, make it!
-451+  FA7B CD 6F F7         call message
-452+  FA7E 43 68 65 63      db 'Checking /TBASIC',13,10,0
-452+  FA82 6B 69 6E 67
-452+  FA86 20 2F 54 42
-452+  FA8A 41 53 49 43
-452+  FA8E 0D 0A 00
-453+  FA91
-454+  FA91 21 93 FE         ld hl, TINY_BASIC_FOLDER_NAME
-455+  FA94 CD 10 FE         call copy_filename_to_buffer
-456+  FA97 21 EB FF         ld hl, filename_buffer
-457+  FA9A CD 88 FD         call open_file
-458+  FA9D FE 41            cp YES_OPEN_DIR                     ; This is NOT an error, it is a badly named success code!!!!!!
-459+  FA9F C8               ret z                               ; If found, job done.
-460+  FAA0 CD A9 FD         call create_directory
-461+  FAA3 C8               ret z                               ; If created ok, job done.
-462+  FAA4 CD 6F F7         call message
-463+  FAA7 45 52 52 4F      db 'ERROR creating Tiny Basic folder!',13,10,0
-463+  FAAB 52 20 63 72
-463+  FAAF 65 61 74 69
-463+  FAB3 6E 67 20 54
-463+  FAB7 69 6E 79 20
-463+  FABB 42 61 73 69
-463+  FABF 63 20 66 6F
-463+  FAC3 6C 64 65 72
-463+  FAC7 21 0D 0A 00
-464+  FACB C9               ret
-465+  FACC
-466+  FACC              check_cpmdisks_structure:
-467+  FACC                  ; Check that we have a disk structure like this:
-468+  FACC                  ; /CPMDISKS
-469+  FACC                  ;          /A
-470+  FACC                  ;          /B
-471+  FACC                  ;          /C
-472+  FACC                  ;          :
-473+  FACC                  ;          /P
-474+  FACC
-475+  FACC                  ; Loop over A..P
-476+  FACC 06 10            ld b, 16
-477+  FACE              check_cpmdisk_loop:
-478+  FACE C5               push bc
-479+  FACF                  ; Go to /CPM
-480+  FACF CD 6F F7         call message
-481+  FAD2 43 68 65 63      db 'Checking /CPM',13,10,0
-481+  FAD6 6B 69 6E 67
-481+  FADA 20 2F 43 50
-481+  FADE 4D 0D 0A 00
-482+  FAE2
-483+  FAE2 21 8E FE         ld hl, CPM_FOLDER_NAME
-484+  FAE5 CD 10 FE         call copy_filename_to_buffer
-485+  FAE8 21 EB FF         ld hl, filename_buffer
-486+  FAEB CD 88 FD         call open_file
-487+  FAEE FE 41            cp YES_OPEN_DIR                     ; This is NOT an error, it is a badly named success code!!!!!!
-488+  FAF0 20 42            jr nz, check_cpmdisks_structure2
-489+  FAF2
-490+  FAF2 CD 6F F7         call message
-491+  FAF5 43 68 65 63      db 'Checking /CPM/DISKS',13,10,0
-491+  FAF9 6B 69 6E 67
-491+  FAFD 20 2F 43 50
-491+  FB01 4D 2F 44 49
-491+  FB05 53 4B 53 0D
-491+  FB09 0A 00
-492+  FB0B 21 9B FE         ld hl, CPM_DISKS_NAME
-493+  FB0E CD 10 FE         call copy_filename_to_buffer
-494+  FB11 21 EB FF         ld hl, filename_buffer
-495+  FB14 CD 88 FD         call open_file
-496+  FB17 FE 41            cp YES_OPEN_DIR                     ; This is NOT an error, it is a badly named success code!!!!!!
-497+  FB19 20 19            jr nz, check_cpmdisks_structure2
-498+  FB1B
-499+  FB1B C1               pop bc
-500+  FB1C C5               push bc
-501+  FB1D 78               ld a, b
-502+  FB1E C6 40            add a, 'A'-1
-503+  FB20 32 EB FF         ld (filename_buffer), a
-504+  FB23 3E 00            ld a, 0
-505+  FB25 32 EC FF         ld (filename_buffer+1),a
-506+  FB28 21 EB FF         ld hl, filename_buffer
-507+  FB2B CD 88 FD         call open_file
-508+  FB2E FE 41            cp YES_OPEN_DIR                     ; This is NOT an error, it is a badly named success code!!!!!!
-509+  FB30 20 0B            jr nz, check_cpmdisks_structure3
-510+  FB32
-511+  FB32 C1               pop bc                              ; Let's say if we find disk "P" then they are all there!!!
-512+  FB33                  ;djnz check_cpmdisk_loop
-513+  FB33
-514+  FB33 C9               ret
-515+  FB34
-516+  FB34              check_cpmdisks_structure2:
-517+  FB34 C1               pop bc
-518+  FB35                  ; Try to create the missing folder
-519+  FB35                  ;ld hl, CPMDISKS_NAME
-520+  FB35                  ;call copy_filename_to_buffer
-521+  FB35 CD A9 FD         call create_directory
-522+  FB38 20 0D            jr nz, check_cpmdisks_structure_fail
-523+  FB3A
-524+  FB3A                  ; Start all over again
-525+  FB3A C3 CC FA         jp check_cpmdisks_structure
-526+  FB3D
-527+  FB3D              check_cpmdisks_structure3:
-528+  FB3D CD A9 FD         call create_directory
-529+  FB40 20 04            jr nz, check_cpmdisks_subdir_fail
-530+  FB42 C1               pop bc                                          ; All good, so do the next subdir
-531+  FB43 C3 CE FA         jp check_cpmdisk_loop
-532+  FB46
-533+  FB46              check_cpmdisks_subdir_fail:
-534+  FB46 C1               pop bc
-535+  FB47                  ; Continue through to the next bit...
-536+  FB47              check_cpmdisks_structure_fail:
-537+  FB47 CD 6F F7         call message
-538+  FB4A 45 52 52 4F      db 'ERROR creating CP/M disks!',13,10,0
-538+  FB4E 52 20 63 72
-538+  FB52 65 61 74 69
-538+  FB56 6E 67 20 43
-538+  FB5A 50 2F 4D 20
-538+  FB5E 64 69 73 6B
-538+  FB62 73 21 0D 0A
-538+  FB66 00
-539+  FB67 C9               ret
-540+  FB68
-541+  FB68              move_to_file_pointer:
-542+  FB68                  ; Set the BYTE_LOCATE file position in the currently open file.
-543+  FB68                  ; Value is passed in bcde.
-544+  FB68 C5               push bc
-545+  FB69 D5               push de
-546+  FB6A 3E 39            ld a, BYTE_LOCATE
-547+  FB6C CD 38 FE         call send_command_byte
-548+  FB6F D1               pop de
-549+  FB70 D5               push de
-550+  FB71 7B               ld a, e
-551+  FB72 CD 1C FE         call send_data_byte
-552+  FB75 D1               pop de
-553+  FB76 7A               ld a, d
-554+  FB77 CD 1C FE         call send_data_byte
-555+  FB7A C1               pop bc
-556+  FB7B C5               push bc
-557+  FB7C 79               ld a, c
-558+  FB7D CD 1C FE         call send_data_byte
-559+  FB80 C1               pop bc
-560+  FB81 78               ld a, b
-561+  FB82 CD 1C FE         call send_data_byte
-562+  FB85 CD 7D FE         call read_status_byte
-563+  FB88 FE 14            cp USB_INT_SUCCESS
-564+  FB8A 20 03            jr nz, move_to_file_pointer_fail        ; We expect USB_INT_SUCCESS here
-565+  FB8C
-566+  FB8C 3E 14            ld a, USB_INT_SUCCESS                   ; Return success
-567+  FB8E C9               ret
-568+  FB8F              move_to_file_pointer_fail:
-569+  FB8F 3E 1F            ld a, USB_INT_DISK_ERR                  ; Return fail
-570+  FB91 C9               ret
-571+  FB92
-572+  FB92              set_random_pointer_in_fcb:
-573+  FB92                  ; pass in de -> fcb
-574+  FB92                  ; Pass hl = random pointer value
-575+  FB92                  ; Random pointer goes to fcb + 33 & 34. fcb + 35 gets 0.
-576+  FB92                  ; preserve de
-577+  FB92 D5               push de
-578+  FB93 EB               ex de, hl
-579+  FB94 01 21 00         ld bc, 33
-580+  FB97 09               add hl, bc
-581+  FB98 73               ld (hl), e
-582+  FB99 23               inc hl
-583+  FB9A 72               ld (hl), d
-584+  FB9B 23               inc hl
-585+  FB9C 36 00            ld (hl), 0
-586+  FB9E EB               ex de, hl
-587+  FB9F D1               pop de
-588+  FBA0 C9               ret
-589+  FBA1
-590+  FBA1              set_file_size_in_fcb:
-591+  FBA1                  ; Pass HL -> FCB (Note that this is an unusual way to pass it in)
-592+  FBA1                  ; Pass file pointer (in 128-byte records) in bcde.
-593+  FBA1                  ; Preserves hl
-594+  FBA1
-595+  FBA1                  ; The following details are from http://www.primrosebank.net/computers/cpm/cpm_software_mfs.htm
-596+  FBA1                  ; RC = record counter, goes from 0 to $80. $80 means full, and represents 128*128=16K.
-597+  FBA1                  ; EX = 0 for files < 16K, otherwise 1 - 31 for Extents of 16K each.
-598+  FBA1                  ; S2 = high byte for the EXc ounter, so if EX wants to be bigger than 31, overflow it into here.
-599+  FBA1
-600+  FBA1                  ; Split bcde into S2, EX & RC.
-601+  FBA1                  ; To do this:
-602+  FBA1                  ; RC = e & %0111 1111               (i.e. a number 0..127)
-603+  FBA1                  ; Divide bcde by 128                (Shift right 7 bits, or shift left 1 bit then right 8)
-604+  FBA1                  ; EX = e & %0001 1111               (i.e. it has a max of 31)
-605+  FBA1                  ; Shift left 3 places
-606+  FBA1                  ; S2 = d
-607+  FBA1
-608+  FBA1                  ; RC = e & %0111 1111
-609+  FBA1 E5               push hl
-610+  FBA2 7B               ld a, e
-611+  FBA3 E6 7F            and %01111111                       ; RC is in A
-612+  FBA5
-613+  FBA5 CB 23            sla e                               ; Shift all left by 1 bit
-614+  FBA7 CB 12            rl d
-615+  FBA9 CB 11            rl c
-616+  FBAB CB 10            rl b
-617+  FBAD
-618+  FBAD 5A               ld e, d                             ; Shift all right by 8 bits
-619+  FBAE 51               ld d, c
-620+  FBAF 48               ld c, b
-621+  FBB0 06 00            ld b, 0                             ; We've effectively shifted right by 7 bits
-622+  FBB2
-623+  FBB2 01 0F 00         ld bc, 15                           ; ex is as FCB+12, s2 is at FCB+14, rc is at FCB + 15
-624+  FBB5 09               add hl, bc                          ; hl -> FCB.RC
-625+  FBB6 77               ld (hl), a                          ; RC is now stored in FCB
-626+  FBB7
-627+  FBB7 2B               dec hl
-628+  FBB8 2B               dec hl
-629+  FBB9 2B               dec hl                              ; hl -> FCB.EX
-630+  FBBA 7B               ld a, e
-631+  FBBB E6 1F            and %00011111                       ; EX is in A
-632+  FBBD 77               ld (hl), a
-633+  FBBE
-634+  FBBE CB 23            sla e                               ; Shift all left by 1 bit
-635+  FBC0 CB 12            rl d
-636+  FBC2 CB 11            rl c
-637+  FBC4 CB 10            rl b
-638+  FBC6 CB 23            sla e                               ; Shift all left by 1 bit
-639+  FBC8 CB 12            rl d
-640+  FBCA CB 11            rl c
-641+  FBCC CB 10            rl b
-642+  FBCE CB 23            sla e                               ; Shift all left by 1 bit
-643+  FBD0 CB 12            rl d
-644+  FBD2 CB 11            rl c
-645+  FBD4 CB 10            rl b
-646+  FBD6
-647+  FBD6 23               inc hl
-648+  FBD7 3E 00            ld a, 0
-649+  FBD9 36 00            ld (hl), 0                          ; Blank out the mystery byte called "unused"
-650+  FBDB 23               inc hl                              ; hl -> FCB.S2
-651+  FBDC
-652+  FBDC 7A               ld a, d
-653+  FBDD E6 1F            and %00011111                       ; S2 is in A
-654+  FBDF 77               ld (hl), a
-655+  FBE0
-656+  FBE0 E1               pop hl
-657+  FBE1 C9               ret
-658+  FBE2
-659+  FBE2              convert_user_number_to_folder_name:
-660+  FBE2                  ; Pass in 1 to 15 in A.
-661+  FBE2                  ; This returns "1" to "F"
-662+  FBE2 E6 0F            and %00001111
-663+  FBE4 C6 30            add a, '0'                             ; Convert 1-9 => "1".."9"
-664+  FBE6 FE 3A            cp ':'
-665+  FBE8 D8               ret c
-666+  FBE9 C6 07            add a, 7
-667+  FBEB C9               ret
-668+  FBEC
-669+  FBEC                  include "memorystick_low_level.asm"
+  1+  EE0B              ; memorystick.asm
+  2+  EE0B
+  3+  EE0B              store_de:
+  4+  EE0B 00 00            dw 0
+  5+  EE0D              store_a:
+  6+  EE0D 00               db 0
+  7+  EE0E              ;-----------------------------------------------------------------
+  8+  EE0E              ; For DIRectory listing, the filename is passed in the filename_buffer.
+  9+  EE0E              ; DE -> DMA AREA
+ 10+  EE0E              ; a = Current User
+ 11+  EE0E              ; It will be something like A/ffffffff.xxx
+ 12+  EE0E              ; A result gets put into the area pointed to by DE, normally the DMA area, in 8.3 format
+ 13+  EE0E              dir:
+ 14+  EE0E ED 53 0B EE      ld (store_de), de
+ 15+  EE12 32 0D EE         ld (store_a), a
+ 16+  EE15
+ 17+  EE15 CD 3A ED         call disk_on
+ 18+  EE18
+ 19+  EE18 21 88 F4         ld hl, CPM_FOLDER_NAME                    ; Start at /CPM
+ 20+  EE1B CD 82 F3         call open_file
+ 21+  EE1E 21 95 F4         ld hl, CPM_DISKS_NAME                    ; Then DISKS
+ 22+  EE21 CD 82 F3         call open_file
+ 23+  EE24
+ 24+  EE24 21 EB FF         ld hl, filename_buffer
+ 25+  EE27 7E               ld a, (hl)
+ 26+  EE28 21 E9 FF         ld hl, DRIVE_NAME                       ; Move to "A" .. "P" for required disk
+ 27+  EE2B 77               ld (hl), a
+ 28+  EE2C 23               inc hl
+ 29+  EE2D 36 00            ld (hl), 0
+ 30+  EE2F 2B               dec hl
+ 31+  EE30 CD 82 F3         call open_file
+ 32+  EE33
+ 33+  EE33                  ; Now user number (if greater than 0)
+ 34+  EE33 3A 0D EE         ld a, (store_a)
+ 35+  EE36 FE 00            cp 0
+ 36+  EE38 28 0E            jr z, ignore_user
+ 37+  EE3A
+ 38+  EE3A CD DC F1         call convert_user_number_to_folder_name
+ 39+  EE3D 21 E9 FF         ld hl, DRIVE_NAME                   ; Move to "1" .. "F" for required user
+ 40+  EE40 77               ld (hl), a
+ 41+  EE41 23               inc hl
+ 42+  EE42 36 00            ld (hl), 0
+ 43+  EE44 2B               dec hl
+ 44+  EE45 CD 82 F3         call open_file
+ 45+  EE48
+ 46+  EE48              ignore_user:
+ 47+  EE48 21 86 F4         ld hl, STAR_DOT_STAR                    ; Specify search pattern "*"
+ 48+  EE4B CD 82 F3         call open_file
+ 49+  EE4E
+ 50+  EE4E                  ; Read a file if there is something to read
+ 51+  EE4E              dir_loop:
+ 52+  EE4E                  ; at this point DE is in store_de, containing address of dma-area
+ 53+  EE4E FE 1D            cp USB_INT_DISK_READ
+ 54+  EE50 28 2E            jr z, dir_loop_good
+ 55+  EE52
+ 56+  EE52 FE 42            cp ERR_MISS_FILE    ; This is what you normally get at the end of a dir listing
+ 57+  EE54 28 24            jr z, dir_no_file
+ 58+  EE56
+ 59+  EE56 FE A1            cp ERR_BPB_ERROR    ; This means a disk format error
+ 60+  EE58 20 20            jr nz, dir_no_file
+ 61+  EE5A
+ 62+  EE5A CD 69 ED         call message
+ 63+  EE5D 55 53 42 20      db 'USB Drive ERROR: FAT only!',13,10,0
+ 63+  EE61 44 72 69 76
+ 63+  EE65 65 20 45 52
+ 63+  EE69 52 4F 52 3A
+ 63+  EE6D 20 46 41 54
+ 63+  EE71 20 6F 6E 6C
+ 63+  EE75 79 21 0D 0A
+ 63+  EE79 00
+ 64+  EE7A              dir_no_file:
+ 65+  EE7A CD 33 ED         call disk_off
+ 66+  EE7D 3E FF            ld a, 255
+ 67+  EE7F C9               ret
+ 68+  EE80
+ 69+  EE80              dir_loop_good:
+ 70+  EE80                  ; at this point DE is on stack, containing address of dma-area
+ 71+  EE80 3E 27            ld a, RD_USB_DATA0
+ 72+  EE82 CD 32 F4         call send_command_byte
+ 73+  EE85 CD 3B F4         call read_data_byte                 ; Find out how many bytes there are to read
+ 74+  EE88
+ 75+  EE88 CD 41 F4         call read_data_bytes_into_buffer    ; read them into disk_buffer
+ 76+  EE8B FE 20            cp 32                               ; Did we read at least 32 bytes?
+ 77+  EE8D 30 03            jr nc, good_length
+ 78+  EE8F C3 12 EF         jp dir_next
+ 79+  EE92
+ 80+  EE92              good_length:
+ 81+  EE92                  ; at this point DE is in store_de, containing address of dma-area
+ 82+  EE92                  ; Get the attributes for this entry. $02 = system, $04 = hidden, $10 = directory
+ 83+  EE92 CD 33 ED         call disk_off
+ 84+  EE95 3A D0 FF         ld a, (disk_buffer+11)
+ 85+  EE98 E6 16            and $16                         ; Check for hidden or system files, or directories
+ 86+  EE9A CA A0 EE         jp z, it_is_not_system
+ 87+  EE9D C3 12 EF         jp dir_next                     ; and skip accordingly.
+ 88+  EEA0
+ 89+  EEA0              it_is_not_system:
+ 90+  EEA0                  ; Does it match the search pattern?
+ 91+  EEA0 06 0B            ld b, 11
+ 92+  EEA2 21 C5 FF         ld hl, disk_buffer
+ 93+  EEA5 11 ED FF         ld de, filename_buffer+2
+ 94+  EEA8              matching_loop:
+ 95+  EEA8                  ; If the filename_buffer has a '.' then skip over it
+ 96+  EEA8                  ; and move disk_buffer to start of extension
+ 97+  EEA8 1A               ld a, (de)
+ 98+  EEA9 FE 2E            cp '.'
+ 99+  EEAB 20 06            jr nz, matching_loop1
+100+  EEAD
+101+  EEAD 13               inc de
+102+  EEAE 21 CD FF         ld hl, disk_buffer+8
+103+  EEB1 06 03            ld b, 3
+104+  EEB3
+105+  EEB3              matching_loop1
+106+  EEB3 1A               ld a, (de)
+107+  EEB4 FE 3F            cp '?'
+108+  EEB6 28 05            jr z, matching_loop_good
+109+  EEB8 BE               cp (hl)
+110+  EEB9 28 02            jr z, matching_loop_good
+111+  EEBB 18 55            jr dir_next
+112+  EEBD
+113+  EEBD              matching_loop_good:
+114+  EEBD 13               inc de
+115+  EEBE 23               inc hl
+116+  EEBF 10 E7            djnz matching_loop
+117+  EEC1
+118+  EEC1                  ; Copy 11 byte filename + extension
+119+  EEC1 01 0B 00         ld bc, 11
+120+  EEC4 21 C5 FF         ld hl, disk_buffer
+121+  EEC7 ED 5B 0B EE      ld de, (store_de)
+122+  EECB
+123+  EECB                  ; The Usernumber goes into the first byte of the FCB
+124+  EECB 3A 0D EE         ld a, (store_a)
+125+  EECE E6 0F            and %00001111
+126+  EED0 12               ld (de), a                      ; Store user number in FCB result
+127+  EED1 13               inc de
+128+  EED2 ED B0            ldir                            ; Copy filename & extension
+129+  EED4
+130+  EED4                  ; Fill in a few more details. File size into normal place, plus random record info.
+131+  EED4                  ; The filesize is a 32 bit number in FAT_DIR_INFO at loc $1C, 1D, 1E and 1F.
+132+  EED4                  ; We want it in 128 byte sectors, so need to divide by 128.
+133+  EED4 21 E1 FF         ld hl, disk_buffer+$1C
+134+  EED7 5E               ld e, (hl)
+135+  EED8 23               inc hl
+136+  EED9 56               ld d, (hl)
+137+  EEDA 23               inc hl
+138+  EEDB 4E               ld c, (hl)
+139+  EEDC 23               inc hl
+140+  EEDD 46               ld b, (hl)                          ; BCDE has file size
+141+  EEDE EB               ex de, hl                           ; 32-bit filesize now in BCHL
+142+  EEDF
+143+  EEDF                  ; Divide by 128
+144+  EEDF CB 25            sla l                               ; Shift all left by 1 bit
+145+  EEE1 CB 14            rl h
+146+  EEE3 CB 11            rl c
+147+  EEE5 CB 10            rl b
+148+  EEE7
+149+  EEE7 6C               ld l, h
+150+  EEE8 61               ld h, c
+151+  EEE9 48               ld c, b
+152+  EEEA 06 00            ld b, 0                             ; We've shifted right 8 bits, so effectively divided by 128!
+153+  EEEC
+154+  EEEC ED 5B 0B EE      ld de, (store_de)
+155+  EEF0
+156+  EEF0 C5               push bc                             ; Store the size that is in bchl
+157+  EEF1 E5               push hl
+158+  EEF2 CD 8C F1         call set_random_pointer_in_fcb      ; store hl in FCB random pointer (bc is thrown away!)
+159+  EEF5 E1               pop hl
+160+  EEF6 C1               pop bc                              ; restore bchl
+161+  EEF7
+162+  EEF7 EB               ex de, hl                           ; hl = fcb, bcde = filesize
+163+  EEF8 2A 0B EE         ld hl, (store_de)
+164+  EEFB CD 9B F1         call set_file_size_in_fcb
+165+  EEFE
+166+  EEFE                  ; Clear all 16 disk allocation bytes. TODO: Actually, fill with sensible values
+167+  EEFE ED 5B 0B EE      ld de, (store_de)
+168+  EF02 21 10 00         ld hl, 16
+169+  EF05 19               add hl, de
+170+  EF06 EB               ex de, hl
+171+  EF07 06 14            ld b, 16+4
+172+  EF09 3E 00            ld a, 0
+173+  EF0B              clear_allocation_loop:
+174+  EF0B 12               ld (de), a
+175+  EF0C 13               inc de
+176+  EF0D 10 FC            djnz clear_allocation_loop
+177+  EF0F              good_length1:
+178+  EF0F 3E 00            ld a, 0                                 ; 0 = success
+179+  EF11 C9               ret
+180+  EF12
+181+  EF12              dir_next:
+182+  EF12 3E 33            ld a, FILE_ENUM_GO                      ; Go to next entry in the directory
+183+  EF14 CD 32 F4         call send_command_byte
+184+  EF17 CD 77 F4         call read_status_byte
+185+  EF1A C3 4E EE         jp dir_loop
+186+  EF1D
+187+  EF1D              ;-----------------------------------------
+188+  EF1D              ; Load bin File
+189+  EF1D              ; The filename needs to be in the filename buffer.
+190+  EF1D              ; The file must be in the /CPM folder.
+191+  EF1D              ; DE points to the location to load it into.
+192+  EF1D              ; The file is loaded into the workspace.
+193+  EF1D              ; There is no check whether the file is too big!!!!
+194+  EF1D              ; Returns zero flag set if success, zero flag cleared on file-not-found.
+195+  EF1D
+196+  EF1D              load_bin_file:
+197+  EF1D D5               push de                             ; Store target location for later
+198+  EF1E CD 3A ED         call disk_on
+199+  EF21 CD A8 F2         call connect_to_disk
+200+  EF24 CD D7 F2         call mount_disk
+201+  EF27
+202+  EF27 21 88 F4         ld hl, CPM_FOLDER_NAME              ; Start at /CPM
+203+  EF2A CD 82 F3         call open_file
+204+  EF2D
+205+  EF2D 21 EB FF         ld hl, filename_buffer              ; Specify filename
+206+  EF30 CD 82 F3         call open_file
+207+  EF33
+208+  EF33 28 2B            jr z, load_file_found
+209+  EF35 CD 33 ED         call disk_off
+210+  EF38 CD 69 ED         call message
+211+  EF3B 46 69 6C 65      db 'File not found ',0
+211+  EF3F 20 6E 6F 74
+211+  EF43 20 66 6F 75
+211+  EF47 6E 64 20 00
+212+  EF4B 21 EB FF         ld hl, filename_buffer
+213+  EF4E              load_file1:
+214+  EF4E 7E               ld a, (hl)
+215+  EF4F FE 00            cp 0
+216+  EF51 28 06            jr z, load_file2
+217+  EF53 CD C1 EC         call print_a
+218+  EF56 23               inc hl
+219+  EF57 18 F5            jr load_file1
+220+  EF59              load_file2:
+221+  EF59 CD EE EC         call newline
+222+  EF5C D1               pop de                              ; Keep stack clear!
+223+  EF5D F6 01            or 1                                ; Clear zero flag for failure
+224+  EF5F C9               ret
+225+  EF60              load_file_found:
+226+  EF60 CD 33 ED         call disk_off
+227+  EF63 3E 3A            ld a, BYTE_READ
+228+  EF65 CD 32 F4         call send_command_byte
+229+  EF68 3E FF            ld a, 255                           ; Request all of the file
+230+  EF6A CD 16 F4         call send_data_byte
+231+  EF6D 3E FF            ld a, 255                           ; Yes, all!
+232+  EF6F CD 16 F4         call send_data_byte
+233+  EF72
+234+  EF72 3E 22            ld a, GET_STATUS
+235+  EF74 CD 32 F4         call send_command_byte
+236+  EF77 CD 3B F4         call read_data_byte
+237+  EF7A E1               pop hl                              ; Get back the target address
+238+  EF7B              load_loop1:
+239+  EF7B FE 1D            cp USB_INT_DISK_READ
+240+  EF7D 20 25            jr nz, load_finished
+241+  EF7F
+242+  EF7F E5               push hl
+243+  EF80 CD 3A ED         call disk_on
+244+  EF83 3E 27            ld a, RD_USB_DATA0
+245+  EF85 CD 32 F4         call send_command_byte
+246+  EF88 CD 3B F4         call read_data_byte
+247+  EF8B E1               pop hl
+248+  EF8C CD 44 F4         call read_data_bytes_into_hl        ; Read this block of data
+249+  EF8F E5               push hl
+250+  EF90 CD 33 ED         call disk_off
+251+  EF93 3E 3B            ld a, BYTE_RD_GO
+252+  EF95 CD 32 F4         call send_command_byte
+253+  EF98 3E 22            ld a, GET_STATUS
+254+  EF9A CD 32 F4         call send_command_byte
+255+  EF9D CD 3B F4         call read_data_byte
+256+  EFA0 E1               pop hl
+257+  EFA1 C3 7B EF         jp load_loop1
+258+  EFA4              load_finished:
+259+  EFA4 E5               push hl
+260+  EFA5 CD 95 F3         call close_file
+261+  EFA8 E1               pop hl
+262+  EFA9 BF               cp a                                ; set zero flag for success
+263+  EFAA C9               ret
+264+  EFAB
+265+  EFAB              ; ---------------------------------
+266+  EFAB              ; Directory info read.
+267+  EFAB              ; Reads a directory entry (of the currently open file) into disk_buffer
+268+  EFAB              ; Returns ZERO FLAG = set if ok
+269+  EFAB              dir_info_read:
+270+  EFAB 3E 37            ld a, DIR_INFO_READ
+271+  EFAD CD 32 F4         call send_command_byte
+272+  EFB0 3E FF            ld a, $FF                           ; Current open file
+273+  EFB2 CD 16 F4         call send_data_byte
+274+  EFB5
+275+  EFB5 CD 77 F4         call read_status_byte
+276+  EFB8 FE 14            cp USB_INT_SUCCESS
+277+  EFBA C0               ret nz
+278+  EFBB
+279+  EFBB 3E 27            ld a, RD_USB_DATA0
+280+  EFBD CD 32 F4         call send_command_byte
+281+  EFC0 CD 3B F4         call read_data_byte                 ; Find out how many bytes there are to read
+282+  EFC3
+283+  EFC3 CD 41 F4         call read_data_bytes_into_buffer
+284+  EFC6 FE 20            cp $20                              ; Must have read 32 bytes
+285+  EFC8 C0               ret nz                              ; or else it is an error
+286+  EFC9              ;     call message
+287+  EFC9              ;     db 'Read this many bytes: ',0
+288+  EFC9              ;     call show_a_as_hex
+289+  EFC9              ;     call newline
+290+  EFC9
+291+  EFC9              ;     ld b, $20
+292+  EFC9              ;     ld hl, disk_buffer
+293+  EFC9              ; dir_info_read1:
+294+  EFC9              ;     ld a, (hl)
+295+  EFC9              ;     push hl
+296+  EFC9              ;     push bc
+297+  EFC9              ;     call show_a_as_hex
+298+  EFC9              ;     ld a, ','
+299+  EFC9              ;     call print_a
+300+  EFC9              ;     pop bc
+301+  EFC9              ;     pop hl
+302+  EFC9              ;     inc hl
+303+  EFC9              ;     djnz dir_info_read1
+304+  EFC9              ;     call newline
+305+  EFC9
+306+  EFC9 BF               cp a                                ; set zero flag for success
+307+  EFCA C9               ret
+308+  EFCB
+309+  EFCB              ; DIR_INFO_WRITE
+310+  EFCB              ; writes a dir_info block from disk_buffer to the USB drive
+311+  EFCB              ; for the currently open file
+312+  EFCB              dir_info_write:
+313+  EFCB 3E 37            ld a, DIR_INFO_READ
+314+  EFCD CD 32 F4         call send_command_byte
+315+  EFD0 3E FF            ld a, $FF                           ; Current open file
+316+  EFD2 CD 16 F4         call send_data_byte
+317+  EFD5
+318+  EFD5 CD 77 F4         call read_status_byte
+319+  EFD8                  ;call report_on_status
+320+  EFD8 FE 14            cp USB_INT_SUCCESS
+321+  EFDA 20 28            jr nz, dir_info_write2
+322+  EFDC
+323+  EFDC 3E 2E            ld a, WR_OFS_DATA
+324+  EFDE CD 32 F4         call send_command_byte
+325+  EFE1 3E 00            ld a, 0
+326+  EFE3 CD 16 F4         call send_data_byte
+327+  EFE6 3E 20            ld a, $20
+328+  EFE8 CD 16 F4         call send_data_byte
+329+  EFEB 06 20            ld b, $20
+330+  EFED 21 C5 FF         ld hl, disk_buffer
+331+  EFF0              dir_info_write1:
+332+  EFF0 7E               ld a, (hl)
+333+  EFF1 E5               push hl
+334+  EFF2 C5               push bc
+335+  EFF3 CD 16 F4         call send_data_byte
+336+  EFF6 C1               pop bc
+337+  EFF7 E1               pop hl
+338+  EFF8 23               inc hl
+339+  EFF9 10 F5            djnz dir_info_write1
+340+  EFFB
+341+  EFFB 3E 38            ld a, DIR_INFO_SAVE
+342+  EFFD CD 32 F4         call send_command_byte
+343+  F000 CD 3B F4         call read_data_byte
+344+  F003                  ;call report_on_status
+345+  F003 C9               ret
+346+  F004
+347+  F004              dir_info_write2:
+348+  F004 C9               ret
+349+  F005
+350+  F005              ;----------------------------------
+351+  F005              ; WRITE TO FILE
+352+  F005
+353+  F005              write_to_file:
+354+  F005                  ; writes 128 bytes from current location pointed to by DE, to the open file
+355+  F005 D5               push de
+356+  F006 3E 3C            ld a, BYTE_WRITE
+357+  F008 CD 32 F4         call send_command_byte
+358+  F00B
+359+  F00B                  ; Send number of bytes we are about to write, as 16 bit number, low first
+360+  F00B 3E 80            ld a, 128
+361+  F00D CD 16 F4         call send_data_byte
+362+  F010 3E 00            ld a, 0
+363+  F012 CD 16 F4         call send_data_byte
+364+  F015
+365+  F015 E1               pop hl                              ; hl -> the data
+366+  F016
+367+  F016              write_loop
+368+  F016 CD 77 F4         call read_status_byte
+369+  F019 FE 1E            cp USB_INT_DISK_WRITE
+370+  F01B 20 24            jr nz, write_finished
+371+  F01D
+372+  F01D E5               push hl
+373+  F01E                  ; Ask if we can send some bytes
+374+  F01E 3E 2D            ld a, WR_REQ_DATA
+375+  F020 CD 32 F4         call send_command_byte
+376+  F023 CD 3B F4         call read_data_byte
+377+  F026 E1               pop hl
+378+  F027 FE 00            cp 0
+379+  F029 28 16            jr z, write_finished
+380+  F02B
+381+  F02B                  ; push hl
+382+  F02B                  ; push af
+383+  F02B                  ; call message
+384+  F02B                  ; db 'Bytes to send: ',0
+385+  F02B                  ; pop af
+386+  F02B                  ; push af
+387+  F02B                  ; call show_a_as_hex
+388+  F02B                  ; call newline
+389+  F02B                  ; pop af
+390+  F02B                  ; pop hl
+391+  F02B
+392+  F02B 47               ld b, a
+393+  F02C              block_loop:
+394+  F02C 7E               ld a, (hl)
+395+  F02D E5               push hl
+396+  F02E C5               push bc
+397+  F02F CD 16 F4         call send_data_byte
+398+  F032 C1               pop bc
+399+  F033 E1               pop hl
+400+  F034 23               inc hl
+401+  F035 10 F5            djnz block_loop
+402+  F037
+403+  F037 E5               push hl
+404+  F038 3E 3D            ld a, BYTE_WR_GO
+405+  F03A CD 32 F4         call send_command_byte
+406+  F03D E1               pop hl
+407+  F03E C3 16 F0         jp write_loop
+408+  F041
+409+  F041              write_finished:
+410+  F041 C9               ret
+411+  F042
+412+  F042
+413+  F042              ;-------------------------------------------
+414+  F042              ; ERASE FILE
+415+  F042
+416+  F042              erase_file:
+417+  F042 3E 2F            ld a, SET_FILE_NAME
+418+  F044 CD 32 F4         call send_command_byte
+419+  F047 21 EB FF         ld hl, filename_buffer
+420+  F04A CD 1C F4         call send_data_string
+421+  F04D 3E 35            ld a, FILE_ERASE
+422+  F04F CD 32 F4         call send_command_byte
+423+  F052 CD 77 F4         call read_status_byte
+424+  F055 C9               ret
+425+  F056
+426+  F056              show_filename_buffer:
+427+  F056 21 EB FF         ld hl, filename_buffer
+428+  F059 06 14            ld b, 20
+429+  F05B              show_filename_buffer1:
+430+  F05B 7E               ld a, (hl)
+431+  F05C FE 20            cp 32
+432+  F05E 38 0A            jr c, control_char
+433+  F060              show_filename_buffer2
+434+  F060 CD C1 EC         call print_a
+435+  F063 23               inc hl
+436+  F064 10 F5            djnz show_filename_buffer1
+437+  F066 CD EE EC         call newline
+438+  F069 C9               ret
+439+  F06A
+440+  F06A              control_char:
+441+  F06A C6 40            add a, 64
+442+  F06C 4F               ld c, a
+443+  F06D 3E 5E            ld a, '^'
+444+  F06F CD C1 EC         call print_a
+445+  F072 79               ld a, c
+446+  F073 18 EB            jr show_filename_buffer2
+447+  F075
+448+  F075              check_tbasic_structure:
+449+  F075                  ; Check that there is a /TBASIC folder
+450+  F075                  ; and if not, make it!
+451+  F075 CD 69 ED         call message
+452+  F078 43 68 65 63      db 'Checking /TBASIC',13,10,0
+452+  F07C 6B 69 6E 67
+452+  F080 20 2F 54 42
+452+  F084 41 53 49 43
+452+  F088 0D 0A 00
+453+  F08B
+454+  F08B 21 8D F4         ld hl, TINY_BASIC_FOLDER_NAME
+455+  F08E CD 0A F4         call copy_filename_to_buffer
+456+  F091 21 EB FF         ld hl, filename_buffer
+457+  F094 CD 82 F3         call open_file
+458+  F097 FE 41            cp YES_OPEN_DIR                     ; This is NOT an error, it is a badly named success code!!!!!!
+459+  F099 C8               ret z                               ; If found, job done.
+460+  F09A CD A3 F3         call create_directory
+461+  F09D C8               ret z                               ; If created ok, job done.
+462+  F09E CD 69 ED         call message
+463+  F0A1 45 52 52 4F      db 'ERROR creating Tiny Basic folder!',13,10,0
+463+  F0A5 52 20 63 72
+463+  F0A9 65 61 74 69
+463+  F0AD 6E 67 20 54
+463+  F0B1 69 6E 79 20
+463+  F0B5 42 61 73 69
+463+  F0B9 63 20 66 6F
+463+  F0BD 6C 64 65 72
+463+  F0C1 21 0D 0A 00
+464+  F0C5 C9               ret
+465+  F0C6
+466+  F0C6              check_cpmdisks_structure:
+467+  F0C6                  ; Check that we have a disk structure like this:
+468+  F0C6                  ; /CPMDISKS
+469+  F0C6                  ;          /A
+470+  F0C6                  ;          /B
+471+  F0C6                  ;          /C
+472+  F0C6                  ;          :
+473+  F0C6                  ;          /P
+474+  F0C6
+475+  F0C6                  ; Loop over A..P
+476+  F0C6 06 10            ld b, 16
+477+  F0C8              check_cpmdisk_loop:
+478+  F0C8 C5               push bc
+479+  F0C9                  ; Go to /CPM
+480+  F0C9 CD 69 ED         call message
+481+  F0CC 43 68 65 63      db 'Checking /CPM',13,10,0
+481+  F0D0 6B 69 6E 67
+481+  F0D4 20 2F 43 50
+481+  F0D8 4D 0D 0A 00
+482+  F0DC
+483+  F0DC 21 88 F4         ld hl, CPM_FOLDER_NAME
+484+  F0DF CD 0A F4         call copy_filename_to_buffer
+485+  F0E2 21 EB FF         ld hl, filename_buffer
+486+  F0E5 CD 82 F3         call open_file
+487+  F0E8 FE 41            cp YES_OPEN_DIR                     ; This is NOT an error, it is a badly named success code!!!!!!
+488+  F0EA 20 42            jr nz, check_cpmdisks_structure2
+489+  F0EC
+490+  F0EC CD 69 ED         call message
+491+  F0EF 43 68 65 63      db 'Checking /CPM/DISKS',13,10,0
+491+  F0F3 6B 69 6E 67
+491+  F0F7 20 2F 43 50
+491+  F0FB 4D 2F 44 49
+491+  F0FF 53 4B 53 0D
+491+  F103 0A 00
+492+  F105 21 95 F4         ld hl, CPM_DISKS_NAME
+493+  F108 CD 0A F4         call copy_filename_to_buffer
+494+  F10B 21 EB FF         ld hl, filename_buffer
+495+  F10E CD 82 F3         call open_file
+496+  F111 FE 41            cp YES_OPEN_DIR                     ; This is NOT an error, it is a badly named success code!!!!!!
+497+  F113 20 19            jr nz, check_cpmdisks_structure2
+498+  F115
+499+  F115 C1               pop bc
+500+  F116 C5               push bc
+501+  F117 78               ld a, b
+502+  F118 C6 40            add a, 'A'-1
+503+  F11A 32 EB FF         ld (filename_buffer), a
+504+  F11D 3E 00            ld a, 0
+505+  F11F 32 EC FF         ld (filename_buffer+1),a
+506+  F122 21 EB FF         ld hl, filename_buffer
+507+  F125 CD 82 F3         call open_file
+508+  F128 FE 41            cp YES_OPEN_DIR                     ; This is NOT an error, it is a badly named success code!!!!!!
+509+  F12A 20 0B            jr nz, check_cpmdisks_structure3
+510+  F12C
+511+  F12C C1               pop bc                              ; Let's say if we find disk "P" then they are all there!!!
+512+  F12D                  ;djnz check_cpmdisk_loop
+513+  F12D
+514+  F12D C9               ret
+515+  F12E
+516+  F12E              check_cpmdisks_structure2:
+517+  F12E C1               pop bc
+518+  F12F                  ; Try to create the missing folder
+519+  F12F                  ;ld hl, CPMDISKS_NAME
+520+  F12F                  ;call copy_filename_to_buffer
+521+  F12F CD A3 F3         call create_directory
+522+  F132 20 0D            jr nz, check_cpmdisks_structure_fail
+523+  F134
+524+  F134                  ; Start all over again
+525+  F134 C3 C6 F0         jp check_cpmdisks_structure
+526+  F137
+527+  F137              check_cpmdisks_structure3:
+528+  F137 CD A3 F3         call create_directory
+529+  F13A 20 04            jr nz, check_cpmdisks_subdir_fail
+530+  F13C C1               pop bc                                          ; All good, so do the next subdir
+531+  F13D C3 C8 F0         jp check_cpmdisk_loop
+532+  F140
+533+  F140              check_cpmdisks_subdir_fail:
+534+  F140 C1               pop bc
+535+  F141                  ; Continue through to the next bit...
+536+  F141              check_cpmdisks_structure_fail:
+537+  F141 CD 69 ED         call message
+538+  F144 45 52 52 4F      db 'ERROR creating CP/M disks!',13,10,0
+538+  F148 52 20 63 72
+538+  F14C 65 61 74 69
+538+  F150 6E 67 20 43
+538+  F154 50 2F 4D 20
+538+  F158 64 69 73 6B
+538+  F15C 73 21 0D 0A
+538+  F160 00
+539+  F161 C9               ret
+540+  F162
+541+  F162              move_to_file_pointer:
+542+  F162                  ; Set the BYTE_LOCATE file position in the currently open file.
+543+  F162                  ; Value is passed in bcde.
+544+  F162 C5               push bc
+545+  F163 D5               push de
+546+  F164 3E 39            ld a, BYTE_LOCATE
+547+  F166 CD 32 F4         call send_command_byte
+548+  F169 D1               pop de
+549+  F16A D5               push de
+550+  F16B 7B               ld a, e
+551+  F16C CD 16 F4         call send_data_byte
+552+  F16F D1               pop de
+553+  F170 7A               ld a, d
+554+  F171 CD 16 F4         call send_data_byte
+555+  F174 C1               pop bc
+556+  F175 C5               push bc
+557+  F176 79               ld a, c
+558+  F177 CD 16 F4         call send_data_byte
+559+  F17A C1               pop bc
+560+  F17B 78               ld a, b
+561+  F17C CD 16 F4         call send_data_byte
+562+  F17F CD 77 F4         call read_status_byte
+563+  F182 FE 14            cp USB_INT_SUCCESS
+564+  F184 20 03            jr nz, move_to_file_pointer_fail        ; We expect USB_INT_SUCCESS here
+565+  F186
+566+  F186 3E 14            ld a, USB_INT_SUCCESS                   ; Return success
+567+  F188 C9               ret
+568+  F189              move_to_file_pointer_fail:
+569+  F189 3E 1F            ld a, USB_INT_DISK_ERR                  ; Return fail
+570+  F18B C9               ret
+571+  F18C
+572+  F18C              set_random_pointer_in_fcb:
+573+  F18C                  ; pass in de -> fcb
+574+  F18C                  ; Pass hl = random pointer value
+575+  F18C                  ; Random pointer goes to fcb + 33 & 34. fcb + 35 gets 0.
+576+  F18C                  ; preserve de
+577+  F18C D5               push de
+578+  F18D EB               ex de, hl
+579+  F18E 01 21 00         ld bc, 33
+580+  F191 09               add hl, bc
+581+  F192 73               ld (hl), e
+582+  F193 23               inc hl
+583+  F194 72               ld (hl), d
+584+  F195 23               inc hl
+585+  F196 36 00            ld (hl), 0
+586+  F198 EB               ex de, hl
+587+  F199 D1               pop de
+588+  F19A C9               ret
+589+  F19B
+590+  F19B              set_file_size_in_fcb:
+591+  F19B                  ; Pass HL -> FCB (Note that this is an unusual way to pass it in)
+592+  F19B                  ; Pass file pointer (in 128-byte records) in bcde.
+593+  F19B                  ; Preserves hl
+594+  F19B
+595+  F19B                  ; The following details are from http://www.primrosebank.net/computers/cpm/cpm_software_mfs.htm
+596+  F19B                  ; RC = record counter, goes from 0 to $80. $80 means full, and represents 128*128=16K.
+597+  F19B                  ; EX = 0 for files < 16K, otherwise 1 - 31 for Extents of 16K each.
+598+  F19B                  ; S2 = high byte for the EXc ounter, so if EX wants to be bigger than 31, overflow it into here.
+599+  F19B
+600+  F19B                  ; Split bcde into S2, EX & RC.
+601+  F19B                  ; To do this:
+602+  F19B                  ; RC = e & %0111 1111               (i.e. a number 0..127)
+603+  F19B                  ; Divide bcde by 128                (Shift right 7 bits, or shift left 1 bit then right 8)
+604+  F19B                  ; EX = e & %0001 1111               (i.e. it has a max of 31)
+605+  F19B                  ; Shift left 3 places
+606+  F19B                  ; S2 = d
+607+  F19B
+608+  F19B                  ; RC = e & %0111 1111
+609+  F19B E5               push hl
+610+  F19C 7B               ld a, e
+611+  F19D E6 7F            and %01111111                       ; RC is in A
+612+  F19F
+613+  F19F CB 23            sla e                               ; Shift all left by 1 bit
+614+  F1A1 CB 12            rl d
+615+  F1A3 CB 11            rl c
+616+  F1A5 CB 10            rl b
+617+  F1A7
+618+  F1A7 5A               ld e, d                             ; Shift all right by 8 bits
+619+  F1A8 51               ld d, c
+620+  F1A9 48               ld c, b
+621+  F1AA 06 00            ld b, 0                             ; We've effectively shifted right by 7 bits
+622+  F1AC
+623+  F1AC 01 0F 00         ld bc, 15                           ; ex is as FCB+12, s2 is at FCB+14, rc is at FCB + 15
+624+  F1AF 09               add hl, bc                          ; hl -> FCB.RC
+625+  F1B0 77               ld (hl), a                          ; RC is now stored in FCB
+626+  F1B1
+627+  F1B1 2B               dec hl
+628+  F1B2 2B               dec hl
+629+  F1B3 2B               dec hl                              ; hl -> FCB.EX
+630+  F1B4 7B               ld a, e
+631+  F1B5 E6 1F            and %00011111                       ; EX is in A
+632+  F1B7 77               ld (hl), a
+633+  F1B8
+634+  F1B8 CB 23            sla e                               ; Shift all left by 1 bit
+635+  F1BA CB 12            rl d
+636+  F1BC CB 11            rl c
+637+  F1BE CB 10            rl b
+638+  F1C0 CB 23            sla e                               ; Shift all left by 1 bit
+639+  F1C2 CB 12            rl d
+640+  F1C4 CB 11            rl c
+641+  F1C6 CB 10            rl b
+642+  F1C8 CB 23            sla e                               ; Shift all left by 1 bit
+643+  F1CA CB 12            rl d
+644+  F1CC CB 11            rl c
+645+  F1CE CB 10            rl b
+646+  F1D0
+647+  F1D0 23               inc hl
+648+  F1D1 3E 00            ld a, 0
+649+  F1D3 36 00            ld (hl), 0                          ; Blank out the mystery byte called "unused"
+650+  F1D5 23               inc hl                              ; hl -> FCB.S2
+651+  F1D6
+652+  F1D6 7A               ld a, d
+653+  F1D7 E6 1F            and %00011111                       ; S2 is in A
+654+  F1D9 77               ld (hl), a
+655+  F1DA
+656+  F1DA E1               pop hl
+657+  F1DB C9               ret
+658+  F1DC
+659+  F1DC              convert_user_number_to_folder_name:
+660+  F1DC                  ; Pass in 1 to 15 in A.
+661+  F1DC                  ; This returns "1" to "F"
+662+  F1DC E6 0F            and %00001111
+663+  F1DE C6 30            add a, '0'                             ; Convert 1-9 => "1".."9"
+664+  F1E0 FE 3A            cp ':'
+665+  F1E2 D8               ret c
+666+  F1E3 C6 07            add a, 7
+667+  F1E5 C9               ret
+668+  F1E6
+669+  F1E6                  include "memorystick_low_level.asm"
 # file opened: memorystick_low_level.asm
-  1++ FBEC              ; memorystick_low_level.asm
-  2++ FBEC              ;--------------------;
-  3++ FBEC              ; LOW LEVEL ROUTINES ;
-  4++ FBEC              ;--------------------;
-  5++ FBEC
-  6++ FBEC              configure_memorystick:
-  7++ FBEC 06 05            ld b, 5                                 ; Have 5 attempts at configuring the module before giving up
-  8++ FBEE              configure_memorystick1:
-  9++ FBEE C5               push bc
- 10++ FBEF CD 6A FD         call connect_to_usb_drive
- 11++ FBF2 20 08            jr nz, failed_to_setup
- 12++ FBF4 CD AE FC         call connect_to_disk
- 13++ FBF7 CD DD FC         call mount_disk
- 14++ FBFA C1               pop bc
- 15++ FBFB C9               ret
- 16++ FBFC              failed_to_setup:
- 17++ FBFC CD 1F F7         call long_pause
- 18++ FBFF CD 1F F7         call long_pause
- 19++ FC02 CD 1F F7         call long_pause
- 20++ FC05 CD 1F F7         call long_pause
- 21++ FC08 C1               pop bc
- 22++ FC09 10 E3            djnz configure_memorystick1
- 23++ FC0B CD 6F F7         call message
- 24++ FC0E 43 48 33 37      db 'CH376S error.',13,10,0
- 24++ FC12 36 53 20 65
- 24++ FC16 72 72 6F 72
- 24++ FC1A 2E 0D 0A 00
- 25++ FC1E C9               ret
- 26++ FC1F
- 27++ FC1F              ;----------------------------------------------------------------
- 28++ FC1F              ; Call this once at startup
- 29++ FC1F              reset_ch376_module:
- 30++ FC1F 3E 05            ld a, RESET_ALL
- 31++ FC21 CD 38 FE         call send_command_byte
- 32++ FC24 CD 1F F7         call long_pause
- 33++ FC27 CD 1F F7         call long_pause
- 34++ FC2A C9               ret
- 35++ FC2B
- 36++ FC2B              ;-----------------------------------------------------------------
- 37++ FC2B              check_module_exists:
- 38++ FC2B 3E 06            ld a, CHECK_EXIST
- 39++ FC2D CD 38 FE         call send_command_byte
- 40++ FC30
- 41++ FC30 3E 7B            ld a, 123               ; We send an arbitrary number
- 42++ FC32 CD 1C FE         call send_data_byte
- 43++ FC35
- 44++ FC35 CD 41 FE         call read_data_byte
- 45++ FC38
- 46++ FC38 FE 84            cp 255-123      ; The result is 255 minus what we sent in
- 47++ FC3A C8               ret z
- 48++ FC3B CD 6F F7         call message
- 49++ FC3E 45 52 52 4F      db 'ERROR: CH376S module not found.',13,10,0
- 49++ FC42 52 3A 20 43
- 49++ FC46 48 33 37 36
- 49++ FC4A 53 20 6D 6F
- 49++ FC4E 64 75 6C 65
- 49++ FC52 20 6E 6F 74
- 49++ FC56 20 66 6F 75
- 49++ FC5A 6E 64 2E 0D
- 49++ FC5E 0A 00
- 50++ FC60 C9               ret
- 51++ FC61
- 52++ FC61              ;-----------------------------------------------------------------
- 53++ FC61              get_module_version:
- 54++ FC61 3E 01            ld a, GET_IC_VER
- 55++ FC63 CD 38 FE         call send_command_byte
- 56++ FC66
- 57++ FC66 CD 41 FE         call read_data_byte
- 58++ FC69 E6 1F            and %00011111
- 59++ FC6B
- 60++ FC6B CD 6F F7         call message
- 61++ FC6E 46 6F 75 6E      db 'Found CH376S v',0 ; Mine is v3!!!
- 61++ FC72 64 20 43 48
- 61++ FC76 33 37 36 53
- 61++ FC7A 20 76 00
- 62++ FC7D CD 8D F7         call show_a_as_hex
- 63++ FC80 CD F4 F6         call newline
- 64++ FC83 C9               ret
- 65++ FC84
- 66++ FC84              ;-----------------------------------------------------------------
- 67++ FC84              set_usb_host_mode:
- 68++ FC84 3E 15            ld a, SET_USB_MODE
- 69++ FC86 CD 38 FE         call send_command_byte
- 70++ FC89 3E 06            ld a, 6
- 71++ FC8B CD 1C FE         call send_data_byte
- 72++ FC8E CD 7D FE         call read_status_byte
- 73++ FC91 FE 15            cp USB_INT_CONNECT
- 74++ FC93 C8               ret z
- 75++ FC94 CD 6F F7         call message
- 76++ FC97 45 52 52 4F      db 'ERROR: No USB Disk?',13,10,0
- 76++ FC9B 52 3A 20 4E
- 76++ FC9F 6F 20 55 53
- 76++ FCA3 42 20 44 69
- 76++ FCA7 73 6B 3F 0D
- 76++ FCAB 0A 00
- 77++ FCAD C9               ret
- 78++ FCAE
- 79++ FCAE              ;-----------------------------------------------------------------
- 80++ FCAE              connect_to_disk:
- 81++ FCAE 3E 30            ld a, DISK_CONNECT
- 82++ FCB0 CD 38 FE         call send_command_byte
- 83++ FCB3 3E 22            ld a, GET_STATUS
- 84++ FCB5 CD 7D FE         call read_status_byte
- 85++ FCB8 C8               ret z
- 86++ FCB9 CD 6F F7         call message
- 87++ FCBC 45 52 52 4F      db 'ERROR connecting to USB Disk.',13,10,0
- 87++ FCC0 52 20 63 6F
- 87++ FCC4 6E 6E 65 63
- 87++ FCC8 74 69 6E 67
- 87++ FCCC 20 74 6F 20
- 87++ FCD0 55 53 42 20
- 87++ FCD4 44 69 73 6B
- 87++ FCD8 2E 0D 0A 00
- 88++ FCDC C9               ret
- 89++ FCDD
- 90++ FCDD              ;-----------------------------------------------------------------
- 91++ FCDD              mount_disk:
- 92++ FCDD 3E 31            ld a, DISK_MOUNT
- 93++ FCDF CD 38 FE         call send_command_byte
- 94++ FCE2 3E 22            ld a, GET_STATUS
- 95++ FCE4 CD 7D FE         call read_status_byte
- 96++ FCE7 C8               ret z
- 97++ FCE8 CD 6F F7         call message
- 98++ FCEB 45 52 52 4F      db 'ERROR mounting USB Disk.',13,10,0
- 98++ FCEF 52 20 6D 6F
- 98++ FCF3 75 6E 74 69
- 98++ FCF7 6E 67 20 55
- 98++ FCFB 53 42 20 44
- 98++ FCFF 69 73 6B 2E
- 98++ FD03 0D 0A 00
- 99++ FD06 C9               ret
-100++ FD07
-101++ FD07              ;-----------------------------------------------------------------
-102++ FD07              read_disk_signature:
-103++ FD07 3E 27            ld a, RD_USB_DATA0
-104++ FD09 CD 38 FE         call send_command_byte
-105++ FD0C CD 41 FE         call read_data_byte                 ; A = length of bytes to now read
-106++ FD0F FE 24            cp 36
-107++ FD11 20 39            jr nz, could_not_read_disk_sig
-108++ FD13
-109++ FD13                  ; Ignore the first 8 bytes
-110++ FD13 06 08            ld b, 8
-111++ FD15              read_disk_signature1:
-112++ FD15 C5               push bc
-113++ FD16 CD 44 FE         call read_data_byte_silent
-114++ FD19 C1               pop bc
-115++ FD1A 10 F9            djnz read_disk_signature1
-116++ FD1C
-117++ FD1C                  ; Display the next 8 bytes (Manufacturer)
-118++ FD1C 06 08            ld b, 8
-119++ FD1E              read_disk_signature2:
-120++ FD1E C5               push bc
-121++ FD1F CD 44 FE         call read_data_byte_silent
-122++ FD22 CD BE F6         call print_a
-123++ FD25 C1               pop bc
-124++ FD26 10 F6            djnz read_disk_signature2
-125++ FD28 CD F4 F6         call newline
-126++ FD2B
-127++ FD2B                  ; Display the next 16 bytes (Model)
-128++ FD2B 06 10            ld b, 16
-129++ FD2D              read_disk_signature3:
-130++ FD2D C5               push bc
-131++ FD2E CD 44 FE         call read_data_byte_silent
-132++ FD31 CD BE F6         call print_a
-133++ FD34 C1               pop bc
-134++ FD35 10 F6            djnz read_disk_signature3
-135++ FD37
-136++ FD37 3E 20            ld a, ' '
-137++ FD39 CD BE F6         call print_a
-138++ FD3C
-139++ FD3C                  ; Display the next 4 bytes (Version)
-140++ FD3C 06 04            ld b, 4
-141++ FD3E              read_disk_signature4:
-142++ FD3E C5               push bc
-143++ FD3F CD 44 FE         call read_data_byte_silent
-144++ FD42 CD BE F6         call print_a
-145++ FD45 C1               pop bc
-146++ FD46 10 F6            djnz read_disk_signature4
-147++ FD48 CD F4 F6         call newline
-148++ FD4B C9               ret
-149++ FD4C
-150++ FD4C              could_not_read_disk_sig:
-151++ FD4C CD 6F F7         call message
-152++ FD4F 45 52 52 4F      db 'ERROR reading disk sig.',13,10,0
-152++ FD53 52 20 72 65
-152++ FD57 61 64 69 6E
-152++ FD5B 67 20 64 69
-152++ FD5F 73 6B 20 73
-152++ FD63 69 67 2E 0D
-152++ FD67 0A 00
-153++ FD69 C9               ret
-154++ FD6A
-155++ FD6A              connect_to_usb_drive:
-156++ FD6A                  ; Connects us up to the USB Drive.
-157++ FD6A                  ; Returns Zero flag = true if we can connect ok.
-158++ FD6A CD 1F FC         call reset_ch376_module
-159++ FD6D CD 84 FC         call set_usb_host_mode
-160++ FD70 FE 15            cp USB_INT_CONNECT
-161++ FD72 C9               ret
-162++ FD73
-163++ FD73              create_file:
-164++ FD73                  ; pass in DE = pointer to filename
-165++ FD73 D5               push de
-166++ FD74 3E 2F            ld a, SET_FILE_NAME
-167++ FD76 CD 38 FE         call send_command_byte
-168++ FD79 E1               pop hl
-169++ FD7A CD 22 FE         call send_data_string
-170++ FD7D
-171++ FD7D 3E 34            ld a, FILE_CREATE
-172++ FD7F CD 38 FE         call send_command_byte
-173++ FD82
-174++ FD82 CD 7D FE         call read_status_byte
-175++ FD85 FE 14            cp USB_INT_SUCCESS
-176++ FD87 C9               ret
-177++ FD88
-178++ FD88              open_file:
-179++ FD88                  ; Tells the module to use the filename from the filename_buffer.
-180++ FD88                  ; Returns z=true if ok to proceed.
-181++ FD88                  ; Pass in hl -> directory string, e.g. "/folder"
-182++ FD88              ;      push hl
-183++ FD88              ;      call message
-184++ FD88              ;      db 'open_file:[',0
-185++ FD88              ;  open_file1:
-186++ FD88              ;      ld a, (hl)
-187++ FD88              ;      cp 0
-188++ FD88              ;      jr z, open_file2
-189++ FD88              ;      call print_a
-190++ FD88              ;      inc hl
-191++ FD88              ;      jr open_file1
-192++ FD88
-193++ FD88              ;  open_file2:
-194++ FD88              ;      ld a, ']'
-195++ FD88              ;      call print_a
-196++ FD88              ;      call newline
-197++ FD88              ;      pop hl
-198++ FD88
-199++ FD88 3E 2F            ld a, SET_FILE_NAME
-200++ FD8A CD 38 FE         call send_command_byte
-201++ FD8D CD 22 FE         call send_data_string
-202++ FD90 3E 32            ld a, FILE_OPEN
-203++ FD92 CD 38 FE         call send_command_byte
-204++ FD95 CD 7D FE         call read_status_byte
-205++ FD98 FE 14            cp USB_INT_SUCCESS
-206++ FD9A C9               ret
-207++ FD9B
-208++ FD9B              close_file:
-209++ FD9B 3E 36            ld a, FILE_CLOSE
-210++ FD9D CD 38 FE         call send_command_byte
-211++ FDA0 3E 01            ld a, 1                             ; 1 = update file size if necessary
-212++ FDA2 CD 1C FE         call send_data_byte
-213++ FDA5 CD 7D FE         call read_status_byte
-214++ FDA8 C9               ret
-215++ FDA9
-216++ FDA9              create_directory:
-217++ FDA9                  ; Tells the module to use the filename from the filename_buffer to create a directory of that name.
-218++ FDA9                  ; Returns z=true if ok to proceed.
-219++ FDA9 21 EB FF         ld hl, filename_buffer
-220++ FDAC              ; create_directory1:
-221++ FDAC              ;     ld a, (hl)
-222++ FDAC              ;     cp 0
-223++ FDAC              ;     jr z, create_directory2
-224++ FDAC              ;     inc hl
-225++ FDAC              ;     call print_a
-226++ FDAC              ;     jr create_directory1
-227++ FDAC
-228++ FDAC              create_directory2:
-229++ FDAC
-230++ FDAC 3E 2F            ld a, SET_FILE_NAME
-231++ FDAE CD 38 FE         call send_command_byte
-232++ FDB1 21 EB FF         ld hl, filename_buffer
-233++ FDB4 CD 22 FE         call send_data_string
-234++ FDB7 3E 40            ld a, DIR_CREATE
-235++ FDB9 CD 38 FE         call send_command_byte
-236++ FDBC CD 7D FE         call read_status_byte
-237++ FDBF FE 14            cp USB_INT_SUCCESS
-238++ FDC1 C9               ret
-239++ FDC2
-240++ FDC2              read_from_file:
-241++ FDC2                  ; Ask to read 128 bytes from the current file into the dma_address area pointed to by DE.
-242++ FDC2                  ; Returns Zero flag set for success, clear for fail.
-243++ FDC2 D5               push de
-244++ FDC3 3E 3A            ld a, BYTE_READ
-245++ FDC5 CD 38 FE         call send_command_byte
-246++ FDC8 3E 80            ld a, 128                           ; Request 128 bytes
-247++ FDCA CD 1C FE         call send_data_byte
-248++ FDCD 3E 00            ld a, 0
-249++ FDCF CD 1C FE         call send_data_byte
-250++ FDD2
-251++ FDD2 CD 7D FE         call read_status_byte
-252++ FDD5              read_from_file1:
-253++ FDD5 FE 1D            cp USB_INT_DISK_READ                    ; This means "go ahead and read"
-254++ FDD7 28 07            jr z, read_from_file3
-255++ FDD9 FE 14            cp USB_INT_SUCCESS                      ; Bizarrely this means we are finished
-256++ FDDB CA 0C FE         jp z, read_from_file_cannot
-257++ FDDE 18 2C            jr read_from_file_cannot
-258++ FDE0
-259++ FDE0              read_from_file3:
-260++ FDE0 3E 27            ld a, RD_USB_DATA0                      ; Find out how many bytes are available to read
-261++ FDE2 CD 38 FE         call send_command_byte
-262++ FDE5 CD 41 FE         call read_data_byte                     ; A = number of bytes available to read
-263++ FDE8
-264++ FDE8                  ; If there are less than 128 bytes to read, fill the buffer with 0s first
-265++ FDE8 FE 80            cp 128
-266++ FDEA 30 0B            jr nc, read_from_file_128
-267++ FDEC E1               pop hl
-268++ FDED E5               push hl
-269++ FDEE F5               push af
-270++ FDEF 06 80            ld b, 128
-271++ FDF1              read_from_file_padding:
-272++ FDF1 36 00            ld (hl), 0
-273++ FDF3 23               inc hl
-274++ FDF4 10 FB            djnz read_from_file_padding
-275++ FDF6 F1               pop af
-276++ FDF7
-277++ FDF7              read_from_file_128:
-278++ FDF7 E1               pop hl
-279++ FDF8 CD 4A FE         call read_data_bytes_into_hl        ; Read this block of data
-280++ FDFB E5               push hl
-281++ FDFC 3E 3B            ld a, BYTE_RD_GO
-282++ FDFE CD 38 FE         call send_command_byte
-283++ FE01 3E 22            ld a, GET_STATUS
-284++ FE03 CD 38 FE         call send_command_byte
-285++ FE06 CD 41 FE         call read_data_byte
-286++ FE09 E1               pop hl
-287++ FE0A                  ; All done, so return ZERO for success
-288++ FE0A BF               cp a                                ; set zero flag for success
-289++ FE0B C9               ret
-290++ FE0C
-291++ FE0C              read_from_file_cannot:
-292++ FE0C D1               pop de
-293++ FE0D F6 01            or 1                                ; clear zero flag
-294++ FE0F C9               ret
-295++ FE10
-296++ FE10              copy_filename_to_buffer:
-297++ FE10                  ; Enter with hl->zero-terminated-filename-string
-298++ FE10                  ; Copies this to filename_buffer
-299++ FE10 11 EB FF         ld de, filename_buffer
-300++ FE13              copy_filename_to_buffer1:
-301++ FE13 7E               ld a, (hl)
-302++ FE14 12               ld (de), a
-303++ FE15 23               inc hl
-304++ FE16 13               inc de
-305++ FE17 FE 00            cp 0
-306++ FE19 C8               ret z
-307++ FE1A 18 F7            jr copy_filename_to_buffer1
-308++ FE1C
-309++ FE1C              send_data_byte:
-310++ FE1C                  ; push af
-311++ FE1C                  ; call message
-312++ FE1C                  ; db 'send_data_byte ', 0
-313++ FE1C                  ; pop af
-314++ FE1C                  ; push af
-315++ FE1C                  ; call show_a_as_hex
-316++ FE1C                  ; call newline
-317++ FE1C                  ; pop af
-318++ FE1C D3 A0            out (mem_stick_data_port), a
-319++ FE1E                  ;call tiny_pause
-320++ FE1E CD 52 FE         call wait_til_not_busy
-321++ FE21 C9               ret
-322++ FE22
-323++ FE22              send_data_string:
-324++ FE22                  ; The string is pointed to by HL
-325++ FE22 7E               ld a, (hl)
-326++ FE23 FE 00            cp 0
-327++ FE25 28 0B            jr z, send_data_string_done
-328++ FE27 F5               push af
-329++ FE28 E5               push hl
-330++ FE29 CD 1C FE         call send_data_byte
-331++ FE2C E1               pop hl
-332++ FE2D F1               pop af
-333++ FE2E 23               inc hl
-334++ FE2F C3 22 FE         jp send_data_string
-335++ FE32              send_data_string_done:
-336++ FE32 3E 00            ld a, 0
-337++ FE34 CD 1C FE         call send_data_byte
-338++ FE37 C9               ret
-339++ FE38
-340++ FE38              send_command_byte:
-341++ FE38                  ; push af
-342++ FE38                  ; call message
-343++ FE38                  ; db 'send_command_byte ',0
-344++ FE38                  ; pop af
-345++ FE38                  ; push af
-346++ FE38                  ; call show_a_as_hex
-347++ FE38                  ; call newline
-348++ FE38                  ; pop af
-349++ FE38 D3 A1            out (mem_stick_command_port), a
-350++ FE3A                  ;call tiny_pause
-351++ FE3A CD 52 FE         call wait_til_not_busy
-352++ FE3D C9               ret
-353++ FE3E
-354++ FE3E              read_command_byte:
-355++ FE3E                  ; call message
-356++ FE3E                  ; db 'read_command_byte: ', 0
-357++ FE3E DB A1            in a, (mem_stick_command_port)
-358++ FE40                  ; push af
-359++ FE40                  ; call show_a_as_hex
-360++ FE40                  ; call newline
-361++ FE40                  ; pop af
-362++ FE40 C9               ret
-363++ FE41
-364++ FE41              read_data_byte:
-365++ FE41                  ; call message
-366++ FE41                  ; db 'read_data_byte: ', 0
-367++ FE41 DB A0            in a, (mem_stick_data_port)
-368++ FE43                  ; push af
-369++ FE43                  ; call show_a_as_hex
-370++ FE43                  ; call newline
-371++ FE43                  ; pop af
-372++ FE43 C9               ret
-373++ FE44
-374++ FE44              read_data_byte_silent:
-375++ FE44 DB A0            in a, (mem_stick_data_port)
-376++ FE46 C9               ret
-377++ FE47
-378++ FE47              read_data_bytes_into_buffer:
-379++ FE47                  ; The number of bytes should be in A.
-380++ FE47                  ; Read that many bytes into the buffer.
-381++ FE47                  ; The value of A is retained.
-382++ FE47 21 C5 FF         ld hl, disk_buffer
-383++ FE4A              read_data_bytes_into_hl:
-384++ FE4A                  ; This entry point will read A bytes into the area pointed to by HL.
-385++ FE4A                  ; On exit HL will point to the location after where the bytes were added.
-386++ FE4A F5               push af
-387++ FE4B 47               ld b, a
-388++ FE4C 0E A0            ld c, mem_stick_data_port
-389++ FE4E              read_data_bytes_into_buffer1:
-390++ FE4E ED B2            inir                    ; A rare use of In, Increase & Repeat!!!
-391++ FE50 F1               pop af
-392++ FE51 C9               ret
-393++ FE52
-394++ FE52              wait_til_not_busy:
-395++ FE52                  ; call message
-396++ FE52                  ; db 'waiting...', 13, 10, 0
-397++ FE52 01 60 EA         ld bc, 60000            ; retry max 60000 times!!!
-398++ FE55              wait_til_not_busy1:
-399++ FE55 C5               push bc
-400++ FE56 CD 3E FE         call read_command_byte
-401++ FE59 E6 10            and %00010000
-402++ FE5B C2 60 FE         jp nz, wait_til_not_busy2
-403++ FE5E C1               pop bc
-404++ FE5F C9               ret
-405++ FE60              wait_til_not_busy2:
-406++ FE60 CD 29 F7         call short_pause
-407++ FE63 C1               pop bc
-408++ FE64 0B               dec bc
-409++ FE65 78               ld a, b
-410++ FE66 B1               or c
-411++ FE67 20 EC            jr nz, wait_til_not_busy1
-412++ FE69 CD 6F F7         call message
-413++ FE6C 5B 55 53 42      db '[USB TIMEOUT]', 13, 10, 0
-413++ FE70 20 54 49 4D
-413++ FE74 45 4F 55 54
-413++ FE78 5D 0D 0A 00
-414++ FE7C C9               ret
-415++ FE7D
-416++ FE7D              read_status_byte:
-417++ FE7D 3E 22            ld a, GET_STATUS
-418++ FE7F CD 38 FE         call send_command_byte
-419++ FE82 CD 41 FE         call read_data_byte
-420++ FE85 C9               ret
-421++ FE86
-422++ FE86              ; show_status:
-423++ FE86              ;     call read_status_byte
-424++ FE86              ;     push af
-425++ FE86              ;     call report_on_status
-426++ FE86              ;     pop af
-427++ FE86              ;     ret                     ; The status is returned in A
-428++ FE86
-429++ FE86              ; report_on_status:
-430++ FE86              ;     cp USB_INT_SUCCESS
-431++ FE86              ;     jr nz, ros1
-432++ FE86              ;     call message
-433++ FE86              ;     db 'USB_INT_SUCCESS',13,10,0
-434++ FE86              ;     ret
-435++ FE86              ; ros1:
-436++ FE86              ;     cp USB_INT_CONNECT
-437++ FE86              ;     jr nz, ros2
-438++ FE86              ;     call message
-439++ FE86              ;     db 'USB_INT_CONNECT',13,10,0
-440++ FE86              ;     ret
-441++ FE86              ; ros2:
-442++ FE86              ;     cp USB_INT_DISCONNECT
-443++ FE86              ;     jr nz, ros3
-444++ FE86              ;     call message
-445++ FE86              ;     db 'USB_INT_DISCONNECT',13,10,0
-446++ FE86              ;     ret
-447++ FE86              ; ros3:
-448++ FE86              ;     cp USB_INT_BUF_OVER
-449++ FE86              ;     jr nz, ros4
-450++ FE86              ;     call message
-451++ FE86              ;     db 'USB_INT_BUF_OVER',13,10,0
-452++ FE86              ;     ret
-453++ FE86              ; ros4:
-454++ FE86              ;     cp USB_INT_USB_READY
-455++ FE86              ;     jr nz, ros5
-456++ FE86              ;     call message
-457++ FE86              ;     db 'USB_INT_USB_READY',13,10,0
-458++ FE86              ;     ret
-459++ FE86              ; ros5:
-460++ FE86              ;     cp USB_INT_DISK_READ
-461++ FE86              ;     jr nz, ros6
-462++ FE86              ;     call message
-463++ FE86              ;     db 'USB_INT_DISK_READ',13,10,0
-464++ FE86              ;     ret
-465++ FE86              ; ros6:
-466++ FE86              ;     cp USB_INT_DISK_WRITE
-467++ FE86              ;     jr nz, ros7
-468++ FE86              ;     call message
-469++ FE86              ;     db 'USB_INT_DISK_WRITE',13,10,0
-470++ FE86              ;     ret
-471++ FE86              ; ros7:
-472++ FE86              ;     cp USB_INT_DISK_ERR
-473++ FE86              ;     jr nz, ros8
-474++ FE86              ;     call message
-475++ FE86              ;     db 'USB_INT_DISK_ERR',13,10,0
-476++ FE86              ;     ret
-477++ FE86              ; ros8:
-478++ FE86              ;     cp YES_OPEN_DIR
-479++ FE86              ;     jr nz, ros9
-480++ FE86              ;     call message
-481++ FE86              ;     db 'YES_OPEN_DIR',13,10,0
-482++ FE86              ;     ret
-483++ FE86              ; ros9:
-484++ FE86              ;     cp ERR_MISS_FILE
-485++ FE86              ;     jr nz, ros10
-486++ FE86              ;     call message
-487++ FE86              ;     db 'ERR_MISS_FILE',13,10,0
-488++ FE86              ;     ret
-489++ FE86              ; ros10:
-490++ FE86              ;     cp ERR_FOUND_NAME
-491++ FE86              ;     jr nz, ros11
-492++ FE86              ;     call message
-493++ FE86              ;     db 'ERR_FOUND_NAME',13,10,0
-494++ FE86              ;     ret
-495++ FE86              ; ros11:
-496++ FE86              ;     cp ERR_DISK_DISCON
-497++ FE86              ;     jr nz, ros12
-498++ FE86              ;     call message
-499++ FE86              ;     db 'ERR_DISK_DISCON',13,10,0
-500++ FE86              ;     ret
-501++ FE86              ; ros12:
-502++ FE86              ;     cp ERR_LARGE_SECTOR
-503++ FE86              ;     jr nz, ros13
-504++ FE86              ;     call message
-505++ FE86              ;     db 'ERR_LARGE_SECTOR',13,10,0
-506++ FE86              ;     ret
-507++ FE86              ; ros13:
-508++ FE86              ;     cp ERR_TYPE_ERROR
-509++ FE86              ;     jr nz, ros14
-510++ FE86              ;     call message
-511++ FE86              ;     db 'ERR_TYPE_ERROR',13,10,0
-512++ FE86              ;     ret
-513++ FE86              ; ros14:
-514++ FE86              ;     cp ERR_BPB_ERROR
-515++ FE86              ;     jr nz, ros15
-516++ FE86              ;     call message
-517++ FE86              ;     db 'ERR_BPB_ERROR',13,10,0
-518++ FE86              ;     ret
-519++ FE86              ; ros15:
-520++ FE86              ;     cp ERR_DISK_FULL
-521++ FE86              ;     jr nz, ros16
-522++ FE86              ;     call message
-523++ FE86              ;     db 'ERR_DISK_FULL',13,10,0
-524++ FE86              ;     ret
-525++ FE86              ; ros16:
-526++ FE86              ;     cp ERR_FDT_OVER
-527++ FE86              ;     jr nz, ros17
-528++ FE86              ;     call message
-529++ FE86              ;     db 'ERR_FDT_OVER',13,10,0
-530++ FE86              ;     ret
-531++ FE86              ; ros17:
-532++ FE86              ;     cp ERR_FILE_CLOSE
-533++ FE86              ;     jr nz, ros18
-534++ FE86              ;     call message
-535++ FE86              ;     db 'ERR_FILE_CLOSE',13,10,0
-536++ FE86              ;     ret
-537++ FE86              ; ros18:
-538++ FE86              ;     call message
-539++ FE86              ;     db 'UNKNOWN STATUS: ',0
-540++ FE86              ;     call show_a_as_hex
-541++ FE86              ;     call newline
-542++ FE86              ;     ret
-543++ FE86
-544++ FE86
-545++ FE86              mem_stick_data_port     equ 0xA0
-546++ FE86              mem_stick_command_port  equ 0xA1
-547++ FE86
-548++ FE86              GET_IC_VER equ $01
-549++ FE86              SET_BAUDRATE equ $02
-550++ FE86              RESET_ALL equ $05
-551++ FE86              CHECK_EXIST equ $06
-552++ FE86              GET_FILE_SIZE equ $0C
-553++ FE86              SET_USB_MODE equ $15
-554++ FE86              GET_STATUS equ $22
-555++ FE86              RD_USB_DATA0 equ $27
-556++ FE86              WR_USB_DATA equ $2C
-557++ FE86              WR_REQ_DATA equ $2D
-558++ FE86              WR_OFS_DATA equ $2E
-559++ FE86              SET_FILE_NAME equ $2F
-560++ FE86              DISK_CONNECT equ $30
-561++ FE86              DISK_MOUNT equ $31
-562++ FE86              FILE_OPEN equ $32
-563++ FE86              FILE_ENUM_GO equ $33
-564++ FE86              FILE_CREATE equ $34
-565++ FE86              FILE_ERASE equ $35
-566++ FE86              FILE_CLOSE equ $36
-567++ FE86              DIR_INFO_READ equ $37
-568++ FE86              DIR_INFO_SAVE equ $38
-569++ FE86              BYTE_LOCATE equ $39
-570++ FE86              BYTE_READ equ $3A
-571++ FE86              BYTE_RD_GO equ $3B
-572++ FE86              BYTE_WRITE equ $3C
-573++ FE86              BYTE_WR_GO equ $3D
-574++ FE86              DISK_CAPACITY equ $3E
-575++ FE86              DISK_QUERY equ $3F
-576++ FE86              DIR_CREATE equ $40
-577++ FE86
-578++ FE86
-579++ FE86              ; Statuses
-580++ FE86              USB_INT_SUCCESS equ $14
-581++ FE86              USB_INT_CONNECT equ $15
-582++ FE86              USB_INT_DISCONNECT equ $16
-583++ FE86              USB_INT_BUF_OVER equ $17
-584++ FE86              USB_INT_USB_READY equ $18
-585++ FE86              USB_INT_DISK_READ equ $1D
-586++ FE86              USB_INT_DISK_WRITE equ $1E
-587++ FE86              USB_INT_DISK_ERR equ $1F
-588++ FE86              YES_OPEN_DIR equ $41
-589++ FE86              ERR_MISS_FILE equ $42
-590++ FE86              ERR_FOUND_NAME equ $43
-591++ FE86              ERR_DISK_DISCON equ $82
-592++ FE86              ERR_LARGE_SECTOR equ $84
-593++ FE86              ERR_TYPE_ERROR equ $92
-594++ FE86              ERR_BPB_ERROR equ $A1
-595++ FE86              ERR_DISK_FULL equ $B1
-596++ FE86              ERR_FDT_OVER equ $B2
-597++ FE86              ERR_FILE_CLOSE equ $B4
-598++ FE86
-599++ FE86              ROOT_DIRECTORY:
-600++ FE86 2A 00            db '*',0
-601++ FE88
-602++ FE88              SLASH:
-603++ FE88 2F 00            db '/',0
-604++ FE8A
-605++ FE8A              ;SAVE_FILENAME:
-606++ FE8A              ;    db 'TESTING',0
-607++ FE8A
-608++ FE8A              ;TARGET_FILENAME:
-609++ FE8A              ;    db '/TARGET2.TXT',0
-610++ FE8A
-611++ FE8A              ;NO_EXTENSION:
-612++ FE8A              ;    db '   ',0
-613++ FE8A
-614++ FE8A              ;TXT_EXTENSION:
-615++ FE8A              ;    db 'TXT',0
-616++ FE8A
+  1++ F1E6              ; memorystick_low_level.asm
+  2++ F1E6              ;--------------------;
+  3++ F1E6              ; LOW LEVEL ROUTINES ;
+  4++ F1E6              ;--------------------;
+  5++ F1E6
+  6++ F1E6              configure_memorystick:
+  7++ F1E6 06 05            ld b, 5                                 ; Have 5 attempts at configuring the module before giving up
+  8++ F1E8              configure_memorystick1:
+  9++ F1E8 C5               push bc
+ 10++ F1E9 CD 64 F3         call connect_to_usb_drive
+ 11++ F1EC 20 08            jr nz, failed_to_setup
+ 12++ F1EE CD A8 F2         call connect_to_disk
+ 13++ F1F1 CD D7 F2         call mount_disk
+ 14++ F1F4 C1               pop bc
+ 15++ F1F5 C9               ret
+ 16++ F1F6              failed_to_setup:
+ 17++ F1F6 CD 19 ED         call long_pause
+ 18++ F1F9 CD 19 ED         call long_pause
+ 19++ F1FC CD 19 ED         call long_pause
+ 20++ F1FF CD 19 ED         call long_pause
+ 21++ F202 C1               pop bc
+ 22++ F203 10 E3            djnz configure_memorystick1
+ 23++ F205 CD 69 ED         call message
+ 24++ F208 43 48 33 37      db 'CH376S error.',13,10,0
+ 24++ F20C 36 53 20 65
+ 24++ F210 72 72 6F 72
+ 24++ F214 2E 0D 0A 00
+ 25++ F218 C9               ret
+ 26++ F219
+ 27++ F219              ;----------------------------------------------------------------
+ 28++ F219              ; Call this once at startup
+ 29++ F219              reset_ch376_module:
+ 30++ F219 3E 05            ld a, RESET_ALL
+ 31++ F21B CD 32 F4         call send_command_byte
+ 32++ F21E CD 19 ED         call long_pause
+ 33++ F221 CD 19 ED         call long_pause
+ 34++ F224 C9               ret
+ 35++ F225
+ 36++ F225              ;-----------------------------------------------------------------
+ 37++ F225              check_module_exists:
+ 38++ F225 3E 06            ld a, CHECK_EXIST
+ 39++ F227 CD 32 F4         call send_command_byte
+ 40++ F22A
+ 41++ F22A 3E 7B            ld a, 123               ; We send an arbitrary number
+ 42++ F22C CD 16 F4         call send_data_byte
+ 43++ F22F
+ 44++ F22F CD 3B F4         call read_data_byte
+ 45++ F232
+ 46++ F232 FE 84            cp 255-123      ; The result is 255 minus what we sent in
+ 47++ F234 C8               ret z
+ 48++ F235 CD 69 ED         call message
+ 49++ F238 45 52 52 4F      db 'ERROR: CH376S module not found.',13,10,0
+ 49++ F23C 52 3A 20 43
+ 49++ F240 48 33 37 36
+ 49++ F244 53 20 6D 6F
+ 49++ F248 64 75 6C 65
+ 49++ F24C 20 6E 6F 74
+ 49++ F250 20 66 6F 75
+ 49++ F254 6E 64 2E 0D
+ 49++ F258 0A 00
+ 50++ F25A C9               ret
+ 51++ F25B
+ 52++ F25B              ;-----------------------------------------------------------------
+ 53++ F25B              get_module_version:
+ 54++ F25B 3E 01            ld a, GET_IC_VER
+ 55++ F25D CD 32 F4         call send_command_byte
+ 56++ F260
+ 57++ F260 CD 3B F4         call read_data_byte
+ 58++ F263 E6 1F            and %00011111
+ 59++ F265
+ 60++ F265 CD 69 ED         call message
+ 61++ F268 46 6F 75 6E      db 'Found CH376S v',0 ; Mine is v3!!!
+ 61++ F26C 64 20 43 48
+ 61++ F270 33 37 36 53
+ 61++ F274 20 76 00
+ 62++ F277 CD 87 ED         call show_a_as_hex
+ 63++ F27A CD EE EC         call newline
+ 64++ F27D C9               ret
+ 65++ F27E
+ 66++ F27E              ;-----------------------------------------------------------------
+ 67++ F27E              set_usb_host_mode:
+ 68++ F27E 3E 15            ld a, SET_USB_MODE
+ 69++ F280 CD 32 F4         call send_command_byte
+ 70++ F283 3E 06            ld a, 6
+ 71++ F285 CD 16 F4         call send_data_byte
+ 72++ F288 CD 77 F4         call read_status_byte
+ 73++ F28B FE 15            cp USB_INT_CONNECT
+ 74++ F28D C8               ret z
+ 75++ F28E CD 69 ED         call message
+ 76++ F291 45 52 52 4F      db 'ERROR: No USB Disk?',13,10,0
+ 76++ F295 52 3A 20 4E
+ 76++ F299 6F 20 55 53
+ 76++ F29D 42 20 44 69
+ 76++ F2A1 73 6B 3F 0D
+ 76++ F2A5 0A 00
+ 77++ F2A7 C9               ret
+ 78++ F2A8
+ 79++ F2A8              ;-----------------------------------------------------------------
+ 80++ F2A8              connect_to_disk:
+ 81++ F2A8 3E 30            ld a, DISK_CONNECT
+ 82++ F2AA CD 32 F4         call send_command_byte
+ 83++ F2AD 3E 22            ld a, GET_STATUS
+ 84++ F2AF CD 77 F4         call read_status_byte
+ 85++ F2B2 C8               ret z
+ 86++ F2B3 CD 69 ED         call message
+ 87++ F2B6 45 52 52 4F      db 'ERROR connecting to USB Disk.',13,10,0
+ 87++ F2BA 52 20 63 6F
+ 87++ F2BE 6E 6E 65 63
+ 87++ F2C2 74 69 6E 67
+ 87++ F2C6 20 74 6F 20
+ 87++ F2CA 55 53 42 20
+ 87++ F2CE 44 69 73 6B
+ 87++ F2D2 2E 0D 0A 00
+ 88++ F2D6 C9               ret
+ 89++ F2D7
+ 90++ F2D7              ;-----------------------------------------------------------------
+ 91++ F2D7              mount_disk:
+ 92++ F2D7 3E 31            ld a, DISK_MOUNT
+ 93++ F2D9 CD 32 F4         call send_command_byte
+ 94++ F2DC 3E 22            ld a, GET_STATUS
+ 95++ F2DE CD 77 F4         call read_status_byte
+ 96++ F2E1 C8               ret z
+ 97++ F2E2 CD 69 ED         call message
+ 98++ F2E5 45 52 52 4F      db 'ERROR mounting USB Disk.',13,10,0
+ 98++ F2E9 52 20 6D 6F
+ 98++ F2ED 75 6E 74 69
+ 98++ F2F1 6E 67 20 55
+ 98++ F2F5 53 42 20 44
+ 98++ F2F9 69 73 6B 2E
+ 98++ F2FD 0D 0A 00
+ 99++ F300 C9               ret
+100++ F301
+101++ F301              ;-----------------------------------------------------------------
+102++ F301              read_disk_signature:
+103++ F301 3E 27            ld a, RD_USB_DATA0
+104++ F303 CD 32 F4         call send_command_byte
+105++ F306 CD 3B F4         call read_data_byte                 ; A = length of bytes to now read
+106++ F309 FE 24            cp 36
+107++ F30B 20 39            jr nz, could_not_read_disk_sig
+108++ F30D
+109++ F30D                  ; Ignore the first 8 bytes
+110++ F30D 06 08            ld b, 8
+111++ F30F              read_disk_signature1:
+112++ F30F C5               push bc
+113++ F310 CD 3E F4         call read_data_byte_silent
+114++ F313 C1               pop bc
+115++ F314 10 F9            djnz read_disk_signature1
+116++ F316
+117++ F316                  ; Display the next 8 bytes (Manufacturer)
+118++ F316 06 08            ld b, 8
+119++ F318              read_disk_signature2:
+120++ F318 C5               push bc
+121++ F319 CD 3E F4         call read_data_byte_silent
+122++ F31C CD C1 EC         call print_a
+123++ F31F C1               pop bc
+124++ F320 10 F6            djnz read_disk_signature2
+125++ F322 CD EE EC         call newline
+126++ F325
+127++ F325                  ; Display the next 16 bytes (Model)
+128++ F325 06 10            ld b, 16
+129++ F327              read_disk_signature3:
+130++ F327 C5               push bc
+131++ F328 CD 3E F4         call read_data_byte_silent
+132++ F32B CD C1 EC         call print_a
+133++ F32E C1               pop bc
+134++ F32F 10 F6            djnz read_disk_signature3
+135++ F331
+136++ F331 3E 20            ld a, ' '
+137++ F333 CD C1 EC         call print_a
+138++ F336
+139++ F336                  ; Display the next 4 bytes (Version)
+140++ F336 06 04            ld b, 4
+141++ F338              read_disk_signature4:
+142++ F338 C5               push bc
+143++ F339 CD 3E F4         call read_data_byte_silent
+144++ F33C CD C1 EC         call print_a
+145++ F33F C1               pop bc
+146++ F340 10 F6            djnz read_disk_signature4
+147++ F342 CD EE EC         call newline
+148++ F345 C9               ret
+149++ F346
+150++ F346              could_not_read_disk_sig:
+151++ F346 CD 69 ED         call message
+152++ F349 45 52 52 4F      db 'ERROR reading disk sig.',13,10,0
+152++ F34D 52 20 72 65
+152++ F351 61 64 69 6E
+152++ F355 67 20 64 69
+152++ F359 73 6B 20 73
+152++ F35D 69 67 2E 0D
+152++ F361 0A 00
+153++ F363 C9               ret
+154++ F364
+155++ F364              connect_to_usb_drive:
+156++ F364                  ; Connects us up to the USB Drive.
+157++ F364                  ; Returns Zero flag = true if we can connect ok.
+158++ F364 CD 19 F2         call reset_ch376_module
+159++ F367 CD 7E F2         call set_usb_host_mode
+160++ F36A FE 15            cp USB_INT_CONNECT
+161++ F36C C9               ret
+162++ F36D
+163++ F36D              create_file:
+164++ F36D                  ; pass in DE = pointer to filename
+165++ F36D D5               push de
+166++ F36E 3E 2F            ld a, SET_FILE_NAME
+167++ F370 CD 32 F4         call send_command_byte
+168++ F373 E1               pop hl
+169++ F374 CD 1C F4         call send_data_string
+170++ F377
+171++ F377 3E 34            ld a, FILE_CREATE
+172++ F379 CD 32 F4         call send_command_byte
+173++ F37C
+174++ F37C CD 77 F4         call read_status_byte
+175++ F37F FE 14            cp USB_INT_SUCCESS
+176++ F381 C9               ret
+177++ F382
+178++ F382              open_file:
+179++ F382                  ; Tells the module to use the filename from the filename_buffer.
+180++ F382                  ; Returns z=true if ok to proceed.
+181++ F382                  ; Pass in hl -> directory string, e.g. "/folder"
+182++ F382              ;      push hl
+183++ F382              ;      call message
+184++ F382              ;      db 'open_file:[',0
+185++ F382              ;  open_file1:
+186++ F382              ;      ld a, (hl)
+187++ F382              ;      cp 0
+188++ F382              ;      jr z, open_file2
+189++ F382              ;      call print_a
+190++ F382              ;      inc hl
+191++ F382              ;      jr open_file1
+192++ F382
+193++ F382              ;  open_file2:
+194++ F382              ;      ld a, ']'
+195++ F382              ;      call print_a
+196++ F382              ;      call newline
+197++ F382              ;      pop hl
+198++ F382
+199++ F382 3E 2F            ld a, SET_FILE_NAME
+200++ F384 CD 32 F4         call send_command_byte
+201++ F387 CD 1C F4         call send_data_string
+202++ F38A 3E 32            ld a, FILE_OPEN
+203++ F38C CD 32 F4         call send_command_byte
+204++ F38F CD 77 F4         call read_status_byte
+205++ F392 FE 14            cp USB_INT_SUCCESS
+206++ F394 C9               ret
+207++ F395
+208++ F395              close_file:
+209++ F395 3E 36            ld a, FILE_CLOSE
+210++ F397 CD 32 F4         call send_command_byte
+211++ F39A 3E 01            ld a, 1                             ; 1 = update file size if necessary
+212++ F39C CD 16 F4         call send_data_byte
+213++ F39F CD 77 F4         call read_status_byte
+214++ F3A2 C9               ret
+215++ F3A3
+216++ F3A3              create_directory:
+217++ F3A3                  ; Tells the module to use the filename from the filename_buffer to create a directory of that name.
+218++ F3A3                  ; Returns z=true if ok to proceed.
+219++ F3A3 21 EB FF         ld hl, filename_buffer
+220++ F3A6              ; create_directory1:
+221++ F3A6              ;     ld a, (hl)
+222++ F3A6              ;     cp 0
+223++ F3A6              ;     jr z, create_directory2
+224++ F3A6              ;     inc hl
+225++ F3A6              ;     call print_a
+226++ F3A6              ;     jr create_directory1
+227++ F3A6
+228++ F3A6              create_directory2:
+229++ F3A6
+230++ F3A6 3E 2F            ld a, SET_FILE_NAME
+231++ F3A8 CD 32 F4         call send_command_byte
+232++ F3AB 21 EB FF         ld hl, filename_buffer
+233++ F3AE CD 1C F4         call send_data_string
+234++ F3B1 3E 40            ld a, DIR_CREATE
+235++ F3B3 CD 32 F4         call send_command_byte
+236++ F3B6 CD 77 F4         call read_status_byte
+237++ F3B9 FE 14            cp USB_INT_SUCCESS
+238++ F3BB C9               ret
+239++ F3BC
+240++ F3BC              read_from_file:
+241++ F3BC                  ; Ask to read 128 bytes from the current file into the dma_address area pointed to by DE.
+242++ F3BC                  ; Returns Zero flag set for success, clear for fail.
+243++ F3BC D5               push de
+244++ F3BD 3E 3A            ld a, BYTE_READ
+245++ F3BF CD 32 F4         call send_command_byte
+246++ F3C2 3E 80            ld a, 128                           ; Request 128 bytes
+247++ F3C4 CD 16 F4         call send_data_byte
+248++ F3C7 3E 00            ld a, 0
+249++ F3C9 CD 16 F4         call send_data_byte
+250++ F3CC
+251++ F3CC CD 77 F4         call read_status_byte
+252++ F3CF              read_from_file1:
+253++ F3CF FE 1D            cp USB_INT_DISK_READ                    ; This means "go ahead and read"
+254++ F3D1 28 07            jr z, read_from_file3
+255++ F3D3 FE 14            cp USB_INT_SUCCESS                      ; Bizarrely this means we are finished
+256++ F3D5 CA 06 F4         jp z, read_from_file_cannot
+257++ F3D8 18 2C            jr read_from_file_cannot
+258++ F3DA
+259++ F3DA              read_from_file3:
+260++ F3DA 3E 27            ld a, RD_USB_DATA0                      ; Find out how many bytes are available to read
+261++ F3DC CD 32 F4         call send_command_byte
+262++ F3DF CD 3B F4         call read_data_byte                     ; A = number of bytes available to read
+263++ F3E2
+264++ F3E2                  ; If there are less than 128 bytes to read, fill the buffer with 0s first
+265++ F3E2 FE 80            cp 128
+266++ F3E4 30 0B            jr nc, read_from_file_128
+267++ F3E6 E1               pop hl
+268++ F3E7 E5               push hl
+269++ F3E8 F5               push af
+270++ F3E9 06 80            ld b, 128
+271++ F3EB              read_from_file_padding:
+272++ F3EB 36 00            ld (hl), 0
+273++ F3ED 23               inc hl
+274++ F3EE 10 FB            djnz read_from_file_padding
+275++ F3F0 F1               pop af
+276++ F3F1
+277++ F3F1              read_from_file_128:
+278++ F3F1 E1               pop hl
+279++ F3F2 CD 44 F4         call read_data_bytes_into_hl        ; Read this block of data
+280++ F3F5 E5               push hl
+281++ F3F6 3E 3B            ld a, BYTE_RD_GO
+282++ F3F8 CD 32 F4         call send_command_byte
+283++ F3FB 3E 22            ld a, GET_STATUS
+284++ F3FD CD 32 F4         call send_command_byte
+285++ F400 CD 3B F4         call read_data_byte
+286++ F403 E1               pop hl
+287++ F404                  ; All done, so return ZERO for success
+288++ F404 BF               cp a                                ; set zero flag for success
+289++ F405 C9               ret
+290++ F406
+291++ F406              read_from_file_cannot:
+292++ F406 D1               pop de
+293++ F407 F6 01            or 1                                ; clear zero flag
+294++ F409 C9               ret
+295++ F40A
+296++ F40A              copy_filename_to_buffer:
+297++ F40A                  ; Enter with hl->zero-terminated-filename-string
+298++ F40A                  ; Copies this to filename_buffer
+299++ F40A 11 EB FF         ld de, filename_buffer
+300++ F40D              copy_filename_to_buffer1:
+301++ F40D 7E               ld a, (hl)
+302++ F40E 12               ld (de), a
+303++ F40F 23               inc hl
+304++ F410 13               inc de
+305++ F411 FE 00            cp 0
+306++ F413 C8               ret z
+307++ F414 18 F7            jr copy_filename_to_buffer1
+308++ F416
+309++ F416              send_data_byte:
+310++ F416                  ; push af
+311++ F416                  ; call message
+312++ F416                  ; db 'send_data_byte ', 0
+313++ F416                  ; pop af
+314++ F416                  ; push af
+315++ F416                  ; call show_a_as_hex
+316++ F416                  ; call newline
+317++ F416                  ; pop af
+318++ F416 D3 A0            out (mem_stick_data_port), a
+319++ F418                  ;call tiny_pause
+320++ F418 CD 4C F4         call wait_til_not_busy
+321++ F41B C9               ret
+322++ F41C
+323++ F41C              send_data_string:
+324++ F41C                  ; The string is pointed to by HL
+325++ F41C 7E               ld a, (hl)
+326++ F41D FE 00            cp 0
+327++ F41F 28 0B            jr z, send_data_string_done
+328++ F421 F5               push af
+329++ F422 E5               push hl
+330++ F423 CD 16 F4         call send_data_byte
+331++ F426 E1               pop hl
+332++ F427 F1               pop af
+333++ F428 23               inc hl
+334++ F429 C3 1C F4         jp send_data_string
+335++ F42C              send_data_string_done:
+336++ F42C 3E 00            ld a, 0
+337++ F42E CD 16 F4         call send_data_byte
+338++ F431 C9               ret
+339++ F432
+340++ F432              send_command_byte:
+341++ F432                  ; push af
+342++ F432                  ; call message
+343++ F432                  ; db 'send_command_byte ',0
+344++ F432                  ; pop af
+345++ F432                  ; push af
+346++ F432                  ; call show_a_as_hex
+347++ F432                  ; call newline
+348++ F432                  ; pop af
+349++ F432 D3 A1            out (mem_stick_command_port), a
+350++ F434                  ;call tiny_pause
+351++ F434 CD 4C F4         call wait_til_not_busy
+352++ F437 C9               ret
+353++ F438
+354++ F438              read_command_byte:
+355++ F438                  ; call message
+356++ F438                  ; db 'read_command_byte: ', 0
+357++ F438 DB A1            in a, (mem_stick_command_port)
+358++ F43A                  ; push af
+359++ F43A                  ; call show_a_as_hex
+360++ F43A                  ; call newline
+361++ F43A                  ; pop af
+362++ F43A C9               ret
+363++ F43B
+364++ F43B              read_data_byte:
+365++ F43B                  ; call message
+366++ F43B                  ; db 'read_data_byte: ', 0
+367++ F43B DB A0            in a, (mem_stick_data_port)
+368++ F43D                  ; push af
+369++ F43D                  ; call show_a_as_hex
+370++ F43D                  ; call newline
+371++ F43D                  ; pop af
+372++ F43D C9               ret
+373++ F43E
+374++ F43E              read_data_byte_silent:
+375++ F43E DB A0            in a, (mem_stick_data_port)
+376++ F440 C9               ret
+377++ F441
+378++ F441              read_data_bytes_into_buffer:
+379++ F441                  ; The number of bytes should be in A.
+380++ F441                  ; Read that many bytes into the buffer.
+381++ F441                  ; The value of A is retained.
+382++ F441 21 C5 FF         ld hl, disk_buffer
+383++ F444              read_data_bytes_into_hl:
+384++ F444                  ; This entry point will read A bytes into the area pointed to by HL.
+385++ F444                  ; On exit HL will point to the location after where the bytes were added.
+386++ F444 F5               push af
+387++ F445 47               ld b, a
+388++ F446 0E A0            ld c, mem_stick_data_port
+389++ F448              read_data_bytes_into_buffer1:
+390++ F448 ED B2            inir                    ; A rare use of In, Increase & Repeat!!!
+391++ F44A F1               pop af
+392++ F44B C9               ret
+393++ F44C
+394++ F44C              wait_til_not_busy:
+395++ F44C                  ; call message
+396++ F44C                  ; db 'waiting...', 13, 10, 0
+397++ F44C 01 60 EA         ld bc, 60000            ; retry max 60000 times!!!
+398++ F44F              wait_til_not_busy1:
+399++ F44F C5               push bc
+400++ F450 CD 38 F4         call read_command_byte
+401++ F453 E6 10            and %00010000
+402++ F455 C2 5A F4         jp nz, wait_til_not_busy2
+403++ F458 C1               pop bc
+404++ F459 C9               ret
+405++ F45A              wait_til_not_busy2:
+406++ F45A CD 23 ED         call short_pause
+407++ F45D C1               pop bc
+408++ F45E 0B               dec bc
+409++ F45F 78               ld a, b
+410++ F460 B1               or c
+411++ F461 20 EC            jr nz, wait_til_not_busy1
+412++ F463 CD 69 ED         call message
+413++ F466 5B 55 53 42      db '[USB TIMEOUT]', 13, 10, 0
+413++ F46A 20 54 49 4D
+413++ F46E 45 4F 55 54
+413++ F472 5D 0D 0A 00
+414++ F476 C9               ret
+415++ F477
+416++ F477              read_status_byte:
+417++ F477 3E 22            ld a, GET_STATUS
+418++ F479 CD 32 F4         call send_command_byte
+419++ F47C CD 3B F4         call read_data_byte
+420++ F47F C9               ret
+421++ F480
+422++ F480              ; show_status:
+423++ F480              ;     call read_status_byte
+424++ F480              ;     push af
+425++ F480              ;     call report_on_status
+426++ F480              ;     pop af
+427++ F480              ;     ret                     ; The status is returned in A
+428++ F480
+429++ F480              ; report_on_status:
+430++ F480              ;     cp USB_INT_SUCCESS
+431++ F480              ;     jr nz, ros1
+432++ F480              ;     call message
+433++ F480              ;     db 'USB_INT_SUCCESS',13,10,0
+434++ F480              ;     ret
+435++ F480              ; ros1:
+436++ F480              ;     cp USB_INT_CONNECT
+437++ F480              ;     jr nz, ros2
+438++ F480              ;     call message
+439++ F480              ;     db 'USB_INT_CONNECT',13,10,0
+440++ F480              ;     ret
+441++ F480              ; ros2:
+442++ F480              ;     cp USB_INT_DISCONNECT
+443++ F480              ;     jr nz, ros3
+444++ F480              ;     call message
+445++ F480              ;     db 'USB_INT_DISCONNECT',13,10,0
+446++ F480              ;     ret
+447++ F480              ; ros3:
+448++ F480              ;     cp USB_INT_BUF_OVER
+449++ F480              ;     jr nz, ros4
+450++ F480              ;     call message
+451++ F480              ;     db 'USB_INT_BUF_OVER',13,10,0
+452++ F480              ;     ret
+453++ F480              ; ros4:
+454++ F480              ;     cp USB_INT_USB_READY
+455++ F480              ;     jr nz, ros5
+456++ F480              ;     call message
+457++ F480              ;     db 'USB_INT_USB_READY',13,10,0
+458++ F480              ;     ret
+459++ F480              ; ros5:
+460++ F480              ;     cp USB_INT_DISK_READ
+461++ F480              ;     jr nz, ros6
+462++ F480              ;     call message
+463++ F480              ;     db 'USB_INT_DISK_READ',13,10,0
+464++ F480              ;     ret
+465++ F480              ; ros6:
+466++ F480              ;     cp USB_INT_DISK_WRITE
+467++ F480              ;     jr nz, ros7
+468++ F480              ;     call message
+469++ F480              ;     db 'USB_INT_DISK_WRITE',13,10,0
+470++ F480              ;     ret
+471++ F480              ; ros7:
+472++ F480              ;     cp USB_INT_DISK_ERR
+473++ F480              ;     jr nz, ros8
+474++ F480              ;     call message
+475++ F480              ;     db 'USB_INT_DISK_ERR',13,10,0
+476++ F480              ;     ret
+477++ F480              ; ros8:
+478++ F480              ;     cp YES_OPEN_DIR
+479++ F480              ;     jr nz, ros9
+480++ F480              ;     call message
+481++ F480              ;     db 'YES_OPEN_DIR',13,10,0
+482++ F480              ;     ret
+483++ F480              ; ros9:
+484++ F480              ;     cp ERR_MISS_FILE
+485++ F480              ;     jr nz, ros10
+486++ F480              ;     call message
+487++ F480              ;     db 'ERR_MISS_FILE',13,10,0
+488++ F480              ;     ret
+489++ F480              ; ros10:
+490++ F480              ;     cp ERR_FOUND_NAME
+491++ F480              ;     jr nz, ros11
+492++ F480              ;     call message
+493++ F480              ;     db 'ERR_FOUND_NAME',13,10,0
+494++ F480              ;     ret
+495++ F480              ; ros11:
+496++ F480              ;     cp ERR_DISK_DISCON
+497++ F480              ;     jr nz, ros12
+498++ F480              ;     call message
+499++ F480              ;     db 'ERR_DISK_DISCON',13,10,0
+500++ F480              ;     ret
+501++ F480              ; ros12:
+502++ F480              ;     cp ERR_LARGE_SECTOR
+503++ F480              ;     jr nz, ros13
+504++ F480              ;     call message
+505++ F480              ;     db 'ERR_LARGE_SECTOR',13,10,0
+506++ F480              ;     ret
+507++ F480              ; ros13:
+508++ F480              ;     cp ERR_TYPE_ERROR
+509++ F480              ;     jr nz, ros14
+510++ F480              ;     call message
+511++ F480              ;     db 'ERR_TYPE_ERROR',13,10,0
+512++ F480              ;     ret
+513++ F480              ; ros14:
+514++ F480              ;     cp ERR_BPB_ERROR
+515++ F480              ;     jr nz, ros15
+516++ F480              ;     call message
+517++ F480              ;     db 'ERR_BPB_ERROR',13,10,0
+518++ F480              ;     ret
+519++ F480              ; ros15:
+520++ F480              ;     cp ERR_DISK_FULL
+521++ F480              ;     jr nz, ros16
+522++ F480              ;     call message
+523++ F480              ;     db 'ERR_DISK_FULL',13,10,0
+524++ F480              ;     ret
+525++ F480              ; ros16:
+526++ F480              ;     cp ERR_FDT_OVER
+527++ F480              ;     jr nz, ros17
+528++ F480              ;     call message
+529++ F480              ;     db 'ERR_FDT_OVER',13,10,0
+530++ F480              ;     ret
+531++ F480              ; ros17:
+532++ F480              ;     cp ERR_FILE_CLOSE
+533++ F480              ;     jr nz, ros18
+534++ F480              ;     call message
+535++ F480              ;     db 'ERR_FILE_CLOSE',13,10,0
+536++ F480              ;     ret
+537++ F480              ; ros18:
+538++ F480              ;     call message
+539++ F480              ;     db 'UNKNOWN STATUS: ',0
+540++ F480              ;     call show_a_as_hex
+541++ F480              ;     call newline
+542++ F480              ;     ret
+543++ F480
+544++ F480
+545++ F480              mem_stick_data_port     equ 0xA0
+546++ F480              mem_stick_command_port  equ 0xA1
+547++ F480
+548++ F480              GET_IC_VER equ $01
+549++ F480              SET_BAUDRATE equ $02
+550++ F480              RESET_ALL equ $05
+551++ F480              CHECK_EXIST equ $06
+552++ F480              GET_FILE_SIZE equ $0C
+553++ F480              SET_USB_MODE equ $15
+554++ F480              GET_STATUS equ $22
+555++ F480              RD_USB_DATA0 equ $27
+556++ F480              WR_USB_DATA equ $2C
+557++ F480              WR_REQ_DATA equ $2D
+558++ F480              WR_OFS_DATA equ $2E
+559++ F480              SET_FILE_NAME equ $2F
+560++ F480              DISK_CONNECT equ $30
+561++ F480              DISK_MOUNT equ $31
+562++ F480              FILE_OPEN equ $32
+563++ F480              FILE_ENUM_GO equ $33
+564++ F480              FILE_CREATE equ $34
+565++ F480              FILE_ERASE equ $35
+566++ F480              FILE_CLOSE equ $36
+567++ F480              DIR_INFO_READ equ $37
+568++ F480              DIR_INFO_SAVE equ $38
+569++ F480              BYTE_LOCATE equ $39
+570++ F480              BYTE_READ equ $3A
+571++ F480              BYTE_RD_GO equ $3B
+572++ F480              BYTE_WRITE equ $3C
+573++ F480              BYTE_WR_GO equ $3D
+574++ F480              DISK_CAPACITY equ $3E
+575++ F480              DISK_QUERY equ $3F
+576++ F480              DIR_CREATE equ $40
+577++ F480
+578++ F480
+579++ F480              ; Statuses
+580++ F480              USB_INT_SUCCESS equ $14
+581++ F480              USB_INT_CONNECT equ $15
+582++ F480              USB_INT_DISCONNECT equ $16
+583++ F480              USB_INT_BUF_OVER equ $17
+584++ F480              USB_INT_USB_READY equ $18
+585++ F480              USB_INT_DISK_READ equ $1D
+586++ F480              USB_INT_DISK_WRITE equ $1E
+587++ F480              USB_INT_DISK_ERR equ $1F
+588++ F480              YES_OPEN_DIR equ $41
+589++ F480              ERR_MISS_FILE equ $42
+590++ F480              ERR_FOUND_NAME equ $43
+591++ F480              ERR_DISK_DISCON equ $82
+592++ F480              ERR_LARGE_SECTOR equ $84
+593++ F480              ERR_TYPE_ERROR equ $92
+594++ F480              ERR_BPB_ERROR equ $A1
+595++ F480              ERR_DISK_FULL equ $B1
+596++ F480              ERR_FDT_OVER equ $B2
+597++ F480              ERR_FILE_CLOSE equ $B4
+598++ F480
+599++ F480              ROOT_DIRECTORY:
+600++ F480 2A 00            db '*',0
+601++ F482
+602++ F482              SLASH:
+603++ F482 2F 00            db '/',0
+604++ F484
+605++ F484              ;SAVE_FILENAME:
+606++ F484              ;    db 'TESTING',0
+607++ F484
+608++ F484              ;TARGET_FILENAME:
+609++ F484              ;    db '/TARGET2.TXT',0
+610++ F484
+611++ F484              ;NO_EXTENSION:
+612++ F484              ;    db '   ',0
+613++ F484
+614++ F484              ;TXT_EXTENSION:
+615++ F484              ;    db 'TXT',0
+616++ F484
 # file closed: memorystick_low_level.asm
-670+  FE8A
-671+  FE8A              ROOT_NAME:
-672+  FE8A 2F 00            db '/',0
-673+  FE8C
-674+  FE8C              STAR_DOT_STAR:
-675+  FE8C 2A 00            db '*',0
-676+  FE8E
-677+  FE8E              CPM_FOLDER_NAME:
-678+  FE8E 2F 43 50 4D      db '/CPM',0
-678+  FE92 00
-679+  FE93
-680+  FE93              TINY_BASIC_FOLDER_NAME:
-681+  FE93 2F 54 42 41           db '/TBASIC',0
-681+  FE97 53 49 43 00
-682+  FE9B
-683+  FE9B              CPM_DISKS_NAME:
-684+  FE9B 44 49 53 4B      db 'DISKS',0
-684+  FE9F 53 00
-685+  FEA1
-686+  FEA1
-687+  FEA1
+670+  F484
+671+  F484              ROOT_NAME:
+672+  F484 2F 00            db '/',0
+673+  F486
+674+  F486              STAR_DOT_STAR:
+675+  F486 2A 00            db '*',0
+676+  F488
+677+  F488              CPM_FOLDER_NAME:
+678+  F488 2F 43 50 4D      db '/CPM',0
+678+  F48C 00
+679+  F48D
+680+  F48D              TINY_BASIC_FOLDER_NAME:
+681+  F48D 2F 54 42 41           db '/TBASIC',0
+681+  F491 53 49 43 00
+682+  F495
+683+  F495              CPM_DISKS_NAME:
+684+  F495 44 49 53 4B      db 'DISKS',0
+684+  F499 53 00
+685+  F49B
+686+  F49B
+687+  F49B
 # file closed: memorystick.asm
-124   FEA1
-125   FEA1              filename_buffer equ 65535-20
-126   FEA1              DRIVE_NAME equ filename_buffer-2
-127   FEA1              disk_buffer equ DRIVE_NAME-36
-128   FEA1
-129   FEA1              CORE_END equ $
-130   FEA1
-131   FEA1                  IF CORE_END-CORE_START>3072
-132   FEA1 ~                    .WARNING "The CORE is too big! 3072 bytes max!"
-133   FEA1                  ENDIF
+126   F49B                  include "PPI.asm"
+# file opened: PPI.asm
+  1+  F49B              INIT_PIO:
+  2+  F49B 3E 80                	LD      A, 0x80 			; All ports output A,B and C
+  3+  F49D D3 AB        	        OUT     (PIO_M), A		;
+  4+  F49F C9                       RET
+  5+  F4A0
+  6+  F4A0
+  7+  F4A0              change_to_slot2:
+  8+  F4A0 E5               push    HL
+  9+  F4A1
+ 10+  F4A1                  ;call    teste_na_rom
+ 11+  F4A1 3E AA        	LD      A, 0xAA
+ 12+  F4A3 D3 A8        	OUT     (PIO_A), A
+ 13+  F4A5                  ;call    teste_na_ram
+ 14+  F4A5
+ 15+  F4A5
+ 16+  F4A5                  ; Copy the first 16k of ROM down to ram LD (DE),(HL),
+ 17+  F4A5 21 B1 F4     	ld hl,  RamAddr000
+ 18+  F4A8 11 00 00     	ld de,  0
+ 19+  F4AB 01 80 00     	ld bc,	128
+ 20+  F4AE ED B0        	ldir
+ 21+  F4B0 C9               ret
+ 22+  F4B1
+ 23+  F4B1
+ 24+  F4B1              ;teste_na_ram:
+ 25+  F4B1                  ;call CORE_message
+ 26+  F4B1                  ;db 'Testing ram 1000: ',13,10,0
+ 27+  F4B1                  ;ld  hl,1000
+ 28+  F4B1                  ;ld  A, 0xA5
+ 29+  F4B1                  ;ld  (hl),a
+ 30+  F4B1                  ;ld  A, 0x5A
+ 31+  F4B1                  ;ld A,(hl)
+ 32+  F4B1                  ;cp  A, 0xA5
+ 33+  F4B1                  ;jp  NZ, cont
+ 34+  F4B1                  ;call CORE_message
+ 35+  F4B1                  ;db 'We are in RAM',13,10,0
+ 36+  F4B1                  ;jp  cont2
+ 37+  F4B1              ;cont:
+ 38+  F4B1                  ;call CORE_message
+ 39+  F4B1                  ;db 'We are NOT in RAM',13,10,0
+ 40+  F4B1              ;    halt
+ 41+  F4B1              ;cont2:
+ 42+  F4B1              ;    pop     HL
+ 43+  F4B1              ;copy_ram:
+ 44+  F4B1              ;    ret
+ 45+  F4B1
+ 46+  F4B1              ;teste_na_rom:
+ 47+  F4B1              ;    call CORE_message
+ 48+  F4B1              ;    db 'Testing ram 1000: ',13,10,0
+ 49+  F4B1              ;    ld  hl,1000
+ 50+  F4B1              ;    ld  A, 0xA5
+ 51+  F4B1              ;    ld  (hl),a
+ 52+  F4B1              ;    ld  A, 0x5A
+ 53+  F4B1              ;    ld A,(hl)
+ 54+  F4B1              ;    cp  A, 0xA5
+ 55+  F4B1              ;    jp  NZ, cont1
+ 56+  F4B1              ;    call CORE_message
+ 57+  F4B1              ;    db 'We are in RAM',13,10,0
+ 58+  F4B1              ;    jp  cont21
+ 59+  F4B1              ;cont1:
+ 60+  F4B1              ;    call CORE_message
+ 61+  F4B1              ;    db 'We are NOT in RAM',13,10,0
+ 62+  F4B1              ;cont21:
+ 63+  F4B1              ;    ret
+# file closed: PPI.asm
+127   F4B1                  include "cpm000.asm"
+# file opened: cpm000.asm
+  1+  F4B1                  ;org     0x0000
+  2+  F4B1              RamAddr000:
+  3+  F4B1 C3 00 DC         jp      BIOS_START      ;Warm boot jump to bios
+  4+  F4B4 03               db      0x3               ;iobyte
+  5+  F4B5 00               DS      1               ;disk byte
+  6+  F4B6 C3 00 D0         jp      BDOS_START      ;system call
+  7+  F4B9                  ;Restart vector 7  generally used by debuggers
+  8+  F4B9              	;org 0x0038
+  9+  F4B9              int:
+ 10+  F4B9 ED 4D        	reti
+ 11+  F4BB                  ;Bios work area
+ 12+  F4BB                  ;org 0x0040
+ 13+  F4BB 30 30 30 30      db  '0000000000000000'
+ 13+  F4BF 30 30 30 30
+ 13+  F4C3 30 30 30 30
+ 13+  F4C7 30 30 30 30
+ 14+  F4CB                  ;Unused area in CP/M 2.2
+ 15+  F4CB                  ;org 0x0050
+ 16+  F4CB 30 30 30 30      db  '0000000000000000'
+ 16+  F4CF 30 30 30 30
+ 16+  F4D3 30 30 30 30
+ 16+  F4D7 30 30 30 30
+ 17+  F4DB                  ;FCB Default file control block
+ 18+  F4DB                  ;org 0x0060
+ 19+  F4DB 30 30 30 30      db  '0000000000000000'
+ 19+  F4DF 30 30 30 30
+ 19+  F4E3 30 30 30 30
+ 19+  F4E7 30 30 30 30
+ 20+  F4EB 30 30 30 30      db  '0000000000000000'
+ 20+  F4EF 30 30 30 30
+ 20+  F4F3 30 30 30 30
+ 20+  F4F7 30 30 30 30
+ 21+  F4FB                  ;File buffer 128 bytes
+ 22+  F4FB                  ;org 0x0080
+ 23+  F4FB                  ;db  '0000000000000000000000000000000000000000000000000000000000000000'
+ 24+  F4FB                  ;db  '0000000000000000000000000000000000000000000000000000000000000000'
+ 25+  F4FB
+# file closed: cpm000.asm
+128   F4FB
+129   F4FB              filename_buffer 	equ 65535-20
+130   F4FB              DRIVE_NAME 			equ filename_buffer-2
+131   F4FB              disk_buffer 		equ DRIVE_NAME-36
+132   F4FB
+133   F4FB              CORE_END equ $
+134   F4FB
+135   F4FB                  IF CORE_END-CORE_START>CORE_SIZE
+136   F4FB ~                    .WARNING "The CORE is too big! CORE_SIZE bytes max!"
+137   F4FB                  ENDIF
 # file closed: core.asm

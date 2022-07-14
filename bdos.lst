@@ -6,11 +6,20 @@
    1+ 0000              ; locations.asm
    2+ 0000              ; Stores the ORG values for the CCP, BDOS, BIOS and CORE
    3+ 0000
-   4+ 0000              CORE_START  equ $F600    ; $FFFF - 2.5K
-   5+ 0000              BIOS_START  equ $F400    ; $F600 - 0.5K
-   6+ 0000              BDOS_START  equ $EA00    ; $F400 - 2.5K
-   7+ 0000              CCP_START   equ $DE00    ; $EA00 - 3.0K
+   4+ 0000              ;CORE_START  equ $F600    ; $FFFF - 2.5K
+   5+ 0000              ;BIOS_START  equ $F400    ; $F600 - 0.5K
+   6+ 0000              ;BDOS_START  equ $EA00    ; $F400 - 2.5K
+   7+ 0000              ;CCP_START   equ $DE00    ; $EA00 - 3.0K
    8+ 0000
+   9+ 0000              CORE_START  equ $EC00    ; 5119
+  10+ 0000              BIOS_START  equ $DC00    ; 4096
+  11+ 0000              BDOS_START  equ $D000    ; 3072
+  12+ 0000              CCP_START   equ $B000    ; 8192
+  13+ 0000
+  14+ 0000              CORE_SIZE   equ 0xFFFF-CORE_START
+  15+ 0000              BIOS_SIZE   equ CORE_START-BIOS_START
+  16+ 0000              BDOS_SIZE   equ BIOS_START-BDOS_START
+  17+ 0000              CCP_SIZE    equ BDOS_START-CCP_START
 # file closed: locations.asm
    4  0000                  include "core_jump.asm"
 # file opened: core_jump.asm
@@ -32,6 +41,12 @@
    9++0000              uart_LSR 		equ   0xBD   ;  13
   10++0000              uart_MSR 		equ   0xBE   ;  14
   11++0000              uart_scratch 	equ   0xBF   ;  15
+  12++0000
+  13++0000              PIO_A	equ	0xA8		; CA80 user 8255 base address 	  (port A)
+  14++0000              PIO_B	equ	0xA9		; CA80 user 8255 base address + 1 (port B)
+  15++0000              PIO_C	equ	0xAA		; CA80 user 8255 base address + 2 (fport C)
+  16++0000              PIO_M	equ	0xAB		; CA80 user 8255 control register
+  17++0000
 # file closed: port_numbers.asm
    7+ 0000
    8+ 0000
@@ -78,1912 +93,1910 @@
   49+ 0000              CORE_show_a_as_hex equ CORE_START+120
   50+ 0000              CORE_convert_user_number_to_folder_name equ CORE_START+123
   51+ 0000              CORE_set_file_size_in_fcb equ CORE_START+126
-  52+ 0000
-  53+ 0000              filename_buffer equ 65535-20
-  54+ 0000              DRIVE_NAME equ filename_buffer-2
-  55+ 0000              disk_buffer equ DRIVE_NAME-36
-  56+ 0000
-  57+ 0000              core_location equ disk_buffer-2         ; Stores the core_start location
-  58+ 0000              bios_location equ core_location-2       ; Stores the bios_start location
-  59+ 0000              bdos_location equ bios_location-2       ; Stores the bdos_start location
-  60+ 0000              ccp_location equ bdos_location-2        ; Stores the ccp_start location
-  61+ 0000              ccp_name equ ccp_location-13            ; stores the name of the ccp file, e.g. MYCCP.BIN with a zero terminator
-  62+ 0000
-  63+ 0000
+  52+ 0000              CORE_change_to_slot2 equ CORE_START+129
+  53+ 0000
+  54+ 0000
+  55+ 0000              filename_buffer equ 65535-20
+  56+ 0000              DRIVE_NAME equ filename_buffer-2
+  57+ 0000              disk_buffer equ DRIVE_NAME-36
+  58+ 0000
+  59+ 0000              core_location equ disk_buffer-2         ; Stores the core_start location
+  60+ 0000              bios_location equ core_location-2       ; Stores the bios_start location
+  61+ 0000              bdos_location equ bios_location-2       ; Stores the bdos_start location
+  62+ 0000              ccp_location equ bdos_location-2        ; Stores the ccp_start location
+  63+ 0000              ccp_name equ ccp_location-13            ; stores the name of the ccp file, e.g. MYCCP.BIN with a zero terminator
   64+ 0000
   65+ 0000
   66+ 0000
   67+ 0000
+  68+ 0000
+  69+ 0000
 # file closed: core_jump.asm
    5  0000
    6  0000                  org BDOS_START
-   7  EA00
-   8  EA00                  ; BDOS size is 2.5K max. If it exceeds this there will be problems!
-   9  EA00                  ; See the end of the file for a Pasmo Error Check to ensure this isn't allowed to happen.
-  10  EA00                  ; It is most likely to happen if you enable debug mode and have lots of extra debug messages in play.
-  11  EA00
-  12  EA00              DEBUG_BDOS equ 0
-  13  EA00              OTHER_DEBUG equ 0
-  14  EA00
-  15  EA00              bdos_entry:
-  16  EA00                  ; The function number is passed in Register C.
-  17  EA00                  ; The parameter is passed in DE.
-  18  EA00                  ; Result returned in A or HL. Also, A=L and B=H on return for compatibility reasons.
-  19  EA00                  ; If function number is unknown we return A=0.
-  20  EA00
-  21  EA00 79               ld a, c
-  22  EA01 FE 31            cp 49
-  23  EA03 38 2A            jr c, BDOS_ok
-  24  EA05
-  25  EA05 FE 66            cp $66                      ; 102 = BDOS_Get_Date_Time
-  26  EA07 28 56            jr z, return_255_in_a
-  27  EA09 FE 69            cp $69                      ; BDOS function 69 - Get configuration table address
-  28  EA0B 28 52            jr z, return_255_in_a       ; is supported by CP/Net, so ignore it here.
-  29  EA0D
-  30  EA0D CD 39 F6         call CORE_message
-  31  EA10 42 41 44 20      db 'BAD BDOS CALL: ',0
-  31  EA14 42 44 4F 53
-  31  EA18 20 43 41 4C
-  31  EA1C 4C 3A 20 00
-  32  EA20 69               ld l, c
-  33  EA21 26 00            ld h, 0
-  34  EA23 CD 3C F6         call CORE_show_hl_as_hex
-  35  EA26 CD 39 F6         call CORE_message
-  36  EA29 0D 0A 00         db 13, 10, 0
-  37  EA2C C3 00 00         jp $0000                    ; Totally abandon anything after a bad BDOS call!
-  38  EA2F
-  39  EA2F              BDOS_ok:
-  40  EA2F D5               push de
-  41  EA30 21 1A F1         ld hl, BDOS_jump_table
-  42  EA33 59               ld e, c
-  43  EA34 16 00            ld d, 0
-  44  EA36 19               add hl, de
-  45  EA37 19               add hl, de
-  46  EA38                  ; Jump to actual BDOS entry
-  47  EA38 5E               ld e, (hl)
-  48  EA39 23               inc hl
-  49  EA3A 56               ld d, (hl)
-  50  EA3B EB               ex de, hl                   ; hl now holds address of the BDOS call
-  51  EA3C D1               pop de
-  52  EA3D
-  53  EA3D CD 43 EA         call call_hl
-  54  EA40
-  55  EA40                  ; Now return. So anything that wants to return a value in HL should do ld a,l ld b,h first
-  56  EA40 6F               ld l, a                     ; This is how the
-  57  EA41 60               ld h, b                     ; BDOS returns values.
-  58  EA42 C9               ret                         ; Note that it is important to some programs that both A and B are set.
-  59  EA43
-  60  EA43              call_hl:
-  61  EA43                  ; This crazy-looking code does a jump to the address in hl.
-  62  EA43                  ; Because we called this routine, it was like we did "call hl".
-  63  EA43 E5           	push hl
-  64  EA44 C9               ret
-  65  EA45
-  66  EA45              show_bdos_message:
-  67  EA45 CD 39 F6         call CORE_message
-  68  EA48 0D 0A 42 44      db 13,10,'BDOS_',0
-  68  EA4C 4F 53 5F 00
-  69  EA50 C9               ret
-  70  EA51
-  71  EA51              BDOS_System_Reset:
-  72  EA51                  ; IF DEBUG_BDOS
-  73  EA51                  ; call show_bdos_message
-  74  EA51              	; call CORE_message
-  75  EA51              	; db 'RST',13,10,0
-  76  EA51                  ; ENDIF
-  77  EA51
-  78  EA51 CD B1 EF         call clear_current_fcb                          ; Clear the Current_fcb
-  79  EA54 C3 00 00         jp $0000
-  80  EA57
-  81  EA57              return_0_in_a:
-  82  EA57 AF               xor a                                           ; a = 0
-  83  EA58 47               ld b, a
-  84  EA59 C9               ret
-  85  EA5A              return_1_in_a:
-  86  EA5A 3E 01            ld a, 1
-  87  EA5C 06 00            ld b, 0
-  88  EA5E C9               ret
-  89  EA5F              return_255_in_a:
-  90  EA5F 3E FF            ld a, 255
-  91  EA61 06 00            ld b, 0
-  92  EA63 C9               ret
-  93  EA64
-  94  EA64              BDOS_Console_Input:
-  95  EA64                  ; Read a key from the keyboard.
-  96  EA64                  ; If there is none, wait until there is.
-  97  EA64                  ; Echo it to screen, and obey things like Tab, Backspace etc
-  98  EA64 CD 09 F6         call CORE_char_in
-  99  EA67 FE 00            cp 0                                ; Keep trying til they press something
- 100  EA69 28 F9            jr z, BDOS_Console_Input
- 101  EA6B FE 20            cp 32                               ; Don't echo control chars
- 102  EA6D D8               ret c
- 103  EA6E CD 06 F6         call CORE_print_a                   ; But do echo everything else
- 104  EA71 C9               ret
- 105  EA72
- 106  EA72              BDOS_Console_Output:
- 107  EA72                  ; Prints to screen the char in e.
- 108  EA72 7B               ld a, e
- 109  EA73 CD 06 F6         call CORE_print_a
- 110  EA76 C9               ret
- 111  EA77
- 112  EA77              BDOS_Reader_Input:
- 113  EA77                  ; call show_bdos_message
- 114  EA77              	; call CORE_message
- 115  EA77              	; db 'Rdr_In',13,10,0
- 116  EA77 C3 5F EA         jp return_255_in_a
- 117  EA7A
- 118  EA7A              BDOS_Punch_Output:
- 119  EA7A                  ; call show_bdos_message
- 120  EA7A              	; call CORE_message
- 121  EA7A              	; db 'Punch',13,10,0
- 122  EA7A C3 5F EA         jp return_255_in_a
- 123  EA7D
- 124  EA7D              BDOS_List_Output:
- 125  EA7D                  ; call show_bdos_message
- 126  EA7D              	; call CORE_message
- 127  EA7D              	; db 'List',13,10,0
- 128  EA7D C3 5F EA         jp return_255_in_a
- 129  EA80
- 130  EA80              BDOS_Direct_Console_IO:
- 131  EA80                  ; If "E" contains FF then we are reading from the keyboard.
- 132  EA80                  ;   If there is a key, return it in A, otherwise return 0.
- 133  EA80                  ; If "E" is not FF then we are writing to screen.
- 134  EA80                  ;   Print the char directly
- 135  EA80 7B               ld a, e
- 136  EA81 FE FF            cp $FF
- 137  EA83 20 06            jr nz, BDOS_Direct_Console_IO_Write
- 138  EA85 CD 09 F6         call CORE_char_in
- 139  EA88 06 01            ld b, 1
- 140  EA8A C9               ret
- 141  EA8B              BDOS_Direct_Console_IO_Write:
- 142  EA8B CD 06 F6         call CORE_print_a
- 143  EA8E C3 57 EA         jp return_0_in_a
- 144  EA91
- 145  EA91              BDOS_Get_IO_Byte:
- 146  EA91                  ; call show_bdos_message
- 147  EA91              	; call CORE_message
- 148  EA91              	; db 'Get_IO_Byte',13,10,0
- 149  EA91 C3 57 EA         jp return_0_in_a
- 150  EA94
- 151  EA94              BDOS_Set_IO_Byte:
- 152  EA94                  ; call show_bdos_message
- 153  EA94              	; call CORE_message
- 154  EA94              	; db 'Set_IO_Byte',13,10,0
- 155  EA94 C3 5A EA         jp return_1_in_a
- 156  EA97
- 157  EA97              BDOS_Print_String:
- 158  EA97                  ; Print the string at "de" until we see a "$"
- 159  EA97              BDOS_Print_String1:
- 160  EA97 1A               ld a, (de)
- 161  EA98 13               inc de
- 162  EA99 FE 24            cp '$'
- 163  EA9B 28 05            jr z, BDOS_Print_String2
- 164  EA9D CD 06 F6         call CORE_print_a
- 165  EAA0 18 F5            jr BDOS_Print_String1
- 166  EAA2              BDOS_Print_String2
- 167  EAA2 C3 57 EA         jp return_0_in_a
- 168  EAA5
- 169  EAA5              BDOS_Read_Console_Buffer:
- 170  EAA5                  ; Read a line of input from the keyboard into a buffer.
- 171  EAA5                  ; The buffer is pointed to by DE.
- 172  EAA5                  ; The first two bytes of the buffer contain its max length and final length.
- 173  EAA5                  ; Read in keys and put them into the buffer until the max length is reached,
- 174  EAA5                  ; or the user presses Enter.
- 175  EAA5                  ; Obey chars like Tab and Backspace.
- 176  EAA5 EB               ex de, hl
- 177  EAA6 56               ld d, (hl)                  ; d = max buffer length
- 178  EAA7 23               inc hl
- 179  EAA8 36 00            ld (hl), 0                  ; reset the "final length" byte.
- 180  EAAA 4D               ld c, l
- 181  EAAB 44               ld b, h                     ; store this location
- 182  EAAC 1E 00            ld e, 0
- 183  EAAE 23               inc hl
- 184  EAAF EB               ex de, hl                   ; DE points to the start of the buffer spare space
- 185  EAB0 E5               push hl
- 186  EAB1 C5               push bc
- 187  EAB2 E1               pop hl                      ; HL points to the "final length" byte
- 188  EAB3 C1               pop bc                      ; B contains the max buffer length
- 189  EAB4                                              ; DE points to our target location in buffer
- 190  EAB4              BDOS_Read_Console_Buffer1:
- 191  EAB4 E5               push hl
- 192  EAB5 D5               push de
- 193  EAB6 C5               push bc
- 194  EAB7 CD 64 EA         call BDOS_Console_Input     ; Get a char and echo it
- 195  EABA C1               pop bc
- 196  EABB D1               pop de
- 197  EABC E1               pop hl
- 198  EABD FE 0D            cp 13                       ; Done?
- 199  EABF 28 09            jr z, BDOS_Read_Console_Buffer2
- 200  EAC1 FE 08            cp 8                        ; Backspace key?
- 201  EAC3 28 08            jr z, BDOS_Read_Console_Buffer_Backspace
- 202  EAC5 12               ld (de), a                  ; Store the char in the buffer
- 203  EAC6 34               inc (hl)                    ; Increase the final-chars-count
- 204  EAC7 13               inc de                      ; Move on to next place in buffer
- 205  EAC8                                              ; Decrease the max-chars counter and continue if any left
- 206  EAC8 10 EA            djnz  BDOS_Read_Console_Buffer1
- 207  EACA              BDOS_Read_Console_Buffer2:
- 208  EACA 06 00            ld b, 0
- 209  EACC C9           	ret
- 210  EACD              BDOS_Read_Console_Buffer_Backspace:
- 211  EACD 7E               ld a, (hl)                  ; If final-chars is zero we can't go back any more
- 212  EACE FE 00            cp 0
- 213  EAD0 28 E2            jr z, BDOS_Read_Console_Buffer1
- 214  EAD2 3E 20            ld a, ' '                   ; Otherwise continue...
- 215  EAD4 1B               dec de
- 216  EAD5 12               ld (de), a                  ; Clear out most recent char
- 217  EAD6 35               dec (hl)                    ; Decrease final-chars-count
- 218  EAD7 3E 08            ld a, 8
- 219  EAD9 CD 06 F6         call CORE_print_a                ; Print it to go back one space
- 220  EADC 3E 20            ld a, ' '
- 221  EADE CD 06 F6         call CORE_print_a                ; Cover over most recent char with space
- 222  EAE1 3E 08            ld a, 8
- 223  EAE3 CD 06 F6         call CORE_print_a                ; Print it to go back one space
- 224  EAE6 04               inc b                       ; Increase max-chars-counter
- 225  EAE7 18 CB            jr BDOS_Read_Console_Buffer1
- 226  EAE9
- 227  EAE9              BDOS_Get_Console_Status:
- 228  EAE9                  ; Is there a key available? If there is, FF, otherwise 00
- 229  EAE9 C3 0C F6         jp CORE_char_available
- 230  EAEC
- 231  EAEC              BDOS_Return_Version_Number:
- 232  EAEC 3E 22            ld a, $22                   ; This is CP/M v2.2
- 233  EAEE 06 00            ld b, 0
- 234  EAF0 C9           	ret
- 235  EAF1
- 236  EAF1              BDOS_Reset_Disk_System:
- 237  EAF1                  if DEBUG_BDOS
- 238  EAF1 ~                call show_bdos_message
- 239  EAF1 ~            	call CORE_message
- 240  EAF1 ~            	db 'Rst_Dsk',13,10,0
- 241  EAF1                  ENDIF
- 242  EAF1
- 243  EAF1 CD B1 EF         call clear_current_fcb                          ; Clear out current FCB
- 244  EAF4 1E 00            ld e, 0
- 245  EAF6 CD 00 EB         call BDOS_Select_Disk                           ; Choose disk A:
- 246  EAF9
- 247  EAF9 21 80 00         ld hl, $0080
- 248  EAFC 22 E1 F1         ld (dma_address), hl                            ; Set standard DMA location
- 249  EAFF C9           	ret
- 250  EB00
- 251  EB00              BDOS_Select_Disk:
- 252  EB00                  if DEBUG_BDOS
- 253  EB00 ~                call show_bdos_message
- 254  EB00 ~            	call CORE_message
- 255  EB00 ~            	db 'Sel_Dsk ',0
- 256  EB00                  ENDIF
- 257  EB00
- 258  EB00 CD 69 F6         call CORE_close_file                            ; If we are changing disks, we need to close any files
- 259  EB03
- 260  EB03                  ; Disk is in "E". 0 = A:, 15 = P:
- 261  EB03 7B               ld a, e
- 262  EB04 FE 10            cp 16                                                   ; Make sure desired disk is in range 0..15
- 263  EB06 30 4D            jr nc, BDOS_Select_Disk_Error
- 264  EB08 32 EE F1         ld (current_disk), a                                    ; Store disk
- 265  EB0B
- 266  EB0B                  ; Now check that directory actually exists, and if not, make it
- 267  EB0B C6 41            add a, 'A'
- 268  EB0D F5               push af
- 269  EB0E
- 270  EB0E                  if DEBUG_BDOS
- 271  EB0E ~                call CORE_print_a
- 272  EB0E ~                call CORE_newline
- 273  EB0E                  ENDIF
- 274  EB0E
- 275  EB0E 21 E3 F1         ld hl, CPM_FOLDER_NAME                ; Start at /CPM
- 276  EB11 CD 63 F6         call CORE_open_file
- 277  EB14 21 E8 F1         ld hl, CPM_DISKS_NAME                ; Start at /CPM/DISKS
- 278  EB17 CD 63 F6         call CORE_open_file
- 279  EB1A
- 280  EB1A 21 EB FF         ld hl, filename_buffer              ; Move to "A" .. "P" for required disk
- 281  EB1D F1               pop af
- 282  EB1E 77               ld (hl), a
- 283  EB1F 23               inc hl
- 284  EB20 36 00            ld (hl), 0
- 285  EB22 2B               dec hl
- 286  EB23 CD 63 F6         call CORE_open_file
- 287  EB26 FE 41            cp YES_OPEN_DIR
- 288  EB28 28 06            jr z, BDOS_Select_Disk_ok
- 289  EB2A
- 290  EB2A 21 EB FF         ld hl, filename_buffer              ; If drive "X" is not found, create the folder for it
- 291  EB2D CD 66 F6         call CORE_create_directory
- 292  EB30
- 293  EB30              BDOS_Select_Disk_ok:
- 294  EB30 3A EF F1         ld a, (current_user)                ; If they are user 0 then all is done
- 295  EB33 FE 00            cp 0
- 296  EB35 28 18            jr z, BDOS_Select_Disk_User_ok
- 297  EB37
- 298  EB37                  ; Now check if the User folder exists (User 1 = "1", User 15 = "F")
- 299  EB37 CD 7B F6         call CORE_convert_user_number_to_folder_name
- 300  EB3A 21 EB FF         ld hl, filename_buffer              ; Move to "1" .. "F" for required user area
- 301  EB3D 77               ld (hl), a
- 302  EB3E 23               inc hl
- 303  EB3F 36 00            ld (hl), 0
- 304  EB41 2B               dec hl
- 305  EB42 CD 63 F6         call CORE_open_file
- 306  EB45 FE 41            cp YES_OPEN_DIR
- 307  EB47 28 06            jr z, BDOS_Select_Disk_User_ok
- 308  EB49
- 309  EB49 21 EB FF         ld hl, filename_buffer              ; Create folder if not found
- 310  EB4C CD 66 F6         call CORE_create_directory
- 311  EB4F
- 312  EB4F              BDOS_Select_Disk_User_ok:
- 313  EB4F CD B1 EF         call clear_current_fcb                          ; Clear out current FCB
- 314  EB52 C3 57 EA     	jp return_0_in_a
- 315  EB55
- 316  EB55              BDOS_Select_Disk_Error:
- 317  EB55 CD 39 F6         call CORE_message
- 318  EB58 42 44 4F 53      db 'BDOS Error on ',0
- 318  EB5C 20 45 72 72
- 318  EB60 6F 72 20 6F
- 318  EB64 6E 20 00
- 319  EB67 C6 41            add a, 'A'
- 320  EB69 CD 06 F6         call CORE_print_a
- 321  EB6C 3E 3A            ld a, ':'
- 322  EB6E CD 06 F6         call CORE_print_a
- 323  EB71 CD 33 F6         call CORE_newline
- 324  EB74 C3 00 00         jp 0
- 325  EB77
- 326  EB77              BDOS_Open_File:
- 327  EB77                  ; Pass in de -> FCB
- 328  EB77                  ; return a = 0 for success, a = 255 for error.
- 329  EB77                  ; The FCB that was passed in gets copied into the Current_FCB so we know which file is open.
- 330  EB77
- 331  EB77                  if DEBUG_BDOS
- 332  EB77 ~                call show_bdos_message
- 333  EB77 ~            	call CORE_message
- 334  EB77 ~            	db 'Open',13,10,0
- 335  EB77 ~                call show_fcb
- 336  EB77                  ENDIF
- 337  EB77
- 338  EB77 3E 00            ld a, 0
- 339  EB79 C3 7C EB         jp bdos_open_file_internal
- 340  EB7C
- 341  EB7C              bdos_open_file_internal:
- 342  EB7C                  ; Pass in de -> FCB
- 343  EB7C                  ; Pass in a = 0 for resetting the file pointer to 0, or a = 1 for don't-mess-with-file-pointer.
- 344  EB7C                  ; return a = 0 for success, a = 255 for error.
- 345  EB7C                  ; The FCB that was passed in gets copied into the Current_FCB so we know which file is open.
- 346  EB7C F5               push af
- 347  EB7D D5               push de
- 348  EB7E
- 349  EB7E CD 69 F6         call CORE_close_file ; just in case?
- 350  EB81
- 351  EB81 D1               pop de                              ; Now use FCB to open the file
- 352  EB82 F1               pop af
- 353  EB83 FE 00            cp 0
- 354  EB85 20 0B            jr nz, bdos_open_file_internal1     ; If a=0 then clear the file pointer, otherwise leave as is.
- 355  EB87 EB               ex de, hl
- 356  EB88 01 00 00         ld bc, 0
- 357  EB8B 11 00 00         ld de, 0
- 358  EB8E CD 40 EF         call set_file_pointer_in_fcb
- 359  EB91 EB               ex de, hl
- 360  EB92              bdos_open_file_internal1:
- 361  EB92                  ;call show_fcb
- 362  EB92 D5               push de
- 363  EB93 CD 85 F0         call copy_fcb_to_filename_buffer
- 364  EB96                  ;call show_filename_buffer
- 365  EB96 CD AF EB         call open_cpm_disk_directory
- 366  EB99
- 367  EB99 21 ED FF         ld hl, filename_buffer+2            ; Specify search pattern "*"
- 368  EB9C CD 63 F6         call CORE_open_file
- 369  EB9F 28 07            jr z, open_file_success
- 370  EBA1
- 371  EBA1 D1               pop de
- 372  EBA2 CD B1 EF         call clear_current_fcb              ; No file open so clear out the Current FCB
- 373  EBA5 C3 5F EA         jp return_255_in_a                  ; error
- 374  EBA8              open_file_success:
- 375  EBA8 D1               pop de
- 376  EBA9 CD C0 EF         call copy_fcb_to_current_fcb        ; File is now open, so copy FCB to Current FCB
- 377  EBAC C3 57 EA         jp return_0_in_a
- 378  EBAF
- 379  EBAF              open_cpm_disk_directory:
- 380  EBAF                  ; This opens the directory for a file on a CP/M disk, such as /CPM/DISKS/A or /CPM/DISKS/B/1
- 381  EBAF 21 E3 F1         ld hl, CPM_FOLDER_NAME                ; Start at "/CPM"
- 382  EBB2 CD 63 F6         call CORE_open_file
- 383  EBB5 21 E8 F1         ld hl, CPM_DISKS_NAME                ; Then "DISKS"
- 384  EBB8 CD 63 F6         call CORE_open_file
- 385  EBBB
- 386  EBBB                  ; Now drive letter
- 387  EBBB 21 EB FF         ld hl, filename_buffer
- 388  EBBE 7E               ld a, (hl)
- 389  EBBF 21 E9 FF         ld hl, DRIVE_NAME                   ; Move to "A" .. "P" for required disk
- 390  EBC2 77               ld (hl), a
- 391  EBC3 23               inc hl
- 392  EBC4 36 00            ld (hl), 0
- 393  EBC6 2B               dec hl
- 394  EBC7 CD 63 F6         call CORE_open_file
- 395  EBCA
- 396  EBCA                  ; Now user number (if greater than 0)
- 397  EBCA 3A EF F1         ld a, (current_user)
- 398  EBCD FE 00            cp 0
- 399  EBCF C8               ret z
- 400  EBD0
- 401  EBD0 CD 7B F6         call CORE_convert_user_number_to_folder_name
- 402  EBD3 21 E9 FF         ld hl, DRIVE_NAME                   ; Move to "1" .. "F" for required user
- 403  EBD6 77               ld (hl), a
- 404  EBD7 23               inc hl
- 405  EBD8 36 00            ld (hl), 0
- 406  EBDA 2B               dec hl
- 407  EBDB CD 63 F6         call CORE_open_file
- 408  EBDE C9               ret
- 409  EBDF
- 410  EBDF              BDOS_Close_File:
- 411  EBDF                  ; Pass in de -> FCB
- 412  EBDF                  ; return 0 for success, 255 for fail
- 413  EBDF                  IF DEBUG_BDOS
- 414  EBDF ~                call show_bdos_message
- 415  EBDF ~            	call CORE_message
- 416  EBDF ~            	db 'Close',13,10,0
- 417  EBDF                  ENDIF
- 418  EBDF
- 419  EBDF CD 69 F6         call CORE_close_file
- 420  EBE2 CD B1 EF         call clear_current_fcb                          ; Clear out current FCB
- 421  EBE5
- 422  EBE5 C3 57 EA         jp return_0_in_a
- 423  EBE8
- 424  EBE8              BDOS_Search_for_First:
- 425  EBE8                  ; Input is DE -> FCB
- 426  EBE8                  ; Output is $FF if nothing found, otherwise 0 in A and the directory entry will have
- 427  EBE8                  ; been copied into the current DMA location.
- 428  EBE8
- 429  EBE8                  ; The FCB contains the drive and file name.
- 430  EBE8                  ; The drive can be 0 to 15 for A to P, or '?' to mean current drive.
- 431  EBE8                  ; The filename and extension can be letters, or "?" or "*" for wildcards.
- 432  EBE8                  ; This leaves the disk in such a position that "search_for_next" cen get the next entry.
- 433  EBE8                  ; What we do is:
- 434  EBE8                  ; - Open the correct folder, e.g. /CPM/DISKS/A/user
- 435  EBE8                  ; - Read in a filename and put it into the DMA area.
- 436  EBE8                  ; - Check if it matches. If not, try the next.
- 437  EBE8
- 438  EBE8                  IF DEBUG_BDOS
- 439  EBE8 ~                call show_bdos_message
- 440  EBE8 ~            	call CORE_message
- 441  EBE8 ~            	db 'Srch_Fst',13,10,0
- 442  EBE8 ~                call show_fcb
- 443  EBE8                  ENDIF
- 444  EBE8
- 445  EBE8 CD CB F0         call copy_fcb_to_filename_buffer_preserving_spaces
- 446  EBEB
- 447  EBEB ED 5B E1 F1      ld de, (dma_address)
- 448  EBEF 3A EF F1         ld a, (current_user)
- 449  EBF2 CD 42 F6         call CORE_dir                            ; returns 0 = success, 255 = fail
- 450  EBF5 FE 00            cp 0
- 451  EBF7 28 03            jr z, search_first_found
- 452  EBF9
- 453  EBF9                  IF DEBUG_BDOS
- 454  EBF9 ~                call CORE_message
- 455  EBF9 ~                db 'DIR NONE',13,10,0
- 456  EBF9                  ENDIF
- 457  EBF9
- 458  EBF9 C3 5F EA         jp return_255_in_a                          ; Found nothing
- 459  EBFC
- 460  EBFC              search_first_found:
- 461  EBFC                  IF DEBUG_BDOS
- 462  EBFC ~                call CORE_message
- 463  EBFC ~                db 'DIR:',13,10,0
- 464  EBFC ~                ld de, (dma_address)
- 465  EBFC ~                call show_fcb
- 466  EBFC                  ENDIF
- 467  EBFC
- 468  EBFC C3 57 EA         jp return_0_in_a                            ; Success!
- 469  EBFF
- 470  EBFF              BDOS_Search_for_Next:
- 471  EBFF                  IF DEBUG_BDOS
- 472  EBFF ~                call show_bdos_message
- 473  EBFF ~            	call CORE_message
- 474  EBFF ~            	db 'Srch_Nx',13,10,0
- 475  EBFF                  ENDIF
- 476  EBFF
- 477  EBFF ED 5B E1 F1      ld de, (dma_address)
- 478  EC03 3A EF F1         ld a, (current_user)
- 479  EC06 CD 45 F6         call CORE_dir_next                            ; returns 0 = success, 255 = fail
- 480  EC09 FE 00            cp 0
- 481  EC0B 28 03            jr z, search_next_found
- 482  EC0D
- 483  EC0D                  IF DEBUG_BDOS
- 484  EC0D ~                call CORE_message
- 485  EC0D ~                db 'NONE!',13,10,0
- 486  EC0D                  ENDIF
- 487  EC0D
- 488  EC0D C3 5F EA         jp return_255_in_a                          ; Found nothing
- 489  EC10
- 490  EC10              search_next_found:
- 491  EC10                  IF DEBUG_BDOS
- 492  EC10 ~                call CORE_message
- 493  EC10 ~                db 'NEXT ret:',13,10,0
- 494  EC10 ~                ld de, (dma_address)
- 495  EC10 ~                call show_fcb
- 496  EC10                  ENDIF
- 497  EC10
- 498  EC10 C3 57 EA         jp return_0_in_a                            ; Success!
- 499  EC13
- 500  EC13              BDOS_Delete_File:
- 501  EC13                  ; Delete File passes in DE->FCB
- 502  EC13                  ; Returns a = 0 for success and a = 255 for failure.
- 503  EC13                  ; I think that we return 0 if we delete a file, and 255 if we don't, even though
- 504  EC13                  ; that is not exactly an error condition.
- 505  EC13                  IF OTHER_DEBUG
- 506  EC13 ~                call show_bdos_message
- 507  EC13 ~            	call CORE_message
- 508  EC13 ~            	db 'Del',13,10,0
- 509  EC13 ~                call show_fcb
- 510  EC13                  ENDIF
- 511  EC13
- 512  EC13                  ; We enter with DE pointing to a FCB, such as "file.xyz" or "*.txt".
- 513  EC13                  ; We use this to run a DIR-search-first, returning a result in A (0=good) and
- 514  EC13                  ; storing its resulting FCB in a temporary FCB.
- 515  EC13                  ; If no file was found then we are done.
- 516  EC13                  ; If a file was found then we need to delete that file, and loop back to the start.
- 517  EC13
- 518  EC13 3E FF            ld a, 255
- 519  EC15 32 14 F2         ld (delete_flag), a                             ; Store the result
- 520  EC18
- 521  EC18                  ; Store drive letter of requested file to delete
- 522  EC18 1A               ld a, (de)
- 523  EC19 32 15 F2         ld (store_source), a
- 524  EC1C
- 525  EC1C                  ; Do a DIR-search-first, using the fcb passed in DE
- 526  EC1C D5               push de
- 527  EC1D CD B1 EF         call clear_current_fcb                          ; Clear out current FCB
- 528  EC20 D1               pop de
- 529  EC21
- 530  EC21              BDOS_Delete_File_loop:
- 531  EC21 D5               push de
- 532  EC22
- 533  EC22 CD CB F0         call copy_fcb_to_filename_buffer_preserving_spaces
- 534  EC25 11 F0 F1         ld de, temp_fcb
- 535  EC28 3A EF F1         ld a, (current_user)
- 536  EC2B CD 42 F6         call CORE_dir                                   ; returns 0 = success, 255 = fail
- 537  EC2E FE FF            cp 255
- 538  EC30 28 28            jr z, BDOS_Delete_File_done
- 539  EC32
- 540  EC32                  ; File found, so delete it
- 541  EC32 3E 00            ld a, 0
- 542  EC34 32 14 F2         ld (delete_flag), a                             ; Store a success reult
- 543  EC37
- 544  EC37                  ; restore the drive letter saved from the originally requested file
- 545  EC37 3A 15 F2         ld a, (store_source)
- 546  EC3A 32 F0 F1         ld (temp_fcb), a
- 547  EC3D
- 548  EC3D                  IF OTHER_DEBUG
- 549  EC3D ~                call CORE_message
- 550  EC3D ~                db 'DELETING ',13,10,0
- 551  EC3D ~                ld de, temp_fcb
- 552  EC3D ~                call show_fcb
- 553  EC3D                  ENDIF
- 554  EC3D
- 555  EC3D 11 F0 F1         ld de, temp_fcb
- 556  EC40 CD 85 F0         call copy_fcb_to_filename_buffer
- 557  EC43 CD 69 F6         call CORE_close_file                            ; just in case there is an open one.
- 558  EC46 CD B1 EF         call clear_current_fcb
- 559  EC49 CD AF EB         call open_cpm_disk_directory
- 560  EC4C
- 561  EC4C 21 ED FF         ld hl, filename_buffer+2                        ; Specify filename
- 562  EC4F CD 63 F6         call CORE_open_file
- 563  EC52 20 0D            jr nz, delete_error                             ; Don't delete if not found
- 564  EC54 CD 54 F6         call CORE_erase_file
- 565  EC57
- 566  EC57 D1               pop de                                  ; Get original FCB back
- 567  EC58 18 C7            jr BDOS_Delete_File_loop
- 568  EC5A
- 569  EC5A              BDOS_Delete_File_done:
- 570  EC5A D1               pop de
- 571  EC5B
- 572  EC5B                  IF OTHER_DEBUG
- 573  EC5B ~                call CORE_message
- 574  EC5B ~                db 'DEL done',13,10,0
- 575  EC5B                  ENDIF
- 576  EC5B
- 577  EC5B 3A 14 F2         ld a, (delete_flag)
- 578  EC5E 06 00            ld b, 0
- 579  EC60 C9           	ret
- 580  EC61
- 581  EC61              delete_error:
- 582  EC61 D1               pop de
- 583  EC62 C3 5F EA         jp return_255_in_a
- 584  EC65
- 585  EC65              BDOS_Read_Sequential:
- 586  EC65                  ; Pass in de -> FCB
- 587  EC65                  ; Return a = 0 on success, or a != 0 on error
- 588  EC65                  ; We need to read 128 bytes from the current position of the file referenced in FCB
- 589  EC65                  ; to DMA address.
- 590  EC65                  ; If there are less than 128 bytes, made sure the rest is padded with nulls.
- 591  EC65                  ; Start by checking that the FCB equals the Current FCB.
- 592  EC65                  ; If not, close the current file and open the new one, jumping to the right place.
- 593  EC65                  ; If so just proceed.
- 594  EC65                  ; Then increase the pointer in the FCB and copy it to Current_FCB.
- 595  EC65                  IF DEBUG_BDOS
- 596  EC65 ~                call show_bdos_message
- 597  EC65 ~            	call CORE_message
- 598  EC65 ~            	db 'Rd_Seq',13,10,0
- 599  EC65 ~                call show_fcb
- 600  EC65                  ENDIF
- 601  EC65
- 602  EC65 D5               push de
- 603  EC66 CD 09 F1         call disk_activity_start
- 604  EC69
- 605  EC69 CD 04 F0         call compare_current_fcb
- 606  EC6C 28 14            jr z, BDOS_Read_Sequential1
- 607  EC6E                  ; Need to close existing file and open the new one.
- 608  EC6E 3E 01            ld a, 1                                     ; Open new file but don't update file pointer
- 609  EC70 CD 7C EB         call bdos_open_file_internal
- 610  EC73 D1               pop de
- 611  EC74 D5               push de
- 612  EC75                  ; Now jump to the right place in the file
- 613  EC75 CD 6E EF         call get_file_pointer_from_fcb              ; bcde = file pointer
- 614  EC78 CD 92 EF         call multiply_bcde_by_128                   ; bcde = byte location in file
- 615  EC7B CD 5A F6         call CORE_move_to_file_pointer                   ; move to that location
- 616  EC7E FE 14            cp USB_INT_SUCCESS
- 617  EC80 20 1F            jr nz, read_from_file_fail
- 618  EC82              BDOS_Read_Sequential1:
- 619  EC82 ED 5B E1 F1      ld de, (dma_address)
- 620  EC86 CD 6C F6         call CORE_read_from_file
- 621  EC89 20 16            jr nz, read_from_file_fail                  ; ADDED IN, BUT MAKES SENSE???
- 622  EC8B D1               pop de                                      ; Get the FCB location back
- 623  EC8C D5               push de
- 624  EC8D CD 6E EF         call get_file_pointer_from_fcb              ; bcde = file pointer
- 625  EC90 CD A0 EF         call increase_bcde
- 626  EC93 E1               pop hl
- 627  EC94 CD 40 EF         call set_file_pointer_in_fcb
- 628  EC97 EB               ex de, hl
- 629  EC98 CD C0 EF         call copy_fcb_to_current_fcb                ; Make a note of the state of the currently open file
- 630  EC9B CD 1E F6         call CORE_disk_off
- 631  EC9E C3 57 EA         jp return_0_in_a                            ; Success
- 632  ECA1              read_from_file_fail:
- 633  ECA1 D1               pop de
- 634  ECA2 CD 1E F6         call CORE_disk_off
- 635  ECA5 3E 01            ld a, 1                                     ; 1 = seek to unwritten extent
- 636  ECA7 06 00            ld b, 0
- 637  ECA9 C9               ret
- 638  ECAA
- 639  ECAA              BDOS_Write_Sequential:
- 640  ECAA                  ; Pass in de -> FCB
- 641  ECAA                  ; Return a = 0 on success, or a = 255 on error
- 642  ECAA                  ; We need to write 128 bytes from the current DMA address to the
- 643  ECAA                  ; current position of the file referenced in FCB.
- 644  ECAA                  ; Start by checking that the FCB equals the Current FCB.
- 645  ECAA                  ; If not, close the current file and open the new one, jumping to the right place.
- 646  ECAA                  ; If so just proceed.
- 647  ECAA                  ; Then increase the pointer in the FCB and copy it to Current_FCB.
- 648  ECAA                  IF DEBUG_BDOS
- 649  ECAA ~                call show_bdos_message
- 650  ECAA ~            	call CORE_message
- 651  ECAA ~            	db 'Wr_Seq',13,10,0
- 652  ECAA ~                call show_fcb
- 653  ECAA                  ENDIF
- 654  ECAA
- 655  ECAA D5               push de
- 656  ECAB CD 09 F1         call disk_activity_start
- 657  ECAE              dont_turn_on:
- 658  ECAE CD 04 F0         call compare_current_fcb
- 659  ECB1 28 14            jr z, BDOS_Write_Sequential1
- 660  ECB3                  ; Need to close existing file and open the new one.
- 661  ECB3 3E 01            ld a, 1                                     ; Open new file but don't update file pointer
- 662  ECB5 CD 7C EB         call bdos_open_file_internal
- 663  ECB8 D1               pop de
- 664  ECB9 D5               push de
- 665  ECBA                  ; Now jump to the right place in the file
- 666  ECBA CD 6E EF         call get_file_pointer_from_fcb              ; bcde = file pointer
- 667  ECBD CD 92 EF         call multiply_bcde_by_128                   ; bcde = byte location in file
- 668  ECC0 CD 5A F6         call CORE_move_to_file_pointer              ; move to that location
- 669  ECC3 FE 14            cp USB_INT_SUCCESS
- 670  ECC5 20 1D            jr nz, BDOS_Write_Sequential_fail
- 671  ECC7              BDOS_Write_Sequential1:
- 672  ECC7 ED 5B E1 F1      ld de, (dma_address)
- 673  ECCB CD 51 F6         call CORE_write_to_file
- 674  ECCE CD 1E F6         call CORE_disk_off
- 675  ECD1 D1               pop de                                      ; Get the FCB location back
- 676  ECD2 D5               push de
- 677  ECD3 CD 6E EF         call get_file_pointer_from_fcb              ; bcde = file pointer
- 678  ECD6 CD A0 EF         call increase_bcde
- 679  ECD9 E1               pop hl
- 680  ECDA CD 40 EF         call set_file_pointer_in_fcb
- 681  ECDD EB               ex de, hl
- 682  ECDE CD C0 EF         call copy_fcb_to_current_fcb                ; Make a note of the state of the currently open file
- 683  ECE1 C3 57 EA         jp return_0_in_a
- 684  ECE4
- 685  ECE4              BDOS_Write_Sequential_fail:
- 686  ECE4 D1               pop de
- 687  ECE5 CD 39 F6         call CORE_message
- 688  ECE8 42 44 4F 53      db 'BDOS write error!',13,10,0
- 688  ECEC 20 77 72 69
- 688  ECF0 74 65 20 65
- 688  ECF4 72 72 6F 72
- 688  ECF8 21 0D 0A 00
- 689  ECFC CD 1E F6         call CORE_disk_off
- 690  ECFF C3 5F EA         jp return_255_in_a
- 691  ED02
- 692  ED02              BDOS_Make_File:
- 693  ED02                  ; Make File passes in DE->FCB
- 694  ED02                  ; Returns a = 0 for success and a = 255 for failure
- 695  ED02                  IF DEBUG_BDOS
- 696  ED02 ~                call show_bdos_message
- 697  ED02 ~            	call CORE_message
- 698  ED02 ~            	db 'Mk_File',13,10,0
- 699  ED02 ~                call show_fcb
- 700  ED02                  ENDIF
- 701  ED02
- 702  ED02 D5               push de
- 703  ED03
- 704  ED03 CD 69 F6         call CORE_close_file                                 ; just in case another file is open
- 705  ED06
- 706  ED06 D1               pop de
- 707  ED07 D5               push de
- 708  ED08 CD 85 F0         call copy_fcb_to_filename_buffer
- 709  ED0B
- 710  ED0B CD 1B F6         call CORE_disk_on
- 711  ED0E CD 6F F6         call CORE_connect_to_disk
- 712  ED11 CD 72 F6         call CORE_mount_disk
- 713  ED14
- 714  ED14 CD AF EB         call open_cpm_disk_directory
- 715  ED17
- 716  ED17 11 ED FF         ld de, filename_buffer+2            ; Specify filename
- 717  ED1A CD 75 F6         call CORE_create_file
- 718  ED1D
- 719  ED1D 28 0A            jr z, make_file_success
- 720  ED1F
- 721  ED1F CD 1E F6         call CORE_disk_off
- 722  ED22 D1               pop de
- 723  ED23 CD B1 EF         call clear_current_fcb                          ; Clear out current FCB because of fail.
- 724  ED26 C3 5F EA         jp return_255_in_a                              ; error
- 725  ED29              make_file_success:
- 726  ED29 CD 1E F6         call CORE_disk_off
- 727  ED2C D1               pop de
- 728  ED2D CD C0 EF         call copy_fcb_to_current_fcb                    ; This is now the currently open file
- 729  ED30 C3 57 EA         jp return_0_in_a
- 730  ED33
- 731  ED33              BDOS_Rename_File:
- 732  ED33                  ; DE points to a FCB with the
- 733  ED33                  ; SOURCE filename at FCB+0 and
- 734  ED33                  ; TARGET filename at FCB+16.
- 735  ED33                  ; The disk drive must be the same in both names, or else error.
- 736  ED33                  ; Check if the target file already exists. If so return with error.
- 737  ED33                  ; Success a = 0
- 738  ED33                  ; Error a = 255
- 739  ED33
- 740  ED33                  IF DEBUG_BDOS
- 741  ED33 ~                call show_bdos_message
- 742  ED33 ~            	call CORE_message
- 743  ED33 ~            	db 'Ren',13,10,0
- 744  ED33                  ENDIF
- 745  ED33
- 746  ED33 ED 53 15 F2      ld (store_source), de                               ; Store source FCB pointer for now
- 747  ED37 D5               push de
- 748  ED38 CD 69 F6         call CORE_close_file                                ; just in case there is an open one.
- 749  ED3B D1               pop de
- 750  ED3C
- 751  ED3C                  IF DEBUG_BDOS
- 752  ED3C ~                ; show source FCB
- 753  ED3C ~                call CORE_message
- 754  ED3C ~                db 'Src:',13,10,0
- 755  ED3C ~                call show_fcb
- 756  ED3C ~                call CORE_message
- 757  ED3C ~                db 'Tgt:',13,10,0
- 758  ED3C                  ENDIF
- 759  ED3C
- 760  ED3C 21 10 00         ld hl, 16
- 761  ED3F 19               add hl, de
- 762  ED40 22 17 F2         ld (store_target), hl                               ; And store the target FCB for now
- 763  ED43 EB               ex de, hl                                           ; target is now in de
- 764  ED44
- 765  ED44                  IF DEBUG_BDOS
- 766  ED44 ~                ; Show target FCB
- 767  ED44 ~                call show_fcb
- 768  ED44                  ENDIF
- 769  ED44
- 770  ED44                  ; Check if target drive is "default", if so, copy from source.
- 771  ED44 2A 17 F2         ld hl, (store_target)                           ; retrieve pointer to target file
- 772  ED47 7E               ld a, (hl)                                      ; Target file drive letter
- 773  ED48 FE 00            cp 0                                            ; Is the target of the default drive?
- 774  ED4A 20 06            jr nz, BDOS_Rename_target_not_default           ; This indicates it should be the same as the source
- 775  ED4C ED 5B 15 F2      ld de, (store_source)
- 776  ED50 1A               ld a, (de)
- 777  ED51 77               ld (hl), a                                      ; Copy drive from source to target
- 778  ED52
- 779  ED52              BDOS_Rename_target_not_default:
- 780  ED52                  ; Check if both drives are the same. If not return error.
- 781  ED52 2A 17 F2         ld hl, (store_target)
- 782  ED55 7E               ld a, (hl)                                      ; Get target drive
- 783  ED56 2A 15 F2         ld hl, (store_source)                           ; retrieve source fcb
- 784  ED59 BE               cp (hl)                                         ; Are drive letters the same?
- 785  ED5A 20 48            jr nz, BDOS_Rename_File_different_drives
- 786  ED5C
- 787  ED5C                  ; Try opening target file. If we can then return an error.
- 788  ED5C ED 5B 17 F2      ld de, (store_target)
- 789  ED60 CD 85 F0         call copy_fcb_to_filename_buffer
- 790  ED63 CD AF EB         call open_cpm_disk_directory
- 791  ED66 21 ED FF         ld hl, filename_buffer+2                        ; Specify filename
- 792  ED69 CD 63 F6         call CORE_open_file
- 793  ED6C 28 33            jr z, BDOS_Rename_File_exists
- 794  ED6E
- 795  ED6E              BDOS_Rename_File_same_drives:
- 796  ED6E                  ; Open the source file.
- 797  ED6E CD 69 F6         call CORE_close_file
- 798  ED71 ED 5B 15 F2      ld de, (store_source)
- 799  ED75 CD 85 F0         call copy_fcb_to_filename_buffer
- 800  ED78 CD AF EB         call open_cpm_disk_directory
- 801  ED7B 21 ED FF         ld hl, filename_buffer+2                        ; Specify source filename
- 802  ED7E CD 63 F6         call CORE_open_file
- 803  ED81 C2 A7 ED         jp nz, BDOS_Rename_File_no_source
- 804  ED84
- 805  ED84                  ; Read in the P_FAT_DIR_INFO
- 806  ED84 CD 4B F6         call CORE_dir_info_read
- 807  ED87 20 1E            jr nz, BDOS_Rename_File_no_source
- 808  ED89
- 809  ED89                  ; Update the name of the target file by copying the name from target to source
- 810  ED89 2A 17 F2         ld hl, (store_target)
- 811  ED8C 23               inc hl
- 812  ED8D 11 C5 FF         ld de, disk_buffer
- 813  ED90 01 0B 00         ld bc, 11
- 814  ED93 ED B0            ldir
- 815  ED95
- 816  ED95                  ; Write it back again.
- 817  ED95 CD 4E F6         call CORE_dir_info_write
- 818  ED98
- 819  ED98                  ; Close the file.
- 820  ED98 CD 69 F6         call CORE_close_file
- 821  ED9B
- 822  ED9B CD B1 EF         call clear_current_fcb                          ; Clear out current FCB
- 823  ED9E C3 57 EA         jp return_0_in_a                                ; success
- 824  EDA1              BDOS_Rename_File_exists:
- 825  EDA1                  ;call CORE_message
- 826  EDA1                  ;db '[EXISTS]',13,10,0
- 827  EDA1 C3 5F EA         jp return_255_in_a
- 828  EDA4              BDOS_Rename_File_different_drives:
- 829  EDA4                  ;call CORE_message
- 830  EDA4                  ;db '[DIFF]',13,10,0
- 831  EDA4 C3 5F EA         jp return_255_in_a
- 832  EDA7
- 833  EDA7              BDOS_Rename_File_no_source:
- 834  EDA7                  ;call CORE_message
- 835  EDA7                  ;db '[NONE]',13,10,0
- 836  EDA7 C3 5F EA         jp return_255_in_a
- 837  EDAA
- 838  EDAA              BDOS_Return_Login_Vector:
- 839  EDAA                  ;call show_bdos_message
- 840  EDAA              	;call CORE_message
- 841  EDAA              	;db 'Ret_Log_Vec',13,10,0
- 842  EDAA 21 FF FF         ld hl, $FFFF ; All drives are always logged in
- 843  EDAD 7D               ld a, l
- 844  EDAE 44               ld b, h
- 845  EDAF C9           	ret
- 846  EDB0
- 847  EDB0              BDOS_Return_Current_Disk:
- 848  EDB0                  ;call show_bdos_message
- 849  EDB0              	;call CORE_message
- 850  EDB0              	;db 'Ret_Curr_Disk',13,10,0
- 851  EDB0                  ; The value is 0 = A .. 15 = P
- 852  EDB0 3A EE F1         ld a, (current_disk)
- 853  EDB3 E6 0F            and %00001111                       ; Make sure it is 0-15
- 854  EDB5                  ;push af
- 855  EDB5                  ;add a, 'A'
- 856  EDB5                  ;call CORE_print_a
- 857  EDB5                  ;call newline
- 858  EDB5                  ;pop af
- 859  EDB5 06 00            ld b, 0
- 860  EDB7 C9           	ret
- 861  EDB8
- 862  EDB8              BDOS_Set_DMA_Address:
- 863  EDB8                  ; Pass in de -> DMA Address
- 864  EDB8 ED 53 E1 F1      ld (dma_address), de
- 865  EDBC
- 866  EDBC                  IF DEBUG_BDOS
- 867  EDBC ~                call show_bdos_message
- 868  EDBC ~            	call CORE_message
- 869  EDBC ~            	db 'Set_DMA ',0
- 870  EDBC ~                ex de, hl
- 871  EDBC ~                call CORE_show_hl_as_hex
- 872  EDBC ~                call CORE_newline
- 873  EDBC                  ENDIF
- 874  EDBC
- 875  EDBC C3 57 EA         jp return_0_in_a
- 876  EDBF
- 877  EDBF              BDOS_Get_Addr_Alloc:
- 878  EDBF                  ; IF DEBUG_BDOS
- 879  EDBF                  ; call show_bdos_message
- 880  EDBF              	; call CORE_message
- 881  EDBF              	; db 'Get_DSKAL',13,10,0
- 882  EDBF                  ; ENDIF
- 883  EDBF
- 884  EDBF 21 BD F1         ld hl, DISKALLOC
- 885  EDC2 7D               ld a, l
- 886  EDC3 44               ld b, h
- 887  EDC4 C9           	ret
- 888  EDC5
- 889  EDC5              BDOS_Write_Protect_Disk:
- 890  EDC5                  ;call show_bdos_message
- 891  EDC5              	;call CORE_message
- 892  EDC5              	;db 'Wr_Prot_Disk',13,10,0
- 893  EDC5 C3 5A EA         jp return_1_in_a
- 894  EDC8
- 895  EDC8              BDOS_Get_RO_Vector:
- 896  EDC8                  ;call show_bdos_message
- 897  EDC8              	;call CORE_message
- 898  EDC8              	;db 'Get_RO_Vect',13,10,0
- 899  EDC8 C3 5A EA         jp return_1_in_a
- 900  EDCB
- 901  EDCB              BDOS_Set_File_Attributes:
- 902  EDCB                  ;call show_bdos_message
- 903  EDCB              	;call CORE_message
- 904  EDCB              	;db 'Set_File_Attr',13,10,0
- 905  EDCB C3 5A EA         jp return_1_in_a
- 906  EDCE
- 907  EDCE              BDOS_Get_Addr_Disk_Parms:
- 908  EDCE                  IF DEBUG_BDOS
- 909  EDCE ~                call show_bdos_message
- 910  EDCE ~            	call CORE_message
- 911  EDCE ~            	db 'Get_DPB ',0
- 912  EDCE                  ENDIF
- 913  EDCE
- 914  EDCE                  ; Returns address in HL
- 915  EDCE 21 AE F1         ld hl, dpblk
- 916  EDD1 7D               ld a, l
- 917  EDD2 44               ld b, h
- 918  EDD3 C9           	ret
- 919  EDD4
- 920  EDD4              BDOS_Set_Get_User_Code:
- 921  EDD4                  ;call show_bdos_message
- 922  EDD4              	;call CORE_message
- 923  EDD4              	;db 'Set_Get_User',13,10,0
- 924  EDD4
- 925  EDD4                  ; The user to set is passed in E. This is a value from 0 to 15.
- 926  EDD4                  ; If the value is 255 then we are asking for the current user to be returned in a.
- 927  EDD4
- 928  EDD4 7B               ld a, e
- 929  EDD5 FE FF            cp 255
- 930  EDD7 28 0E            jr z, get_user_code
- 931  EDD9              set_user_code:
- 932  EDD9 7B               ld a, e
- 933  EDDA E6 0F            and %00001111           ; Make sure it is 0-15
- 934  EDDC 32 EF F1         ld (current_user), a    ; Store new value
- 935  EDDF 3A EE F1         ld a, (current_disk)
- 936  EDE2 5F               ld e, a
- 937  EDE3 CD 00 EB         call BDOS_Select_Disk   ; Change to the appropriate folder
- 938  EDE6 C9               ret
- 939  EDE7              get_user_code:
- 940  EDE7 3A EF F1         ld a, (current_user)
- 941  EDEA 06 00            ld b, 0
- 942  EDEC C9           	ret
- 943  EDED
- 944  EDED              BDOS_Read_Random:
- 945  EDED                  IF DEBUG_BDOS
- 946  EDED ~                call show_bdos_message
- 947  EDED ~            	call CORE_message
- 948  EDED ~            	db 'Rd_Rnd',13,10,0
- 949  EDED ~                call show_fcb
- 950  EDED                  ENDIF
- 951  EDED              BDOS_Read_Random1:
- 952  EDED D5               push de                                         ; store FCB for now
- 953  EDEE CD 09 F1         call disk_activity_start
- 954  EDF1 CD 62 EF         call get_random_pointer_from_fcb                ; random is in hl
- 955  EDF4 CD 75 EE         call convert_random_pointer_to_normal_pointer   ; Normal pointer is in bcde
- 956  EDF7 E1               pop hl                                          ; hl -> fcb
- 957  EDF8 E5               push hl
- 958  EDF9 CD 40 EF         call set_file_pointer_in_fcb                    ; FCB is now up-to-date
- 959  EDFC
- 960  EDFC D1               pop de                                          ; de -> FCB
- 961  EDFD D5               push de
- 962  EDFE                  ; Need to close any existing open file and open the new one.
- 963  EDFE 3E 01            ld a, 1                                         ; Open new file but don't update file pointer
- 964  EE00 CD 7C EB         call bdos_open_file_internal
- 965  EE03 D1               pop de
- 966  EE04                  ; Now jump to the right place in the file
- 967  EE04 CD 6E EF         call get_file_pointer_from_fcb                  ; bcde = file pointer
- 968  EE07 CD 92 EF         call multiply_bcde_by_128                       ; bcde = byte location in file
- 969  EE0A CD 5A F6         call CORE_move_to_file_pointer                  ; move to that location
- 970  EE0D ED 5B E1 F1      ld de, (dma_address)
- 971  EE11 CD 6C F6         call CORE_read_from_file
- 972  EE14 20 0C            jr nz, BDOS_Read_Random2                        ; If fail to read, return error code
- 973  EE16 CD 69 F6         call CORE_close_file
- 974  EE19 CD B1 EF         call clear_current_fcb
- 975  EE1C CD 1E F6         call CORE_disk_off
- 976  EE1F C3 57 EA         jp return_0_in_a                                ; success
- 977  EE22              BDOS_Read_Random2:
- 978  EE22 CD 69 F6         call CORE_close_file
- 979  EE25 CD B1 EF         call clear_current_fcb
- 980  EE28 CD 1E F6         call CORE_disk_off
- 981  EE2B 3E 04            ld a, 4                                         ; "Seek to unwritten extent" error if we try to read
- 982  EE2D 06 00            ld b, 0                                         ; past the end of the file.
- 983  EE2F C9               ret
- 984  EE30
- 985  EE30              BDOS_Write_Random:
- 986  EE30                  IF DEBUG_BDOS
- 987  EE30 ~                call show_bdos_message
- 988  EE30 ~            	call CORE_message
- 989  EE30 ~            	db 'Wr_Rand',13,10,0
- 990  EE30                  ENDIF
- 991  EE30              BDOS_Write_Random1:
- 992  EE30 D5               push de                                         ; store FCB for now
- 993  EE31 CD 09 F1         call disk_activity_start
- 994  EE34                  ;call show_fcb
- 995  EE34 CD 62 EF         call get_random_pointer_from_fcb                ; random is in hl
- 996  EE37 CD 75 EE         call convert_random_pointer_to_normal_pointer   ; Normal pointer is in bcde
- 997  EE3A E1               pop hl                                          ; hl -> fcb
- 998  EE3B E5               push hl
- 999  EE3C CD 40 EF         call set_file_pointer_in_fcb                    ; FCB is now up-to-date
-1000  EE3F
-1001  EE3F D1               pop de                                          ; de -> FCB
-1002  EE40 D5               push de
-1003  EE41                  ; Need to close any existing open file and open the new one.
-1004  EE41 3E 01            ld a, 1                                     ; Open new file but don't update file pointer
-1005  EE43 CD 7C EB         call bdos_open_file_internal
-1006  EE46 D1               pop de
-1007  EE47                  ; Now jump to the right place in the file
-1008  EE47 CD 6E EF         call get_file_pointer_from_fcb              ; bcde = file pointer
-1009  EE4A CD 92 EF         call multiply_bcde_by_128                   ; bcde = byte location in file
-1010  EE4D CD 5A F6         call CORE_move_to_file_pointer                   ; move to that location
-1011  EE50 FE 14            cp USB_INT_SUCCESS
-1012  EE52 20 13            jr nz, BDOS_Write_Random_fail
-1013  EE54
-1014  EE54 ED 5B E1 F1      ld de, (dma_address)
-1015  EE58 CD 51 F6         call CORE_write_to_file
-1016  EE5B CD 69 F6         call CORE_close_file                             ; Need to close the file to flush the data out to disk
-1017  EE5E CD B1 EF         call clear_current_fcb
-1018  EE61
-1019  EE61 CD 1E F6         call CORE_disk_off
-1020  EE64 C3 57 EA         jp return_0_in_a                                ; success
-1021  EE67
-1022  EE67              BDOS_Write_Random_fail:
-1023  EE67 CD 69 F6         call CORE_close_file                             ; Need to close the file to flush the data out to disk
-1024  EE6A CD B1 EF         call clear_current_fcb
-1025  EE6D CD 1E F6         call CORE_disk_off
-1026  EE70 3E 01            ld a, 1                                         ; Return error code TODO: 255???
-1027  EE72 06 00            ld b, 0
-1028  EE74 C9           	ret
-1029  EE75
-1030  EE75              convert_random_pointer_to_normal_pointer:
-1031  EE75                  ; Pass in random pointer in hl
-1032  EE75                  ; Returns normal pointer in bcde
-1033  EE75
-1034  EE75 EB               ex de, hl
-1035  EE76 01 00 00         ld bc, 0
-1036  EE79 C9               ret
-1037  EE7A
-1038  EE7A              BDOS_Compute_File_Size:
-1039  EE7A                  IF DEBUG_BDOS
-1040  EE7A ~                call show_bdos_message
-1041  EE7A ~            	call CORE_message
-1042  EE7A ~            	db 'Compute_File_Sz',13,10,0
-1043  EE7A                  ENDIF
-1044  EE7A
-1045  EE7A                  ; DE -> FCB
-1046  EE7A                  ; Sets the random-record count bytes part of the FCB to the number of 128-byte records in the file.
-1047  EE7A                  ; Return A=0 FOR SUCCESS, or 255 if error.
-1048  EE7A
-1049  EE7A D5               push de                                         ; Store source FCB pointer for now
-1050  EE7B CD 69 F6         call CORE_close_file                                 ; just in case there is an open one.
-1051  EE7E
-1052  EE7E                  ; IF DEBUG_BDOS
-1053  EE7E                  ; call CORE_message
-1054  EE7E                  ; db 'Compute File Size Source file:',13,10,0
-1055  EE7E                  ; pop de
-1056  EE7E                  ; push de
-1057  EE7E                  ; call show_fcb
-1058  EE7E                  ; ENDIF
-1059  EE7E
-1060  EE7E CD 85 F0         call copy_fcb_to_filename_buffer
-1061  EE81
-1062  EE81 CD AF EB         call open_cpm_disk_directory
-1063  EE84
-1064  EE84 21 ED FF         ld hl, filename_buffer+2                        ; Specify filename
-1065  EE87 CD 63 F6         call CORE_open_file
-1066  EE8A 20 27            jr nz, BDOS_Compute_File_Size_not_exist
-1067  EE8C
-1068  EE8C                  ; Read in the P_FAT_DIR_INFO into disk_buffer
-1069  EE8C CD 4B F6         call CORE_dir_info_read
-1070  EE8F 20 22            jr nz, BDOS_Compute_File_Size_not_exist
-1071  EE91
-1072  EE91                  ; Extract the file size into bchl
-1073  EE91 21 E1 FF         ld hl, disk_buffer+$1C
-1074  EE94 5E               ld e, (hl)
-1075  EE95 23               inc hl
-1076  EE96 56               ld d, (hl)
-1077  EE97 23               inc hl
-1078  EE98 4E               ld c, (hl)
-1079  EE99 23               inc hl
-1080  EE9A 46               ld b, (hl)
-1081  EE9B EB               ex de, hl                           ; 32-bit filesize now in bchl
-1082  EE9C
-1083  EE9C                  ; Divide by 128
-1084  EE9C CB 25            sla l                               ; Shift all left by 1 bit
-1085  EE9E CB 14            rl h
-1086  EEA0 CB 11            rl c
-1087  EEA2 CB 10            rl b
-1088  EEA4
-1089  EEA4 6C               ld l, h
-1090  EEA5 61               ld h, c
-1091  EEA6 48               ld c, b
-1092  EEA7 06 00            ld b, 0                             ; We've shifted right 8 bits, so effectively divided by 128!
-1093  EEA9
-1094  EEA9                  ; Store in FCB
-1095  EEA9 D1               pop de                                          ; Get the FCB back
-1096  EEAA CD 5D F6         call CORE_set_random_pointer_in_fcb             ; store hl in FCB random pointer (bc is thrown away!)
-1097  EEAD                  ;call show_fcb
-1098  EEAD
-1099  EEAD                  ; Close the file.
-1100  EEAD CD 69 F6         call CORE_close_file
-1101  EEB0
-1102  EEB0 C3 5A EA         jp return_1_in_a
-1103  EEB3
-1104  EEB3              BDOS_Compute_File_Size_not_exist:
-1105  EEB3 D1               pop de
-1106  EEB4 C3 5F EA         jp return_255_in_a
-1107  EEB7
-1108  EEB7              BDOS_Set_Random_Record:
-1109  EEB7                  IF DEBUG_BDOS
-1110  EEB7 ~                push de
-1111  EEB7 ~                call show_bdos_message
-1112  EEB7 ~            	call CORE_message
-1113  EEB7 ~            	db 'Set_Rnd_Rc',13,10,0
-1114  EEB7 ~                call show_fcb
-1115  EEB7                  ENDIF
-1116  EEB7
-1117  EEB7                  ; Set the random record count bytes of the FCB to the number of the last record read/written by the sequential I/O calls.
-1118  EEB7                  ; FCB is in DE
-1119  EEB7 D5               push de
-1120  EEB8 CD 6E EF         call get_file_pointer_from_fcb          ; gets sequential pointer into bcde
-1121  EEBB EB               ex de, hl                               ; Lowest 16 bits of pointer go into hl
-1122  EEBC D1               pop de
-1123  EEBD CD 5D F6         call CORE_set_random_pointer_in_fcb     ; Store hl into random pointer
-1124  EEC0
-1125  EEC0                  IF DEBUG_BDOS
-1126  EEC0 ~                pop de
-1127  EEC0 ~                call show_fcb
-1128  EEC0                  ENDIF
-1129  EEC0
-1130  EEC0 C3 5A EA         jp return_1_in_a
-1131  EEC3
-1132  EEC3              BDOS_Reset_Drive:
-1133  EEC3                  IF DEBUG_BDOS
-1134  EEC3 ~                call show_bdos_message
-1135  EEC3 ~            	call CORE_message
-1136  EEC3 ~            	db 'Rst_Dr',13,10,0
-1137  EEC3                  ENDIF
-1138  EEC3
-1139  EEC3 CD B1 EF         call clear_current_fcb                          ; Clear out current FCB
-1140  EEC6 C3 57 EA         jp return_0_in_a
-1141  EEC9
-1142  EEC9              BDOS_38:
-1143  EEC9                  ;call show_bdos_message
-1144  EEC9              	;call CORE_message
-1145  EEC9              	;db '38',13,10,0
-1146  EEC9 C3 5A EA         jp return_1_in_a
-1147  EECC
-1148  EECC              BDOS_39:
-1149  EECC                  ;call show_bdos_message
-1150  EECC              	;call CORE_message
-1151  EECC              	;db '39',13,10,0
-1152  EECC C3 5A EA         jp return_1_in_a
-1153  EECF
-1154  EECF              BDOS_Write_Random_Zero_Fill:
-1155  EECF                  IF DEBUG_BDOS
-1156  EECF ~                call show_bdos_message
-1157  EECF ~            	call CORE_message
-1158  EECF ~            	db 'Wr_0',13,10,0
-1159  EECF                  ENDIF
-1160  EECF
-1161  EECF C3 30 EE         jp BDOS_Write_Random1
-1162  EED2
-1163  EED2              BDOS_41:
-1164  EED2              BDOS_42:
-1165  EED2              BDOS_43:
-1166  EED2              BDOS_44:
-1167  EED2 C9               ret
-1168  EED3
-1169  EED3              BDOS_ERROR_MODE:
-1170  EED3                  IF DEBUG_BDOS
-1171  EED3 ~                call show_bdos_message
-1172  EED3 ~            	call CORE_message
-1173  EED3 ~            	db 'Er',13,10,0
-1174  EED3                  ENDIF
-1175  EED3 C9               ret
-1176  EED4
-1177  EED4              BDOS_46:
-1178  EED4              BDOS_47:
-1179  EED4              BDOS_48:
-1180  EED4 C9               ret
-1181  EED5
-1182  EED5              ;-------------------------------------------------
-1183  EED5              ;
-1184  EED5              ; This is my understanding of the bytes in a FCB...
-1185  EED5              ; DRIVE     1   0 = default, 1..16 = A..P                                                           0
-1186  EED5              ; FILENAME  8   Filename in ASCII uppercase. Bit 7s are for attributes.                             1-8
-1187  EED5              ; TYPE      3   Extension is ASCII uppercase. Bit 7s are for attributes.                            9-11
-1188  EED5              ; EX        1   Extent Low Byte. An extent is 16384 bytes.                                          12
-1189  EED5              ; S1        1                                                                                       13
-1190  EED5              ; S2        1   Extent High Byte.                                                                   14
-1191  EED5              ; RC        1   Record count for this extent (0-127)                                                15
-1192  EED5              ; AL        16                                                                                      16-31
-1193  EED5              ; CR        1   Current Record. A record is 128 bytes. But this CR goes 0..127, so max is 16384     32
-1194  EED5              ; RRR       3                                                                                       33-35
-1195  EED5
-1196  EED5              ; So, to work out the current position in the file you need:
-1197  EED5              ; (S2 * 256 + EX) * 16384  +  CR * 128 = file pointer in bytes
-1198  EED5              ; or (S2 * 256 + EX) * 128  +  CR = file pointer in 128-byte records.
-1199  EED5              ; The result is a 32 bit number.
-1200  EED5
-1201  EED5              ; This is what we do:
-1202  EED5              ; We have a Current_FCB which represents the current file that the CH376 module has open.
-1203  EED5              ; * If you open a file, that file's FCB gets copied into the Current FCB.
-1204  EED5              ; * If you do a read or write operation on a file, we check if your FCB matches the Current FCB.
-1205  EED5              ;   If it does then we are still talking about the currently open file, so just proceed.
-1206  EED5              ;   If not we need to shut the open file, open this new file, and copy the FCB into the CURRENT FCB.
-1207  EED5              ;   At the end of the operation we increase the file pointer by 128 and update the FCB and the Curr FCB.
-1208  EED5              ; * If you close a file or change directory, we clear the CURRENT FCB.
-1209  EED5              ;
-1210  EED5              ; The "match" process relies on matching the first 12 chars of the FCB.
-1211  EED5
-1212  EED5              ; routines we need:
-1213  EED5              ; * Clear CURR_FCB
-1214  EED5              ; * Copy FCB to CURR_FCB
-1215  EED5              ; * Compare FCB with CURR_FCB (compare name and file position)
-1216  EED5              ; * Get File Pointer from FCB (it's a 32-bit number)
-1217  EED5              ; * Increase File Pointer
-1218  EED5              ; * Set File Pointer in FCB
-1219  EED5
-1220  EED5              initialise_fcb:
-1221  EED5                  ; Pass in DE -> FCB
-1222  EED5                  ; Pass in HL -> null-terminated filename
-1223  EED5                  ; Copy the name into the FCB and set all the other counters to 0.
-1224  EED5                  ; Return zero-flag-set for success, zero-flag-reset for error. (Invalid filename for example)
-1225  EED5                  ; Also, preserves DE.
-1226  EED5 D5               push de
-1227  EED6 3E 00            ld a, 0
-1228  EED8 12               ld (de), a                          ; Set drive = default
-1229  EED9 13               inc de
-1230  EEDA 06 08            ld b, 8
-1231  EEDC              initialise_fcb1:
-1232  EEDC 7E               ld a, (hl)                          ; Copy filename
-1233  EEDD 23               inc hl
-1234  EEDE FE 2E            cp '.'
-1235  EEE0 28 0C            jr z, initialise_fcb2
-1236  EEE2 CD 27 EF         call is_filename_char_valid
-1237  EEE5 20 3C            jr nz, initialise_fcb_error
-1238  EEE7 CD 37 EF         call convert_a_to_uppercase
-1239  EEEA 12               ld (de), a
-1240  EEEB 13               inc de
-1241  EEEC 10 EE            djnz initialise_fcb1
-1242  EEEE              initialise_fcb2                         ; Did we stop before 8 bytes reached?
-1243  EEEE 3E 00            ld a, 0
-1244  EEF0 B8               cp b
-1245  EEF1 28 06            jr z, initialise_fcb3
-1246  EEF3 3E 20            ld a, ' '
-1247  EEF5              initialise_fcb4:
-1248  EEF5 12               ld (de), a                          ; Pad with spaces up to 8 bytes
-1249  EEF6 13               inc de
-1250  EEF7 10 FC            djnz initialise_fcb4
-1251  EEF9              initialise_fcb3:
-1252  EEF9 06 03            ld b, 3                             ; Now file extension
-1253  EEFB              initialise_fcb5:
-1254  EEFB 7E               ld a, (hl)                          ; Copy filename
-1255  EEFC 23               inc hl
-1256  EEFD FE 00            cp 0
-1257  EEFF 28 0C            jr z, initialise_fcb6
-1258  EF01 CD 27 EF         call is_filename_char_valid
-1259  EF04 20 1D            jr nz, initialise_fcb_error
-1260  EF06 CD 37 EF         call convert_a_to_uppercase
-1261  EF09 12               ld (de), a
-1262  EF0A 13               inc de
-1263  EF0B 10 EE            djnz initialise_fcb5
-1264  EF0D              initialise_fcb6:                        ; Did we stop before 3 bytes reached?
-1265  EF0D 3E 00            ld a, 0
-1266  EF0F B8               cp b
-1267  EF10 28 06            jr z, initialise_fcb8
-1268  EF12 3E 20            ld a, ' '
-1269  EF14              initialise_fcb7:
-1270  EF14 12               ld (de), a                          ; Pad with spaces up to 3 bytes
-1271  EF15 13               inc de
-1272  EF16 10 FC            djnz initialise_fcb7
-1273  EF18              initialise_fcb8:
-1274  EF18 06 18            ld b, 24                            ; Put zeros in all the rest of the FCB
-1275  EF1A 3E 00            ld a, 0
-1276  EF1C              initialise_fcb9:
-1277  EF1C 12               ld (de), a
-1278  EF1D 13               inc de
-1279  EF1E 10 FC            djnz initialise_fcb9
-1280  EF20 D1               pop de
-1281  EF21 BF               cp a                                ; set zero flag for success
-1282  EF22 C9               ret
-1283  EF23              initialise_fcb_error:
-1284  EF23 D1               pop de
-1285  EF24 F6 01            or 1                                ; clear zero flag for error
-1286  EF26 C9               ret
-1287  EF27
-1288  EF27              is_filename_char_valid:
-1289  EF27                  ; pass in char in a
-1290  EF27                  ; Return zero set if char is *, ?, 0-9 or a-z or A-Z or _
-1291  EF27 FE 2A            cp '*'
-1292  EF29 C8               ret z
-1293  EF2A FE 30            cp '0'
-1294  EF2C 38 06            jr c, is_filename_char_valid_no
-1295  EF2E FE 7F            cp 127
-1296  EF30 30 02            jr nc, is_filename_char_valid_no
-1297  EF32 BF               cp a                                ; set zero flag for success
-1298  EF33 C9               ret
-1299  EF34              is_filename_char_valid_no:
-1300  EF34 F6 01            or 1                                ; clear zero flag for error
-1301  EF36 C9               ret
-1302  EF37
-1303  EF37              convert_a_to_uppercase:
-1304  EF37 FE 61            cp 'a'
-1305  EF39 D8               ret c
-1306  EF3A FE 7B            cp 'z'+1
-1307  EF3C D0               ret nc
-1308  EF3D D6 20            sub 32
-1309  EF3F C9               ret
-1310  EF40
-1311  EF40              set_file_pointer_in_fcb:
-1312  EF40                  ; Pass HL -> FCB (Note that this is an unusual way to pass it in)
-1313  EF40                  ; Pass file pointer (in 128-byte records) in bcde.
-1314  EF40                  ; Preserves hl
-1315  EF40
-1316  EF40                  ; Split bcde into S2, EX & CR.
-1317  EF40                  ; To do this:
-1318  EF40                  ; CR = e & %01111111                (i.e. a number 0..127)
-1319  EF40                  ; Divide bcde by 128                (Shift right 7 bits, or shift left 1 bit then right 8)
-1320  EF40                  ; EX = e, S2 = d
-1321  EF40                  ; TODO: Test if this is correct. Note that the logic in set_file_size_in_fcb is different!?!?!?
-1322  EF40                  ; The difference would only be apparent for files > 496K in size.
-1323  EF40
-1324  EF40 E5               push hl
-1325  EF41 7B               ld a, e
-1326  EF42 E6 7F            and %01111111
-1327  EF44 F5               push af                             ; Store CR for now
-1328  EF45
-1329  EF45 CB 23            sla e                               ; Shift all left by 1 bit
-1330  EF47 CB 12            rl d
-1331  EF49 CB 11            rl c
-1332  EF4B CB 10            rl b
-1333  EF4D
-1334  EF4D 5A               ld e, d
-1335  EF4E 51               ld d, c
-1336  EF4F 48               ld c, b
-1337  EF50 06 00            ld b, 0                             ; We've shifted right 8 bits, so effectively right 7
-1338  EF52
-1339  EF52 F1               pop af                              ; Now a=CR, e = EX, d = S2
-1340  EF53
-1341  EF53 01 0C 00         ld bc, 12
-1342  EF56 09               add hl, bc                          ; hl -> FCB.EX
-1343  EF57 73               ld (hl), e
-1344  EF58
-1345  EF58 23               inc hl
-1346  EF59 23               inc hl                              ; hl -> FCB.S2
-1347  EF5A 72               ld (hl), d
-1348  EF5B
-1349  EF5B 01 12 00         ld bc, 18
-1350  EF5E 09               add hl, bc                          ; hl -> FCB.CR
-1351  EF5F 77               ld (hl), a
-1352  EF60
-1353  EF60 E1               pop hl
-1354  EF61 C9               ret
-1355  EF62
-1356  EF62              get_random_pointer_from_fcb:
-1357  EF62                  ; pass in de -> fcb
-1358  EF62                  ; Random pointer is in fcb + 33 & 34.
-1359  EF62                  ; return it in hl
-1360  EF62                  ; preserve de
-1361  EF62 D5               push de
-1362  EF63 EB               ex de, hl
-1363  EF64 01 21 00         ld bc, 33
-1364  EF67 09               add hl, bc
-1365  EF68 5E               ld e, (hl)
-1366  EF69 23               inc hl
-1367  EF6A 56               ld d, (hl)
-1368  EF6B EB               ex de, hl
-1369  EF6C D1               pop de
-1370  EF6D C9               ret
-1371  EF6E
-1372  EF6E
-1373  EF6E              get_file_pointer_from_fcb:
-1374  EF6E                  ; Pass in DE -> FCB
-1375  EF6E                  ; file pointer in 128-byte records =  (S2 * 256 + EX) * 128  +  CR
-1376  EF6E                  ; 32-bit result is returned in bcde
-1377  EF6E EB               ex de, hl
-1378  EF6F 01 0C 00         ld bc, 12
-1379  EF72 09               add hl, bc                          ; hl -> FCB.EX
-1380  EF73 5E               ld e, (hl)                          ; e = EX
-1381  EF74 23               inc hl
-1382  EF75 23               inc hl
-1383  EF76 56               ld d, (hl)                          ; d = S2
-1384  EF77 01 12 00         ld bc, 18
-1385  EF7A 09               add hl, bc                          ; hl -> FCB.CR
-1386  EF7B 4E               ld c, (hl)                          ; c = CR
-1387  EF7C 06 00            ld b, 0
-1388  EF7E C5               push bc                             ; Store 16-bit version of CR for now
-1389  EF7F 01 00 00         ld bc, 0                            ; 32-bit value of DE is now in BCDE
-1390  EF82 CD 92 EF         call multiply_bcde_by_128
-1391  EF85 E1               pop hl                              ; Retrieve 16-bit version of CR
-1392  EF86 19               add hl, de
-1393  EF87 EB               ex de, hl                           ; de holds low 16 bits of result
-1394  EF88 60               ld h, b
-1395  EF89 69               ld l, c
-1396  EF8A 01 00 00         ld bc, 0
-1397  EF8D ED 4A            adc hl, bc
-1398  EF8F 44               ld b, h
-1399  EF90 4D               ld c, l                             ; bcde is the 32-bit result
-1400  EF91 C9               ret
-1401  EF92
-1402  EF92              multiply_bcde_by_128:
-1403  EF92                  ; Pass in 32-bit number in BCDE
-1404  EF92                  ; Result is returned in BCDE
-1405  EF92                  ; Multiply by 128 is same as shift left 8 bits then shift right 1 bit
-1406  EF92 41               ld b, c
-1407  EF93 4A               ld c, d
-1408  EF94 53               ld d, e
-1409  EF95 1E 00            ld e, 0                             ; That's shift-left-8-bits done.
-1410  EF97 CB 38            srl b
-1411  EF99 CB 19            rr c
-1412  EF9B CB 1A            rr d
-1413  EF9D CB 1B            rr e                                ; That's shift-right-1-bit done.
-1414  EF9F C9               ret
-1415  EFA0
-1416  EFA0              increase_bcde:
-1417  EFA0                  ; Pass in 32-bit number in BCDE
-1418  EFA0                  ; Increase it by 1.
-1419  EFA0                  ; Result is returned in BCDE
-1420  EFA0 3E 01            ld a, 1
-1421  EFA2 83               add a, e
-1422  EFA3 5F               ld e, a
-1423  EFA4 3E 00            ld a, 0
-1424  EFA6 8A               adc a, d
-1425  EFA7 57               ld d, a
-1426  EFA8 3E 00            ld a, 0
-1427  EFAA 89               adc a, c
-1428  EFAB 4F               ld c, a
-1429  EFAC 3E 00            ld a, 0
-1430  EFAE 88               adc a, b
-1431  EFAF 47               ld b, a
-1432  EFB0 C9               ret
-1433  EFB1
-1434  EFB1              clear_current_fcb:
-1435  EFB1                  ; Clears the entire current FCB
-1436  EFB1 11 8A F1         ld de, current_fcb+1
-1437  EFB4 21 89 F1         ld hl, current_fcb
-1438  EFB7 3E 00            ld a, 0
-1439  EFB9 77               ld (hl), a
-1440  EFBA 01 0B 00         ld bc, 11
-1441  EFBD ED B0            ldir
-1442  EFBF C9               ret
-1443  EFC0
-1444  EFC0              copy_fcb_to_current_fcb:
-1445  EFC0                  ; Pass in DE -> FCB
-1446  EFC0                  ; This copies the whole of that FCB into the current one and preserves DE.
-1447  EFC0 D5               push de
-1448  EFC1 21 89 F1         ld hl, current_fcb
-1449  EFC4 EB               ex de,hl
-1450  EFC5 01 24 00         ld bc, 36
-1451  EFC8 ED B0            ldir
-1452  EFCA D1               pop de
-1453  EFCB C9               ret
-1454  EFCC
-1455  EFCC              compare_current_fcb_name:
-1456  EFCC                  ; Compares the directory, filename and extension in one FCB with the current one.
-1457  EFCC                  ; pass in de -> fcb
-1458  EFCC D5               push de
-1459  EFCD 21 89 F1         ld hl, current_fcb
-1460  EFD0 06 0C            ld b, 12
-1461  EFD2              compare_current_fcb_name1:
-1462  EFD2 1A               ld a, (de)
-1463  EFD3 BE               cp (hl)
-1464  EFD4 20 07            jr nz, compare_current_fcb_fail
-1465  EFD6 13               inc de
-1466  EFD7 23               inc hl
-1467  EFD8 10 F8            djnz compare_current_fcb_name1
-1468  EFDA D1               pop de
-1469  EFDB BF               cp a                                ; set zero flag for success
-1470  EFDC C9               ret
-1471  EFDD              compare_current_fcb_fail:
-1472  EFDD D1               pop de
-1473  EFDE F6 01            or 1                                ; clear zero flag for error
-1474  EFE0 C9               ret
-1475  EFE1
-1476  EFE1              compare_current_fcb_pointer:
-1477  EFE1                  ; pass in de -> fcb
-1478  EFE1                  ; Compares cr, ex and s2
-1479  EFE1 D5               push de
-1480  EFE2 21 89 F1         ld hl, current_fcb
-1481  EFE5 01 0C 00         ld bc, 12
-1482  EFE8 09               add hl, bc
-1483  EFE9 EB               ex de, hl                           ; de -> currenct_fcb.ex
-1484  EFEA 09               add hl, bc                          ; hl -> fcb.ex
-1485  EFEB 1A               ld a, (de)
-1486  EFEC BE               cp (hl)                             ; Compare EXs
-1487  EFED 20 EE            jr nz, compare_current_fcb_fail
-1488  EFEF 23               inc hl
-1489  EFF0 23               inc hl
-1490  EFF1 13               inc de
-1491  EFF2 13               inc de
-1492  EFF3 1A               ld a, (de)
-1493  EFF4 BE               cp (hl)                             ; Compare S2s
-1494  EFF5 20 E6            jr nz, compare_current_fcb_fail
-1495  EFF7 01 12 00         ld bc, 18
-1496  EFFA 09               add hl, bc
-1497  EFFB EB               ex de, hl
-1498  EFFC 09               add hl, bc
-1499  EFFD 1A               ld a, (de)
-1500  EFFE BE               cp (hl)                             ; Compare CRs
-1501  EFFF 20 DC            jr nz, compare_current_fcb_fail
-1502  F001 D1               pop de
-1503  F002 BF               cp a                                ; set zero flag for success
-1504  F003 C9               ret
-1505  F004
-1506  F004              compare_current_fcb:
-1507  F004                  ; Pass in de -> FCB
-1508  F004                  ; This gets compared to the Current_FCB.
-1509  F004                  ; Return z if the same.
-1510  F004                  ; Preserves de.
-1511  F004 CD CC EF         call compare_current_fcb_name
-1512  F007 C0               ret nz
-1513  F008 CD E1 EF         call compare_current_fcb_pointer
-1514  F00B C9               ret
-1515  F00C
-1516  F00C              show_fcb:
-1517  F00C                  ; Pass in de -> fcb
-1518  F00C                  ; Shows the FCB on screen.
-1519  F00C                  ; Preserves DE
-1520  F00C D5               push de
-1521  F00D CD 39 F6         call CORE_message
-1522  F010 46 43 42 3A      db 'FCB: ',0
-1522  F014 20 00
-1523  F016
-1524  F016                  ; Show Drive Letter
-1525  F016 1A               ld a, (de)
-1526  F017 13               inc de
-1527  F018 FE 00            cp 0
-1528  F01A 28 0F            jr z, show_fcb1
-1529  F01C C6 40            add a, 'A'-1
-1530  F01E CD 06 F6         call CORE_print_a
-1531  F021 3E 3A            ld a, ':'
-1532  F023 CD 06 F6         call CORE_print_a
-1533  F026 CD 36 F6         call CORE_space
-1534  F029 18 07            jr show_fcb2
-1535  F02B
-1536  F02B              show_fcb1:
-1537  F02B CD 39 F6         call CORE_message
-1538  F02E 2D 3A 20 00      db '-: ',0
-1539  F032              show_fcb2:
-1540  F032                  ; Show filename
-1541  F032 06 08            ld b, 8
-1542  F034              show_fcb3:
-1543  F034 1A               ld a, (de)
-1544  F035 13               inc de
-1545  F036 CD 06 F6         call CORE_print_a
-1546  F039 10 F9            djnz show_fcb3
-1547  F03B              show_fcb4:
-1548  F03B                  ; Show ext
-1549  F03B 3E 2E            ld a, '.'
-1550  F03D CD 06 F6         call CORE_print_a
-1551  F040 06 03            ld b, 3
-1552  F042              show_fcb5:
-1553  F042 1A               ld a, (de)
-1554  F043 E6 7F            and %01111111
-1555  F045 13               inc de
-1556  F046 CD 06 F6         call CORE_print_a
-1557  F049 10 F7            djnz show_fcb5
-1558  F04B              show_fcb_end:
-1559  F04B D1               pop de
-1560  F04C D5               push de
-1561  F04D
-1562  F04D CD 6E EF         call get_file_pointer_from_fcb              ; info comes back in bcde
-1563  F050 CD 39 F6         call CORE_message
-1564  F053 2C 20 70 74      db ', pt: ',0
-1564  F057 3A 20 00
-1565  F05A CD 74 F0         call show_bcde_as_hex
-1566  F05D CD 39 F6         call CORE_message
-1567  F060 2C 20 72 6E      db ', rn: ',0
-1567  F064 3A 20 00
-1568  F067 D1               pop de
-1569  F068 D5               push de
-1570  F069 CD 62 EF         call get_random_pointer_from_fcb            ; Gets the random record pointer in hl
-1571  F06C CD 3C F6         call CORE_show_hl_as_hex
-1572  F06F CD 33 F6         call CORE_newline
-1573  F072 D1               pop de
-1574  F073 C9               ret
-1575  F074
-1576  F074              show_bcde_as_hex:
-1577  F074                  ; Show the number in bcde as hex
-1578  F074                  ; Preserves bc & de
-1579  F074 78               ld a, b
-1580  F075 CD 78 F6         call CORE_show_a_as_hex
-1581  F078 79               ld a, c
-1582  F079 CD 78 F6         call CORE_show_a_as_hex
-1583  F07C 7A               ld a, d
-1584  F07D CD 78 F6         call CORE_show_a_as_hex
-1585  F080 7B               ld a, e
-1586  F081 CD 78 F6         call CORE_show_a_as_hex
-1587  F084 C9               ret
-1588  F085
-1589  F085              copy_fcb_to_filename_buffer:
-1590  F085                  ; Pass in de -> fcb
-1591  F085                  ; Transfer all the filename from fcb to the filename_buffer.
-1592  F085                  ; Skip NULLs spaces and add in the ".", and terminate with NULL.
-1593  F085                  ; Preserves de.
-1594  F085 D5               push de
-1595  F086 EB               ex de, hl                   ; hl = fcb
-1596  F087 11 EB FF         ld de, filename_buffer      ; de = filename_buffer
-1597  F08A 7E               ld a, (hl)                  ; First byte in FCB is 0 or 1-16. We want 0=>A, 15=>P
-1598  F08B FE 00            cp 0
-1599  F08D 20 04            jr nz, copy_fcb_to_filename_buffer1
-1600  F08F 3A EE F1         ld a, (current_disk)
-1601  F092 3C               inc a                       ; Adjust 0-15 to 1-16
-1602  F093              copy_fcb_to_filename_buffer1:
-1603  F093 C6 40            add a, 'A'-1
-1604  F095 12               ld (de), a
-1605  F096 13               inc de
-1606  F097 3E 2F            ld a, '/'
-1607  F099 12               ld (de), a
-1608  F09A 13               inc de
-1609  F09B 23               inc hl
-1610  F09C E5               push hl
-1611  F09D 06 08            ld b, 8
-1612  F09F              copy_fcb1:
-1613  F09F 7E               ld a, (hl)
-1614  F0A0 23               inc hl
-1615  F0A1 FE 00            cp 0
-1616  F0A3 28 08            jr z, copy_fcb2
-1617  F0A5 FE 20            cp ' '
-1618  F0A7 28 04            jr z, copy_fcb2
-1619  F0A9 12               ld (de), a
-1620  F0AA 13               inc de
-1621  F0AB 10 F2            djnz copy_fcb1
-1622  F0AD              copy_fcb2:
-1623  F0AD 3E 2E            ld a, '.'                   ; Put in the dot
-1624  F0AF 12               ld (de), a
-1625  F0B0 13               inc de
-1626  F0B1
-1627  F0B1 E1               pop hl
-1628  F0B2 01 08 00         ld bc, 8
-1629  F0B5 09               add hl, bc                   ; Move along to extension
-1630  F0B6 06 03            ld b, 3
-1631  F0B8              copy_fcb3:
-1632  F0B8 7E               ld a, (hl)
-1633  F0B9 23               inc hl
-1634  F0BA FE 00            cp 0
-1635  F0BC 28 08            jr z, copy_fcb4
-1636  F0BE FE 20            cp ' '
-1637  F0C0 28 04            jr z, copy_fcb4
-1638  F0C2 12               ld (de), a
-1639  F0C3 13               inc de
-1640  F0C4 10 F2            djnz copy_fcb3
-1641  F0C6              copy_fcb4:
-1642  F0C6 3E 00            ld a, 0
-1643  F0C8 12               ld (de),a
-1644  F0C9 D1               pop de
-1645  F0CA C9               ret
-1646  F0CB
-1647  F0CB              copy_fcb_to_filename_buffer_preserving_spaces:
-1648  F0CB                  ; Pass in de -> fcb
-1649  F0CB                  ; Transfer all the filename from fcb to the filename_buffer.
-1650  F0CB                  ; Skip NULLs spaces and add in the ".", and terminate with NULL.
-1651  F0CB                  ; Preserves de.
-1652  F0CB D5               push de
-1653  F0CC EB               ex de, hl                   ; hl = fcb
-1654  F0CD 11 EB FF         ld de, filename_buffer      ; de = filename_buffer
-1655  F0D0 7E               ld a, (hl)                  ; First byte in FCB is 0 or 1-16. We want 0=>A, 15=>P
-1656  F0D1 FE 00            cp 0
-1657  F0D3 20 04            jr nz, copy_fcb_to_filename_ps_buffer1
-1658  F0D5 3A EE F1         ld a, (current_disk)
-1659  F0D8 3C               inc a                       ; Adjust 0-15 to 1-16
-1660  F0D9              copy_fcb_to_filename_ps_buffer1:
-1661  F0D9 C6 40            add a, 'A'-1
-1662  F0DB 12               ld (de), a
-1663  F0DC 13               inc de
-1664  F0DD 3E 2F            ld a, '/'
-1665  F0DF 12               ld (de), a
-1666  F0E0 13               inc de
-1667  F0E1 23               inc hl
-1668  F0E2 E5               push hl
-1669  F0E3 06 08            ld b, 8
-1670  F0E5              copy_fcb1_ps:
-1671  F0E5 7E               ld a, (hl)
-1672  F0E6 23               inc hl
-1673  F0E7 FE 00            cp 0
-1674  F0E9 28 04            jr z, copy_fcb2_ps
-1675  F0EB 12               ld (de), a
-1676  F0EC 13               inc de
-1677  F0ED 10 F6            djnz copy_fcb1_ps
-1678  F0EF              copy_fcb2_ps:
-1679  F0EF 3E 2E            ld a, '.'                   ; Put in the dot
-1680  F0F1 12               ld (de), a
-1681  F0F2 13               inc de
-1682  F0F3
-1683  F0F3 E1               pop hl
-1684  F0F4 01 08 00         ld bc, 8
-1685  F0F7 09               add hl, bc                   ; Move along to extension
-1686  F0F8 06 03            ld b, 3
-1687  F0FA              copy_fcb3_ps:
-1688  F0FA 7E               ld a, (hl)
-1689  F0FB 23               inc hl
-1690  F0FC FE 00            cp 0
-1691  F0FE 28 04            jr z, copy_fcb4_ps
-1692  F100 12               ld (de), a
-1693  F101 13               inc de
-1694  F102 10 F6            djnz copy_fcb3_ps
-1695  F104              copy_fcb4_ps:
-1696  F104 3E 00            ld a, 0
-1697  F106 12               ld (de),a
-1698  F107 D1               pop de
-1699  F108 C9               ret
-1700  F109
-1701  F109              disk_activity_start:
-1702  F109 CD 1E F6         call CORE_disk_off
-1703  F10C 3A AD F1         ld a, (disk_flash)
-1704  F10F 2F               cpl
-1705  F110 32 AD F1         ld (disk_flash), a
-1706  F113 FE 00            cp 0
-1707  F115 C8               ret z
-1708  F116 CD 1B F6         call CORE_disk_on
-1709  F119 C9               ret
-1710  F11A
-1711  F11A              BDOS_jump_table:
-1712  F11A 51 EA            dw BDOS_System_Reset                ;equ 0        00
-1713  F11C 64 EA            dw BDOS_Console_Input               ;equ 1        01
-1714  F11E 72 EA            dw BDOS_Console_Output              ;equ 2        02
-1715  F120 77 EA            dw BDOS_Reader_Input                ;equ 3        03
-1716  F122 7A EA            dw BDOS_Punch_Output                ;equ 4        04
-1717  F124 7D EA            dw BDOS_List_Output                 ;equ 5        05
-1718  F126 80 EA            dw BDOS_Direct_Console_IO           ;equ 6        06
-1719  F128 91 EA            dw BDOS_Get_IO_Byte                 ;equ 7        07
-1720  F12A 94 EA            dw BDOS_Set_IO_Byte                 ;equ 8        08
-1721  F12C 97 EA            dw BDOS_Print_String                ;equ 9        09
-1722  F12E A5 EA            dw BDOS_Read_Console_Buffer         ;equ 10       0A
-1723  F130 E9 EA            dw BDOS_Get_Console_Status          ;equ 11       0B
-1724  F132 EC EA            dw BDOS_Return_Version_Number       ;equ 12       0C
-1725  F134 F1 EA            dw BDOS_Reset_Disk_System           ;equ 13       0D
-1726  F136 00 EB            dw BDOS_Select_Disk                 ;equ 14       0E
-1727  F138 77 EB            dw BDOS_Open_File                   ;equ 15       0F
-1728  F13A DF EB            dw BDOS_Close_File                  ;equ 16       10
-1729  F13C E8 EB            dw BDOS_Search_for_First            ;equ 17       11
-1730  F13E FF EB            dw BDOS_Search_for_Next             ;equ 18       12
-1731  F140 13 EC            dw BDOS_Delete_File                 ;equ 19       13
-1732  F142 65 EC            dw BDOS_Read_Sequential             ;equ 20       14
-1733  F144 AA EC            dw BDOS_Write_Sequential            ;equ 21       15
-1734  F146 02 ED            dw BDOS_Make_File                   ;equ 22       16
-1735  F148 33 ED            dw BDOS_Rename_File                 ;equ 23       17
-1736  F14A AA ED            dw BDOS_Return_Login_Vector         ;equ 24       18
-1737  F14C B0 ED            dw BDOS_Return_Current_Disk         ;equ 25       19
-1738  F14E B8 ED            dw BDOS_Set_DMA_Address             ;equ 26       1A
-1739  F150 BF ED            dw BDOS_Get_Addr_Alloc              ;equ 27       1B
-1740  F152 C5 ED            dw BDOS_Write_Protect_Disk          ;equ 28       1C
-1741  F154 C8 ED            dw BDOS_Get_RO_Vector               ;equ 29       1D
-1742  F156 CB ED            dw BDOS_Set_File_Attributes         ;equ 30       1E
-1743  F158 CE ED            dw BDOS_Get_Addr_Disk_Parms         ;equ 31       1F
-1744  F15A D4 ED            dw BDOS_Set_Get_User_Code           ;equ 32       20
-1745  F15C ED ED            dw BDOS_Read_Random                 ;equ 33       21
-1746  F15E 30 EE            dw BDOS_Write_Random                ;equ 34       22
-1747  F160 7A EE            dw BDOS_Compute_File_Size           ;equ 35       23
-1748  F162 B7 EE            dw BDOS_Set_Random_Record           ;equ 36       24
-1749  F164 C3 EE            dw BDOS_Reset_Drive                 ;equ 37       25
-1750  F166 C9 EE            dw BDOS_38
-1751  F168 CC EE            dw BDOS_39
-1752  F16A CF EE            dw BDOS_Write_Random_Zero_Fill      ;equ 40       28
-1753  F16C D2 EE            dw BDOS_41
-1754  F16E D2 EE            dw BDOS_42
-1755  F170 D2 EE            dw BDOS_43
-1756  F172 D2 EE            dw BDOS_44
-1757  F174 D3 EE            dw BDOS_ERROR_MODE                  ; eq 45       2D
-1758  F176 D4 EE            dw BDOS_46
-1759  F178 D4 EE            dw BDOS_47
-1760  F17A D4 EE            dw BDOS_48
-1761  F17C
-1762  F17C              filesize_buffer:
-1763  F17C 00 00 00...      ds 6
-1764  F182
-1765  F182              filesize_buffer_copy:
-1766  F182 00 00 00...      ds 6
-1767  F188
-1768  F188              filesize_units:
-1769  F188 00               ds 1
-1770  F189
-1771  F189              current_fcb:
-1772  F189                  ; We store a copy of the FCB of the currently open file here
-1773  F189 00 00 00...      ds 36
-1774  F1AD
-1775  F1AD              ;current_disk:
-1776  F1AD              ;    ds 1
-1777  F1AD
-1778  F1AD              disk_flash:
-1779  F1AD 00               db 0
-1780  F1AE
-1781  F1AE              ;
-1782  F1AE              dpblk:
-1783  F1AE              ; Fake disk parameter block for all disks
-1784  F1AE              	; defw	80		;sectors per track
-1785  F1AE              	; defb	5		;block shift factor	(5 & 31 = 4K Block Size)
-1786  F1AE              	; defb	31		;block mask
-1787  F1AE              	; defb	3		;extent mask
-1788  F1AE              	; defw	196		;disk size 197 * 4k = 788k
-1789  F1AE              	; defw	127		;directory max
-1790  F1AE              	; defb	$80		;alloc 0	((DRM + 1) * 32) / 4096 = 1, so 80H
-1791  F1AE              	; defb	0		;alloc 1
-1792  F1AE              	; defw	0		;check size ( 0 = fixed disk )
-1793  F1AE              	; defw	0		;track offset ( 0 = no reserved system tracks )
-1794  F1AE
-1795  F1AE              ; These ones were copied from runCPM!
-1796  F1AE 40 00        	defw	64		;sectors per track
-1797  F1B0 05           	defb	5		;block shift factor	(5 & 31 = 4K Block Size)
-1798  F1B1 1F           	defb	$1F		;block mask
-1799  F1B2 01           	defb	1		;extent mask
-1800  F1B3 FF           	defb	$FF		;disk size
-1801  F1B4 07           	defb	$07		;disk size
-1802  F1B5 FF           	defb	$FF		;directory max
-1803  F1B6 03           	defb	$03		;directory max
-1804  F1B7 FF           	defb	$FF		;alloc 0	((DRM + 1) * 32) / 4096 = 1, so 80H
-1805  F1B8 00           	defb	0		;alloc 1
-1806  F1B9 00 00        	defw	0		;check size ( 0 = fixed disk )
-1807  F1BB 02 00        	defw	2		;track offset ( 0 = no reserved system tracks )
-1808  F1BD
-1809  F1BD              DISKALLOC:
-1810  F1BD 00 00 00 00      db 0,0,0,0,0,0,0,0,0
-1810  F1C1 00 00 00 00
-1810  F1C5 00
-1811  F1C6 00 00 00 00      db 0,0,0,0,0,0,0,0,0
-1811  F1CA 00 00 00 00
-1811  F1CE 00
-1812  F1CF 00 00 00 00      db 0,0,0,0,0,0,0,0,0
-1812  F1D3 00 00 00 00
-1812  F1D7 00
-1813  F1D8 00 00 00 00      db 0,0,0,0,0,0,0,0,0
-1813  F1DC 00 00 00 00
-1813  F1E0 00
-1814  F1E1
-1815  F1E1              ; typedef  struct _FAT_DIR_INFO {
-1816  F1E1              ; 	UINT8 DIR_Name[ 11 ];					/* 00H, file name, a total of 11 bytes, fill in blanks for deficiencies */
-1817  F1E1              ; 	UINT8 DIR_Attr;						    /* 0BH, file attribute, refer to the following description */
-1818  F1E1              ; 	UINT8 DIR_NTRes;						/* 0CH */
-1819  F1E1              ; 	UINT8 DIR_CrtTimeTenth;				    /* 0DH, the time of file creation, counted in units of 0.1 seconds */
-1820  F1E1              ; 	UINT16 DIR_CrtTime;					    /* 0EH, file creation time */
-1821  F1E1              ; 	UINT16 DIR_CrtDate;					    /* 10H, file creation date */
-1822  F1E1              ; 	UINT16 DIR_LstAccDate;					/* 12H, the date of the last access operation */
-1823  F1E1              ; 	UINT16 DIR_FstClusHI;					/* 14H */
-1824  F1E1              ; 	UINT16 DIR_WrtTime;					    /* 16H, file modification time */
-1825  F1E1              ; 	UINT16 DIR_WrtDate;					    /* 18H, file modification date  */
-1826  F1E1              ; 	UINT16 DIR_FstClusLO;					/* 1AH */
-1827  F1E1              ; 	UINT32 DIR_FileSize;					/* 1CH, file length */
-1828  F1E1              ; }
-1829  F1E1
-1830  F1E1              dma_address:
-1831  F1E1 00 00            ds 2
-1832  F1E3
-1833  F1E3              ; TODO: This is in BDOS.asm and MemoeryStick.asm.
-1834  F1E3              ; It should only be here!
-1835  F1E3              CPM_FOLDER_NAME:
-1836  F1E3 2F 43 50 4D      db '/CPM',0
-1836  F1E7 00
-1837  F1E8              CPM_DISKS_NAME:
-1838  F1E8 44 49 53 4B      db 'DISKS',0
-1838  F1EC 53 00
-1839  F1EE
-1840  F1EE              current_disk:
-1841  F1EE 00               db 0
-1842  F1EF              current_user:
-1843  F1EF 00               db 0
-1844  F1F0
-1845  F1F0              temp_fcb:
-1846  F1F0 00 00 00...      ds 36
-1847  F214
-1848  F214              delete_flag:
-1849  F214 00               db 0
-1850  F215
-1851  F215              store_source:
-1852  F215 00 00            dw 0
-1853  F217
-1854  F217              store_target:
-1855  F217 00 00            dw 0
-1856  F219
-1857  F219              ; TODO these should only live in the CORE.
-1858  F219              YES_OPEN_DIR equ $41
-1859  F219              USB_INT_SUCCESS equ $14
-1860  F219
-1861  F219              BDOS_END equ $
-1862  F219
-1863  F219              ;IF BDOS_END-BDOS_START>2560
-1864  F219              ;    .WARNING "The BDOS is too big! 2560 bytes max!"
-1865  F219              ;ENDIF
-1866  F219
-1867  F219              BDOS_SIZE equ BDOS_END-BDOS_START
-1868  F219
-1869  F219                  IF BDOS_SIZE = 560
-1870  F219 ~                    .WARNING "The BDOS is too big! 2560 bytes max!"
-1871  F219                  ENDIF
+   7  D000
+   8  D000                  ; BDOS size is 2.5K max. If it exceeds this there will be problems!
+   9  D000                  ; See the end of the file for a Pasmo Error Check to ensure this isn't allowed to happen.
+  10  D000                  ; It is most likely to happen if you enable debug mode and have lots of extra debug messages in play.
+  11  D000
+  12  D000              DEBUG_BDOS equ 0
+  13  D000              OTHER_DEBUG equ 0
+  14  D000
+  15  D000              bdos_entry:
+  16  D000                  ; The function number is passed in Register C.
+  17  D000                  ; The parameter is passed in DE.
+  18  D000                  ; Result returned in A or HL. Also, A=L and B=H on return for compatibility reasons.
+  19  D000                  ; If function number is unknown we return A=0.
+  20  D000
+  21  D000 79               ld a, c
+  22  D001 FE 31            cp 49
+  23  D003 38 2A            jr c, BDOS_ok
+  24  D005
+  25  D005 FE 66            cp $66                      ; 102 = BDOS_Get_Date_Time
+  26  D007 28 56            jr z, return_255_in_a
+  27  D009 FE 69            cp $69                      ; BDOS function 69 - Get configuration table address
+  28  D00B 28 52            jr z, return_255_in_a       ; is supported by CP/Net, so ignore it here.
+  29  D00D
+  30  D00D CD 39 EC         call CORE_message
+  31  D010 42 41 44 20      db 'BAD BDOS CALL: ',0
+  31  D014 42 44 4F 53
+  31  D018 20 43 41 4C
+  31  D01C 4C 3A 20 00
+  32  D020 69               ld l, c
+  33  D021 26 00            ld h, 0
+  34  D023 CD 3C EC         call CORE_show_hl_as_hex
+  35  D026 CD 39 EC         call CORE_message
+  36  D029 0D 0A 00         db 13, 10, 0
+  37  D02C C3 00 00         jp $0000                    ; Totally abandon anything after a bad BDOS call!
+  38  D02F
+  39  D02F              BDOS_ok:
+  40  D02F D5               push de
+  41  D030 21 1A D7         ld hl, BDOS_jump_table
+  42  D033 59               ld e, c
+  43  D034 16 00            ld d, 0
+  44  D036 19               add hl, de
+  45  D037 19               add hl, de
+  46  D038                  ; Jump to actual BDOS entry
+  47  D038 5E               ld e, (hl)
+  48  D039 23               inc hl
+  49  D03A 56               ld d, (hl)
+  50  D03B EB               ex de, hl                   ; hl now holds address of the BDOS call
+  51  D03C D1               pop de
+  52  D03D
+  53  D03D CD 43 D0         call call_hl
+  54  D040
+  55  D040                  ; Now return. So anything that wants to return a value in HL should do ld a,l ld b,h first
+  56  D040 6F               ld l, a                     ; This is how the
+  57  D041 60               ld h, b                     ; BDOS returns values.
+  58  D042 C9               ret                         ; Note that it is important to some programs that both A and B are set.
+  59  D043
+  60  D043              call_hl:
+  61  D043                  ; This crazy-looking code does a jump to the address in hl.
+  62  D043                  ; Because we called this routine, it was like we did "call hl".
+  63  D043 E5           	push hl
+  64  D044 C9               ret
+  65  D045
+  66  D045              show_bdos_message:
+  67  D045 CD 39 EC         call CORE_message
+  68  D048 0D 0A 42 44      db 13,10,'BDOS_',0
+  68  D04C 4F 53 5F 00
+  69  D050 C9               ret
+  70  D051
+  71  D051              BDOS_System_Reset:
+  72  D051                  ; IF DEBUG_BDOS
+  73  D051                  ; call show_bdos_message
+  74  D051              	; call CORE_message
+  75  D051              	; db 'RST',13,10,0
+  76  D051                  ; ENDIF
+  77  D051
+  78  D051 CD B1 D5         call clear_current_fcb                          ; Clear the Current_fcb
+  79  D054 C3 00 00         jp $0000
+  80  D057
+  81  D057              return_0_in_a:
+  82  D057 AF               xor a                                           ; a = 0
+  83  D058 47               ld b, a
+  84  D059 C9               ret
+  85  D05A              return_1_in_a:
+  86  D05A 3E 01            ld a, 1
+  87  D05C 06 00            ld b, 0
+  88  D05E C9               ret
+  89  D05F              return_255_in_a:
+  90  D05F 3E FF            ld a, 255
+  91  D061 06 00            ld b, 0
+  92  D063 C9               ret
+  93  D064
+  94  D064              BDOS_Console_Input:
+  95  D064                  ; Read a key from the keyboard.
+  96  D064                  ; If there is none, wait until there is.
+  97  D064                  ; Echo it to screen, and obey things like Tab, Backspace etc
+  98  D064 CD 09 EC         call CORE_char_in
+  99  D067 FE 00            cp 0                                ; Keep trying til they press something
+ 100  D069 28 F9            jr z, BDOS_Console_Input
+ 101  D06B FE 20            cp 32                               ; Don't echo control chars
+ 102  D06D D8               ret c
+ 103  D06E CD 06 EC         call CORE_print_a                   ; But do echo everything else
+ 104  D071 C9               ret
+ 105  D072
+ 106  D072              BDOS_Console_Output:
+ 107  D072                  ; Prints to screen the char in e.
+ 108  D072 7B               ld a, e
+ 109  D073 CD 06 EC         call CORE_print_a
+ 110  D076 C9               ret
+ 111  D077
+ 112  D077              BDOS_Reader_Input:
+ 113  D077                  ; call show_bdos_message
+ 114  D077              	; call CORE_message
+ 115  D077              	; db 'Rdr_In',13,10,0
+ 116  D077 C3 5F D0         jp return_255_in_a
+ 117  D07A
+ 118  D07A              BDOS_Punch_Output:
+ 119  D07A                  ; call show_bdos_message
+ 120  D07A              	; call CORE_message
+ 121  D07A              	; db 'Punch',13,10,0
+ 122  D07A C3 5F D0         jp return_255_in_a
+ 123  D07D
+ 124  D07D              BDOS_List_Output:
+ 125  D07D                  ; call show_bdos_message
+ 126  D07D              	; call CORE_message
+ 127  D07D              	; db 'List',13,10,0
+ 128  D07D C3 5F D0         jp return_255_in_a
+ 129  D080
+ 130  D080              BDOS_Direct_Console_IO:
+ 131  D080                  ; If "E" contains FF then we are reading from the keyboard.
+ 132  D080                  ;   If there is a key, return it in A, otherwise return 0.
+ 133  D080                  ; If "E" is not FF then we are writing to screen.
+ 134  D080                  ;   Print the char directly
+ 135  D080 7B               ld a, e
+ 136  D081 FE FF            cp $FF
+ 137  D083 20 06            jr nz, BDOS_Direct_Console_IO_Write
+ 138  D085 CD 09 EC         call CORE_char_in
+ 139  D088 06 01            ld b, 1
+ 140  D08A C9               ret
+ 141  D08B              BDOS_Direct_Console_IO_Write:
+ 142  D08B CD 06 EC         call CORE_print_a
+ 143  D08E C3 57 D0         jp return_0_in_a
+ 144  D091
+ 145  D091              BDOS_Get_IO_Byte:
+ 146  D091                  ; call show_bdos_message
+ 147  D091              	; call CORE_message
+ 148  D091              	; db 'Get_IO_Byte',13,10,0
+ 149  D091 C3 57 D0         jp return_0_in_a
+ 150  D094
+ 151  D094              BDOS_Set_IO_Byte:
+ 152  D094                  ; call show_bdos_message
+ 153  D094              	; call CORE_message
+ 154  D094              	; db 'Set_IO_Byte',13,10,0
+ 155  D094 C3 5A D0         jp return_1_in_a
+ 156  D097
+ 157  D097              BDOS_Print_String:
+ 158  D097                  ; Print the string at "de" until we see a "$"
+ 159  D097              BDOS_Print_String1:
+ 160  D097 1A               ld a, (de)
+ 161  D098 13               inc de
+ 162  D099 FE 24            cp '$'
+ 163  D09B 28 05            jr z, BDOS_Print_String2
+ 164  D09D CD 06 EC         call CORE_print_a
+ 165  D0A0 18 F5            jr BDOS_Print_String1
+ 166  D0A2              BDOS_Print_String2
+ 167  D0A2 C3 57 D0         jp return_0_in_a
+ 168  D0A5
+ 169  D0A5              BDOS_Read_Console_Buffer:
+ 170  D0A5                  ; Read a line of input from the keyboard into a buffer.
+ 171  D0A5                  ; The buffer is pointed to by DE.
+ 172  D0A5                  ; The first two bytes of the buffer contain its max length and final length.
+ 173  D0A5                  ; Read in keys and put them into the buffer until the max length is reached,
+ 174  D0A5                  ; or the user presses Enter.
+ 175  D0A5                  ; Obey chars like Tab and Backspace.
+ 176  D0A5 EB               ex de, hl
+ 177  D0A6 56               ld d, (hl)                  ; d = max buffer length
+ 178  D0A7 23               inc hl
+ 179  D0A8 36 00            ld (hl), 0                  ; reset the "final length" byte.
+ 180  D0AA 4D               ld c, l
+ 181  D0AB 44               ld b, h                     ; store this location
+ 182  D0AC 1E 00            ld e, 0
+ 183  D0AE 23               inc hl
+ 184  D0AF EB               ex de, hl                   ; DE points to the start of the buffer spare space
+ 185  D0B0 E5               push hl
+ 186  D0B1 C5               push bc
+ 187  D0B2 E1               pop hl                      ; HL points to the "final length" byte
+ 188  D0B3 C1               pop bc                      ; B contains the max buffer length
+ 189  D0B4                                              ; DE points to our target location in buffer
+ 190  D0B4              BDOS_Read_Console_Buffer1:
+ 191  D0B4 E5               push hl
+ 192  D0B5 D5               push de
+ 193  D0B6 C5               push bc
+ 194  D0B7 CD 64 D0         call BDOS_Console_Input     ; Get a char and echo it
+ 195  D0BA C1               pop bc
+ 196  D0BB D1               pop de
+ 197  D0BC E1               pop hl
+ 198  D0BD FE 0D            cp 13                       ; Done?
+ 199  D0BF 28 09            jr z, BDOS_Read_Console_Buffer2
+ 200  D0C1 FE 08            cp 8                        ; Backspace key?
+ 201  D0C3 28 08            jr z, BDOS_Read_Console_Buffer_Backspace
+ 202  D0C5 12               ld (de), a                  ; Store the char in the buffer
+ 203  D0C6 34               inc (hl)                    ; Increase the final-chars-count
+ 204  D0C7 13               inc de                      ; Move on to next place in buffer
+ 205  D0C8                                              ; Decrease the max-chars counter and continue if any left
+ 206  D0C8 10 EA            djnz  BDOS_Read_Console_Buffer1
+ 207  D0CA              BDOS_Read_Console_Buffer2:
+ 208  D0CA 06 00            ld b, 0
+ 209  D0CC C9           	ret
+ 210  D0CD              BDOS_Read_Console_Buffer_Backspace:
+ 211  D0CD 7E               ld a, (hl)                  ; If final-chars is zero we can't go back any more
+ 212  D0CE FE 00            cp 0
+ 213  D0D0 28 E2            jr z, BDOS_Read_Console_Buffer1
+ 214  D0D2 3E 20            ld a, ' '                   ; Otherwise continue...
+ 215  D0D4 1B               dec de
+ 216  D0D5 12               ld (de), a                  ; Clear out most recent char
+ 217  D0D6 35               dec (hl)                    ; Decrease final-chars-count
+ 218  D0D7 3E 08            ld a, 8
+ 219  D0D9 CD 06 EC         call CORE_print_a                ; Print it to go back one space
+ 220  D0DC 3E 20            ld a, ' '
+ 221  D0DE CD 06 EC         call CORE_print_a                ; Cover over most recent char with space
+ 222  D0E1 3E 08            ld a, 8
+ 223  D0E3 CD 06 EC         call CORE_print_a                ; Print it to go back one space
+ 224  D0E6 04               inc b                       ; Increase max-chars-counter
+ 225  D0E7 18 CB            jr BDOS_Read_Console_Buffer1
+ 226  D0E9
+ 227  D0E9              BDOS_Get_Console_Status:
+ 228  D0E9                  ; Is there a key available? If there is, FF, otherwise 00
+ 229  D0E9 C3 0C EC         jp CORE_char_available
+ 230  D0EC
+ 231  D0EC              BDOS_Return_Version_Number:
+ 232  D0EC 3E 22            ld a, $22                   ; This is CP/M v2.2
+ 233  D0EE 06 00            ld b, 0
+ 234  D0F0 C9           	ret
+ 235  D0F1
+ 236  D0F1              BDOS_Reset_Disk_System:
+ 237  D0F1                  if DEBUG_BDOS
+ 238  D0F1 ~                call show_bdos_message
+ 239  D0F1 ~            	call CORE_message
+ 240  D0F1 ~            	db 'Rst_Dsk',13,10,0
+ 241  D0F1                  ENDIF
+ 242  D0F1
+ 243  D0F1 CD B1 D5         call clear_current_fcb                          ; Clear out current FCB
+ 244  D0F4 1E 00            ld e, 0
+ 245  D0F6 CD 00 D1         call BDOS_Select_Disk                           ; Choose disk A:
+ 246  D0F9
+ 247  D0F9 21 80 00         ld hl, $0080
+ 248  D0FC 22 E1 D7         ld (dma_address), hl                            ; Set standard DMA location
+ 249  D0FF C9           	ret
+ 250  D100
+ 251  D100              BDOS_Select_Disk:
+ 252  D100                  if DEBUG_BDOS
+ 253  D100 ~                call show_bdos_message
+ 254  D100 ~            	call CORE_message
+ 255  D100 ~            	db 'Sel_Dsk ',0
+ 256  D100                  ENDIF
+ 257  D100
+ 258  D100 CD 69 EC         call CORE_close_file                            ; If we are changing disks, we need to close any files
+ 259  D103
+ 260  D103                  ; Disk is in "E". 0 = A:, 15 = P:
+ 261  D103 7B               ld a, e
+ 262  D104 FE 10            cp 16                                                   ; Make sure desired disk is in range 0..15
+ 263  D106 30 4D            jr nc, BDOS_Select_Disk_Error
+ 264  D108 32 EE D7         ld (current_disk), a                                    ; Store disk
+ 265  D10B
+ 266  D10B                  ; Now check that directory actually exists, and if not, make it
+ 267  D10B C6 41            add a, 'A'
+ 268  D10D F5               push af
+ 269  D10E
+ 270  D10E                  if DEBUG_BDOS
+ 271  D10E ~                call CORE_print_a
+ 272  D10E ~                call CORE_newline
+ 273  D10E                  ENDIF
+ 274  D10E
+ 275  D10E 21 E3 D7         ld hl, CPM_FOLDER_NAME                ; Start at /CPM
+ 276  D111 CD 63 EC         call CORE_open_file
+ 277  D114 21 E8 D7         ld hl, CPM_DISKS_NAME                ; Start at /CPM/DISKS
+ 278  D117 CD 63 EC         call CORE_open_file
+ 279  D11A
+ 280  D11A 21 EB FF         ld hl, filename_buffer              ; Move to "A" .. "P" for required disk
+ 281  D11D F1               pop af
+ 282  D11E 77               ld (hl), a
+ 283  D11F 23               inc hl
+ 284  D120 36 00            ld (hl), 0
+ 285  D122 2B               dec hl
+ 286  D123 CD 63 EC         call CORE_open_file
+ 287  D126 FE 41            cp YES_OPEN_DIR
+ 288  D128 28 06            jr z, BDOS_Select_Disk_ok
+ 289  D12A
+ 290  D12A 21 EB FF         ld hl, filename_buffer              ; If drive "X" is not found, create the folder for it
+ 291  D12D CD 66 EC         call CORE_create_directory
+ 292  D130
+ 293  D130              BDOS_Select_Disk_ok:
+ 294  D130 3A EF D7         ld a, (current_user)                ; If they are user 0 then all is done
+ 295  D133 FE 00            cp 0
+ 296  D135 28 18            jr z, BDOS_Select_Disk_User_ok
+ 297  D137
+ 298  D137                  ; Now check if the User folder exists (User 1 = "1", User 15 = "F")
+ 299  D137 CD 7B EC         call CORE_convert_user_number_to_folder_name
+ 300  D13A 21 EB FF         ld hl, filename_buffer              ; Move to "1" .. "F" for required user area
+ 301  D13D 77               ld (hl), a
+ 302  D13E 23               inc hl
+ 303  D13F 36 00            ld (hl), 0
+ 304  D141 2B               dec hl
+ 305  D142 CD 63 EC         call CORE_open_file
+ 306  D145 FE 41            cp YES_OPEN_DIR
+ 307  D147 28 06            jr z, BDOS_Select_Disk_User_ok
+ 308  D149
+ 309  D149 21 EB FF         ld hl, filename_buffer              ; Create folder if not found
+ 310  D14C CD 66 EC         call CORE_create_directory
+ 311  D14F
+ 312  D14F              BDOS_Select_Disk_User_ok:
+ 313  D14F CD B1 D5         call clear_current_fcb                          ; Clear out current FCB
+ 314  D152 C3 57 D0     	jp return_0_in_a
+ 315  D155
+ 316  D155              BDOS_Select_Disk_Error:
+ 317  D155 CD 39 EC         call CORE_message
+ 318  D158 42 44 4F 53      db 'BDOS Error on ',0
+ 318  D15C 20 45 72 72
+ 318  D160 6F 72 20 6F
+ 318  D164 6E 20 00
+ 319  D167 C6 41            add a, 'A'
+ 320  D169 CD 06 EC         call CORE_print_a
+ 321  D16C 3E 3A            ld a, ':'
+ 322  D16E CD 06 EC         call CORE_print_a
+ 323  D171 CD 33 EC         call CORE_newline
+ 324  D174 C3 00 00         jp 0
+ 325  D177
+ 326  D177              BDOS_Open_File:
+ 327  D177                  ; Pass in de -> FCB
+ 328  D177                  ; return a = 0 for success, a = 255 for error.
+ 329  D177                  ; The FCB that was passed in gets copied into the Current_FCB so we know which file is open.
+ 330  D177
+ 331  D177                  if DEBUG_BDOS
+ 332  D177 ~                call show_bdos_message
+ 333  D177 ~            	call CORE_message
+ 334  D177 ~            	db 'Open',13,10,0
+ 335  D177 ~                call show_fcb
+ 336  D177                  ENDIF
+ 337  D177
+ 338  D177 3E 00            ld a, 0
+ 339  D179 C3 7C D1         jp bdos_open_file_internal
+ 340  D17C
+ 341  D17C              bdos_open_file_internal:
+ 342  D17C                  ; Pass in de -> FCB
+ 343  D17C                  ; Pass in a = 0 for resetting the file pointer to 0, or a = 1 for don't-mess-with-file-pointer.
+ 344  D17C                  ; return a = 0 for success, a = 255 for error.
+ 345  D17C                  ; The FCB that was passed in gets copied into the Current_FCB so we know which file is open.
+ 346  D17C F5               push af
+ 347  D17D D5               push de
+ 348  D17E
+ 349  D17E CD 69 EC         call CORE_close_file ; just in case?
+ 350  D181
+ 351  D181 D1               pop de                              ; Now use FCB to open the file
+ 352  D182 F1               pop af
+ 353  D183 FE 00            cp 0
+ 354  D185 20 0B            jr nz, bdos_open_file_internal1     ; If a=0 then clear the file pointer, otherwise leave as is.
+ 355  D187 EB               ex de, hl
+ 356  D188 01 00 00         ld bc, 0
+ 357  D18B 11 00 00         ld de, 0
+ 358  D18E CD 40 D5         call set_file_pointer_in_fcb
+ 359  D191 EB               ex de, hl
+ 360  D192              bdos_open_file_internal1:
+ 361  D192                  ;call show_fcb
+ 362  D192 D5               push de
+ 363  D193 CD 85 D6         call copy_fcb_to_filename_buffer
+ 364  D196                  ;call show_filename_buffer
+ 365  D196 CD AF D1         call open_cpm_disk_directory
+ 366  D199
+ 367  D199 21 ED FF         ld hl, filename_buffer+2            ; Specify search pattern "*"
+ 368  D19C CD 63 EC         call CORE_open_file
+ 369  D19F 28 07            jr z, open_file_success
+ 370  D1A1
+ 371  D1A1 D1               pop de
+ 372  D1A2 CD B1 D5         call clear_current_fcb              ; No file open so clear out the Current FCB
+ 373  D1A5 C3 5F D0         jp return_255_in_a                  ; error
+ 374  D1A8              open_file_success:
+ 375  D1A8 D1               pop de
+ 376  D1A9 CD C0 D5         call copy_fcb_to_current_fcb        ; File is now open, so copy FCB to Current FCB
+ 377  D1AC C3 57 D0         jp return_0_in_a
+ 378  D1AF
+ 379  D1AF              open_cpm_disk_directory:
+ 380  D1AF                  ; This opens the directory for a file on a CP/M disk, such as /CPM/DISKS/A or /CPM/DISKS/B/1
+ 381  D1AF 21 E3 D7         ld hl, CPM_FOLDER_NAME                ; Start at "/CPM"
+ 382  D1B2 CD 63 EC         call CORE_open_file
+ 383  D1B5 21 E8 D7         ld hl, CPM_DISKS_NAME                ; Then "DISKS"
+ 384  D1B8 CD 63 EC         call CORE_open_file
+ 385  D1BB
+ 386  D1BB                  ; Now drive letter
+ 387  D1BB 21 EB FF         ld hl, filename_buffer
+ 388  D1BE 7E               ld a, (hl)
+ 389  D1BF 21 E9 FF         ld hl, DRIVE_NAME                   ; Move to "A" .. "P" for required disk
+ 390  D1C2 77               ld (hl), a
+ 391  D1C3 23               inc hl
+ 392  D1C4 36 00            ld (hl), 0
+ 393  D1C6 2B               dec hl
+ 394  D1C7 CD 63 EC         call CORE_open_file
+ 395  D1CA
+ 396  D1CA                  ; Now user number (if greater than 0)
+ 397  D1CA 3A EF D7         ld a, (current_user)
+ 398  D1CD FE 00            cp 0
+ 399  D1CF C8               ret z
+ 400  D1D0
+ 401  D1D0 CD 7B EC         call CORE_convert_user_number_to_folder_name
+ 402  D1D3 21 E9 FF         ld hl, DRIVE_NAME                   ; Move to "1" .. "F" for required user
+ 403  D1D6 77               ld (hl), a
+ 404  D1D7 23               inc hl
+ 405  D1D8 36 00            ld (hl), 0
+ 406  D1DA 2B               dec hl
+ 407  D1DB CD 63 EC         call CORE_open_file
+ 408  D1DE C9               ret
+ 409  D1DF
+ 410  D1DF              BDOS_Close_File:
+ 411  D1DF                  ; Pass in de -> FCB
+ 412  D1DF                  ; return 0 for success, 255 for fail
+ 413  D1DF                  IF DEBUG_BDOS
+ 414  D1DF ~                call show_bdos_message
+ 415  D1DF ~            	call CORE_message
+ 416  D1DF ~            	db 'Close',13,10,0
+ 417  D1DF                  ENDIF
+ 418  D1DF
+ 419  D1DF CD 69 EC         call CORE_close_file
+ 420  D1E2 CD B1 D5         call clear_current_fcb                          ; Clear out current FCB
+ 421  D1E5
+ 422  D1E5 C3 57 D0         jp return_0_in_a
+ 423  D1E8
+ 424  D1E8              BDOS_Search_for_First:
+ 425  D1E8                  ; Input is DE -> FCB
+ 426  D1E8                  ; Output is $FF if nothing found, otherwise 0 in A and the directory entry will have
+ 427  D1E8                  ; been copied into the current DMA location.
+ 428  D1E8
+ 429  D1E8                  ; The FCB contains the drive and file name.
+ 430  D1E8                  ; The drive can be 0 to 15 for A to P, or '?' to mean current drive.
+ 431  D1E8                  ; The filename and extension can be letters, or "?" or "*" for wildcards.
+ 432  D1E8                  ; This leaves the disk in such a position that "search_for_next" cen get the next entry.
+ 433  D1E8                  ; What we do is:
+ 434  D1E8                  ; - Open the correct folder, e.g. /CPM/DISKS/A/user
+ 435  D1E8                  ; - Read in a filename and put it into the DMA area.
+ 436  D1E8                  ; - Check if it matches. If not, try the next.
+ 437  D1E8
+ 438  D1E8                  IF DEBUG_BDOS
+ 439  D1E8 ~                call show_bdos_message
+ 440  D1E8 ~            	call CORE_message
+ 441  D1E8 ~            	db 'Srch_Fst',13,10,0
+ 442  D1E8 ~                call show_fcb
+ 443  D1E8                  ENDIF
+ 444  D1E8
+ 445  D1E8 CD CB D6         call copy_fcb_to_filename_buffer_preserving_spaces
+ 446  D1EB
+ 447  D1EB ED 5B E1 D7      ld de, (dma_address)
+ 448  D1EF 3A EF D7         ld a, (current_user)
+ 449  D1F2 CD 42 EC         call CORE_dir                            ; returns 0 = success, 255 = fail
+ 450  D1F5 FE 00            cp 0
+ 451  D1F7 28 03            jr z, search_first_found
+ 452  D1F9
+ 453  D1F9                  IF DEBUG_BDOS
+ 454  D1F9 ~                call CORE_message
+ 455  D1F9 ~                db 'DIR NONE',13,10,0
+ 456  D1F9                  ENDIF
+ 457  D1F9
+ 458  D1F9 C3 5F D0         jp return_255_in_a                          ; Found nothing
+ 459  D1FC
+ 460  D1FC              search_first_found:
+ 461  D1FC                  IF DEBUG_BDOS
+ 462  D1FC ~                call CORE_message
+ 463  D1FC ~                db 'DIR:',13,10,0
+ 464  D1FC ~                ld de, (dma_address)
+ 465  D1FC ~                call show_fcb
+ 466  D1FC                  ENDIF
+ 467  D1FC
+ 468  D1FC C3 57 D0         jp return_0_in_a                            ; Success!
+ 469  D1FF
+ 470  D1FF              BDOS_Search_for_Next:
+ 471  D1FF                  IF DEBUG_BDOS
+ 472  D1FF ~                call show_bdos_message
+ 473  D1FF ~            	call CORE_message
+ 474  D1FF ~            	db 'Srch_Nx',13,10,0
+ 475  D1FF                  ENDIF
+ 476  D1FF
+ 477  D1FF ED 5B E1 D7      ld de, (dma_address)
+ 478  D203 3A EF D7         ld a, (current_user)
+ 479  D206 CD 45 EC         call CORE_dir_next                            ; returns 0 = success, 255 = fail
+ 480  D209 FE 00            cp 0
+ 481  D20B 28 03            jr z, search_next_found
+ 482  D20D
+ 483  D20D                  IF DEBUG_BDOS
+ 484  D20D ~                call CORE_message
+ 485  D20D ~                db 'NONE!',13,10,0
+ 486  D20D                  ENDIF
+ 487  D20D
+ 488  D20D C3 5F D0         jp return_255_in_a                          ; Found nothing
+ 489  D210
+ 490  D210              search_next_found:
+ 491  D210                  IF DEBUG_BDOS
+ 492  D210 ~                call CORE_message
+ 493  D210 ~                db 'NEXT ret:',13,10,0
+ 494  D210 ~                ld de, (dma_address)
+ 495  D210 ~                call show_fcb
+ 496  D210                  ENDIF
+ 497  D210
+ 498  D210 C3 57 D0         jp return_0_in_a                            ; Success!
+ 499  D213
+ 500  D213              BDOS_Delete_File:
+ 501  D213                  ; Delete File passes in DE->FCB
+ 502  D213                  ; Returns a = 0 for success and a = 255 for failure.
+ 503  D213                  ; I think that we return 0 if we delete a file, and 255 if we don't, even though
+ 504  D213                  ; that is not exactly an error condition.
+ 505  D213                  IF OTHER_DEBUG
+ 506  D213 ~                call show_bdos_message
+ 507  D213 ~            	call CORE_message
+ 508  D213 ~            	db 'Del',13,10,0
+ 509  D213 ~                call show_fcb
+ 510  D213                  ENDIF
+ 511  D213
+ 512  D213                  ; We enter with DE pointing to a FCB, such as "file.xyz" or "*.txt".
+ 513  D213                  ; We use this to run a DIR-search-first, returning a result in A (0=good) and
+ 514  D213                  ; storing its resulting FCB in a temporary FCB.
+ 515  D213                  ; If no file was found then we are done.
+ 516  D213                  ; If a file was found then we need to delete that file, and loop back to the start.
+ 517  D213
+ 518  D213 3E FF            ld a, 255
+ 519  D215 32 14 D8         ld (delete_flag), a                             ; Store the result
+ 520  D218
+ 521  D218                  ; Store drive letter of requested file to delete
+ 522  D218 1A               ld a, (de)
+ 523  D219 32 15 D8         ld (store_source), a
+ 524  D21C
+ 525  D21C                  ; Do a DIR-search-first, using the fcb passed in DE
+ 526  D21C D5               push de
+ 527  D21D CD B1 D5         call clear_current_fcb                          ; Clear out current FCB
+ 528  D220 D1               pop de
+ 529  D221
+ 530  D221              BDOS_Delete_File_loop:
+ 531  D221 D5               push de
+ 532  D222
+ 533  D222 CD CB D6         call copy_fcb_to_filename_buffer_preserving_spaces
+ 534  D225 11 F0 D7         ld de, temp_fcb
+ 535  D228 3A EF D7         ld a, (current_user)
+ 536  D22B CD 42 EC         call CORE_dir                                   ; returns 0 = success, 255 = fail
+ 537  D22E FE FF            cp 255
+ 538  D230 28 28            jr z, BDOS_Delete_File_done
+ 539  D232
+ 540  D232                  ; File found, so delete it
+ 541  D232 3E 00            ld a, 0
+ 542  D234 32 14 D8         ld (delete_flag), a                             ; Store a success reult
+ 543  D237
+ 544  D237                  ; restore the drive letter saved from the originally requested file
+ 545  D237 3A 15 D8         ld a, (store_source)
+ 546  D23A 32 F0 D7         ld (temp_fcb), a
+ 547  D23D
+ 548  D23D                  IF OTHER_DEBUG
+ 549  D23D ~                call CORE_message
+ 550  D23D ~                db 'DELETING ',13,10,0
+ 551  D23D ~                ld de, temp_fcb
+ 552  D23D ~                call show_fcb
+ 553  D23D                  ENDIF
+ 554  D23D
+ 555  D23D 11 F0 D7         ld de, temp_fcb
+ 556  D240 CD 85 D6         call copy_fcb_to_filename_buffer
+ 557  D243 CD 69 EC         call CORE_close_file                            ; just in case there is an open one.
+ 558  D246 CD B1 D5         call clear_current_fcb
+ 559  D249 CD AF D1         call open_cpm_disk_directory
+ 560  D24C
+ 561  D24C 21 ED FF         ld hl, filename_buffer+2                        ; Specify filename
+ 562  D24F CD 63 EC         call CORE_open_file
+ 563  D252 20 0D            jr nz, delete_error                             ; Don't delete if not found
+ 564  D254 CD 54 EC         call CORE_erase_file
+ 565  D257
+ 566  D257 D1               pop de                                  ; Get original FCB back
+ 567  D258 18 C7            jr BDOS_Delete_File_loop
+ 568  D25A
+ 569  D25A              BDOS_Delete_File_done:
+ 570  D25A D1               pop de
+ 571  D25B
+ 572  D25B                  IF OTHER_DEBUG
+ 573  D25B ~                call CORE_message
+ 574  D25B ~                db 'DEL done',13,10,0
+ 575  D25B                  ENDIF
+ 576  D25B
+ 577  D25B 3A 14 D8         ld a, (delete_flag)
+ 578  D25E 06 00            ld b, 0
+ 579  D260 C9           	ret
+ 580  D261
+ 581  D261              delete_error:
+ 582  D261 D1               pop de
+ 583  D262 C3 5F D0         jp return_255_in_a
+ 584  D265
+ 585  D265              BDOS_Read_Sequential:
+ 586  D265                  ; Pass in de -> FCB
+ 587  D265                  ; Return a = 0 on success, or a != 0 on error
+ 588  D265                  ; We need to read 128 bytes from the current position of the file referenced in FCB
+ 589  D265                  ; to DMA address.
+ 590  D265                  ; If there are less than 128 bytes, made sure the rest is padded with nulls.
+ 591  D265                  ; Start by checking that the FCB equals the Current FCB.
+ 592  D265                  ; If not, close the current file and open the new one, jumping to the right place.
+ 593  D265                  ; If so just proceed.
+ 594  D265                  ; Then increase the pointer in the FCB and copy it to Current_FCB.
+ 595  D265                  IF DEBUG_BDOS
+ 596  D265 ~                call show_bdos_message
+ 597  D265 ~            	call CORE_message
+ 598  D265 ~            	db 'Rd_Seq',13,10,0
+ 599  D265 ~                call show_fcb
+ 600  D265                  ENDIF
+ 601  D265
+ 602  D265 D5               push de
+ 603  D266 CD 09 D7         call disk_activity_start
+ 604  D269
+ 605  D269 CD 04 D6         call compare_current_fcb
+ 606  D26C 28 14            jr z, BDOS_Read_Sequential1
+ 607  D26E                  ; Need to close existing file and open the new one.
+ 608  D26E 3E 01            ld a, 1                                     ; Open new file but don't update file pointer
+ 609  D270 CD 7C D1         call bdos_open_file_internal
+ 610  D273 D1               pop de
+ 611  D274 D5               push de
+ 612  D275                  ; Now jump to the right place in the file
+ 613  D275 CD 6E D5         call get_file_pointer_from_fcb              ; bcde = file pointer
+ 614  D278 CD 92 D5         call multiply_bcde_by_128                   ; bcde = byte location in file
+ 615  D27B CD 5A EC         call CORE_move_to_file_pointer                   ; move to that location
+ 616  D27E FE 14            cp USB_INT_SUCCESS
+ 617  D280 20 1F            jr nz, read_from_file_fail
+ 618  D282              BDOS_Read_Sequential1:
+ 619  D282 ED 5B E1 D7      ld de, (dma_address)
+ 620  D286 CD 6C EC         call CORE_read_from_file
+ 621  D289 20 16            jr nz, read_from_file_fail                  ; ADDED IN, BUT MAKES SENSE???
+ 622  D28B D1               pop de                                      ; Get the FCB location back
+ 623  D28C D5               push de
+ 624  D28D CD 6E D5         call get_file_pointer_from_fcb              ; bcde = file pointer
+ 625  D290 CD A0 D5         call increase_bcde
+ 626  D293 E1               pop hl
+ 627  D294 CD 40 D5         call set_file_pointer_in_fcb
+ 628  D297 EB               ex de, hl
+ 629  D298 CD C0 D5         call copy_fcb_to_current_fcb                ; Make a note of the state of the currently open file
+ 630  D29B CD 1E EC         call CORE_disk_off
+ 631  D29E C3 57 D0         jp return_0_in_a                            ; Success
+ 632  D2A1              read_from_file_fail:
+ 633  D2A1 D1               pop de
+ 634  D2A2 CD 1E EC         call CORE_disk_off
+ 635  D2A5 3E 01            ld a, 1                                     ; 1 = seek to unwritten extent
+ 636  D2A7 06 00            ld b, 0
+ 637  D2A9 C9               ret
+ 638  D2AA
+ 639  D2AA              BDOS_Write_Sequential:
+ 640  D2AA                  ; Pass in de -> FCB
+ 641  D2AA                  ; Return a = 0 on success, or a = 255 on error
+ 642  D2AA                  ; We need to write 128 bytes from the current DMA address to the
+ 643  D2AA                  ; current position of the file referenced in FCB.
+ 644  D2AA                  ; Start by checking that the FCB equals the Current FCB.
+ 645  D2AA                  ; If not, close the current file and open the new one, jumping to the right place.
+ 646  D2AA                  ; If so just proceed.
+ 647  D2AA                  ; Then increase the pointer in the FCB and copy it to Current_FCB.
+ 648  D2AA                  IF DEBUG_BDOS
+ 649  D2AA ~                call show_bdos_message
+ 650  D2AA ~            	call CORE_message
+ 651  D2AA ~            	db 'Wr_Seq',13,10,0
+ 652  D2AA ~                call show_fcb
+ 653  D2AA                  ENDIF
+ 654  D2AA
+ 655  D2AA D5               push de
+ 656  D2AB CD 09 D7         call disk_activity_start
+ 657  D2AE              dont_turn_on:
+ 658  D2AE CD 04 D6         call compare_current_fcb
+ 659  D2B1 28 14            jr z, BDOS_Write_Sequential1
+ 660  D2B3                  ; Need to close existing file and open the new one.
+ 661  D2B3 3E 01            ld a, 1                                     ; Open new file but don't update file pointer
+ 662  D2B5 CD 7C D1         call bdos_open_file_internal
+ 663  D2B8 D1               pop de
+ 664  D2B9 D5               push de
+ 665  D2BA                  ; Now jump to the right place in the file
+ 666  D2BA CD 6E D5         call get_file_pointer_from_fcb              ; bcde = file pointer
+ 667  D2BD CD 92 D5         call multiply_bcde_by_128                   ; bcde = byte location in file
+ 668  D2C0 CD 5A EC         call CORE_move_to_file_pointer              ; move to that location
+ 669  D2C3 FE 14            cp USB_INT_SUCCESS
+ 670  D2C5 20 1D            jr nz, BDOS_Write_Sequential_fail
+ 671  D2C7              BDOS_Write_Sequential1:
+ 672  D2C7 ED 5B E1 D7      ld de, (dma_address)
+ 673  D2CB CD 51 EC         call CORE_write_to_file
+ 674  D2CE CD 1E EC         call CORE_disk_off
+ 675  D2D1 D1               pop de                                      ; Get the FCB location back
+ 676  D2D2 D5               push de
+ 677  D2D3 CD 6E D5         call get_file_pointer_from_fcb              ; bcde = file pointer
+ 678  D2D6 CD A0 D5         call increase_bcde
+ 679  D2D9 E1               pop hl
+ 680  D2DA CD 40 D5         call set_file_pointer_in_fcb
+ 681  D2DD EB               ex de, hl
+ 682  D2DE CD C0 D5         call copy_fcb_to_current_fcb                ; Make a note of the state of the currently open file
+ 683  D2E1 C3 57 D0         jp return_0_in_a
+ 684  D2E4
+ 685  D2E4              BDOS_Write_Sequential_fail:
+ 686  D2E4 D1               pop de
+ 687  D2E5 CD 39 EC         call CORE_message
+ 688  D2E8 42 44 4F 53      db 'BDOS write error!',13,10,0
+ 688  D2EC 20 77 72 69
+ 688  D2F0 74 65 20 65
+ 688  D2F4 72 72 6F 72
+ 688  D2F8 21 0D 0A 00
+ 689  D2FC CD 1E EC         call CORE_disk_off
+ 690  D2FF C3 5F D0         jp return_255_in_a
+ 691  D302
+ 692  D302              BDOS_Make_File:
+ 693  D302                  ; Make File passes in DE->FCB
+ 694  D302                  ; Returns a = 0 for success and a = 255 for failure
+ 695  D302                  IF DEBUG_BDOS
+ 696  D302 ~                call show_bdos_message
+ 697  D302 ~            	call CORE_message
+ 698  D302 ~            	db 'Mk_File',13,10,0
+ 699  D302 ~                call show_fcb
+ 700  D302                  ENDIF
+ 701  D302
+ 702  D302 D5               push de
+ 703  D303
+ 704  D303 CD 69 EC         call CORE_close_file                                 ; just in case another file is open
+ 705  D306
+ 706  D306 D1               pop de
+ 707  D307 D5               push de
+ 708  D308 CD 85 D6         call copy_fcb_to_filename_buffer
+ 709  D30B
+ 710  D30B CD 1B EC         call CORE_disk_on
+ 711  D30E CD 6F EC         call CORE_connect_to_disk
+ 712  D311 CD 72 EC         call CORE_mount_disk
+ 713  D314
+ 714  D314 CD AF D1         call open_cpm_disk_directory
+ 715  D317
+ 716  D317 11 ED FF         ld de, filename_buffer+2            ; Specify filename
+ 717  D31A CD 75 EC         call CORE_create_file
+ 718  D31D
+ 719  D31D 28 0A            jr z, make_file_success
+ 720  D31F
+ 721  D31F CD 1E EC         call CORE_disk_off
+ 722  D322 D1               pop de
+ 723  D323 CD B1 D5         call clear_current_fcb                          ; Clear out current FCB because of fail.
+ 724  D326 C3 5F D0         jp return_255_in_a                              ; error
+ 725  D329              make_file_success:
+ 726  D329 CD 1E EC         call CORE_disk_off
+ 727  D32C D1               pop de
+ 728  D32D CD C0 D5         call copy_fcb_to_current_fcb                    ; This is now the currently open file
+ 729  D330 C3 57 D0         jp return_0_in_a
+ 730  D333
+ 731  D333              BDOS_Rename_File:
+ 732  D333                  ; DE points to a FCB with the
+ 733  D333                  ; SOURCE filename at FCB+0 and
+ 734  D333                  ; TARGET filename at FCB+16.
+ 735  D333                  ; The disk drive must be the same in both names, or else error.
+ 736  D333                  ; Check if the target file already exists. If so return with error.
+ 737  D333                  ; Success a = 0
+ 738  D333                  ; Error a = 255
+ 739  D333
+ 740  D333                  IF DEBUG_BDOS
+ 741  D333 ~                call show_bdos_message
+ 742  D333 ~            	call CORE_message
+ 743  D333 ~            	db 'Ren',13,10,0
+ 744  D333                  ENDIF
+ 745  D333
+ 746  D333 ED 53 15 D8      ld (store_source), de                               ; Store source FCB pointer for now
+ 747  D337 D5               push de
+ 748  D338 CD 69 EC         call CORE_close_file                                ; just in case there is an open one.
+ 749  D33B D1               pop de
+ 750  D33C
+ 751  D33C                  IF DEBUG_BDOS
+ 752  D33C ~                ; show source FCB
+ 753  D33C ~                call CORE_message
+ 754  D33C ~                db 'Src:',13,10,0
+ 755  D33C ~                call show_fcb
+ 756  D33C ~                call CORE_message
+ 757  D33C ~                db 'Tgt:',13,10,0
+ 758  D33C                  ENDIF
+ 759  D33C
+ 760  D33C 21 10 00         ld hl, 16
+ 761  D33F 19               add hl, de
+ 762  D340 22 17 D8         ld (store_target), hl                               ; And store the target FCB for now
+ 763  D343 EB               ex de, hl                                           ; target is now in de
+ 764  D344
+ 765  D344                  IF DEBUG_BDOS
+ 766  D344 ~                ; Show target FCB
+ 767  D344 ~                call show_fcb
+ 768  D344                  ENDIF
+ 769  D344
+ 770  D344                  ; Check if target drive is "default", if so, copy from source.
+ 771  D344 2A 17 D8         ld hl, (store_target)                           ; retrieve pointer to target file
+ 772  D347 7E               ld a, (hl)                                      ; Target file drive letter
+ 773  D348 FE 00            cp 0                                            ; Is the target of the default drive?
+ 774  D34A 20 06            jr nz, BDOS_Rename_target_not_default           ; This indicates it should be the same as the source
+ 775  D34C ED 5B 15 D8      ld de, (store_source)
+ 776  D350 1A               ld a, (de)
+ 777  D351 77               ld (hl), a                                      ; Copy drive from source to target
+ 778  D352
+ 779  D352              BDOS_Rename_target_not_default:
+ 780  D352                  ; Check if both drives are the same. If not return error.
+ 781  D352 2A 17 D8         ld hl, (store_target)
+ 782  D355 7E               ld a, (hl)                                      ; Get target drive
+ 783  D356 2A 15 D8         ld hl, (store_source)                           ; retrieve source fcb
+ 784  D359 BE               cp (hl)                                         ; Are drive letters the same?
+ 785  D35A 20 48            jr nz, BDOS_Rename_File_different_drives
+ 786  D35C
+ 787  D35C                  ; Try opening target file. If we can then return an error.
+ 788  D35C ED 5B 17 D8      ld de, (store_target)
+ 789  D360 CD 85 D6         call copy_fcb_to_filename_buffer
+ 790  D363 CD AF D1         call open_cpm_disk_directory
+ 791  D366 21 ED FF         ld hl, filename_buffer+2                        ; Specify filename
+ 792  D369 CD 63 EC         call CORE_open_file
+ 793  D36C 28 33            jr z, BDOS_Rename_File_exists
+ 794  D36E
+ 795  D36E              BDOS_Rename_File_same_drives:
+ 796  D36E                  ; Open the source file.
+ 797  D36E CD 69 EC         call CORE_close_file
+ 798  D371 ED 5B 15 D8      ld de, (store_source)
+ 799  D375 CD 85 D6         call copy_fcb_to_filename_buffer
+ 800  D378 CD AF D1         call open_cpm_disk_directory
+ 801  D37B 21 ED FF         ld hl, filename_buffer+2                        ; Specify source filename
+ 802  D37E CD 63 EC         call CORE_open_file
+ 803  D381 C2 A7 D3         jp nz, BDOS_Rename_File_no_source
+ 804  D384
+ 805  D384                  ; Read in the P_FAT_DIR_INFO
+ 806  D384 CD 4B EC         call CORE_dir_info_read
+ 807  D387 20 1E            jr nz, BDOS_Rename_File_no_source
+ 808  D389
+ 809  D389                  ; Update the name of the target file by copying the name from target to source
+ 810  D389 2A 17 D8         ld hl, (store_target)
+ 811  D38C 23               inc hl
+ 812  D38D 11 C5 FF         ld de, disk_buffer
+ 813  D390 01 0B 00         ld bc, 11
+ 814  D393 ED B0            ldir
+ 815  D395
+ 816  D395                  ; Write it back again.
+ 817  D395 CD 4E EC         call CORE_dir_info_write
+ 818  D398
+ 819  D398                  ; Close the file.
+ 820  D398 CD 69 EC         call CORE_close_file
+ 821  D39B
+ 822  D39B CD B1 D5         call clear_current_fcb                          ; Clear out current FCB
+ 823  D39E C3 57 D0         jp return_0_in_a                                ; success
+ 824  D3A1              BDOS_Rename_File_exists:
+ 825  D3A1                  ;call CORE_message
+ 826  D3A1                  ;db '[EXISTS]',13,10,0
+ 827  D3A1 C3 5F D0         jp return_255_in_a
+ 828  D3A4              BDOS_Rename_File_different_drives:
+ 829  D3A4                  ;call CORE_message
+ 830  D3A4                  ;db '[DIFF]',13,10,0
+ 831  D3A4 C3 5F D0         jp return_255_in_a
+ 832  D3A7
+ 833  D3A7              BDOS_Rename_File_no_source:
+ 834  D3A7                  ;call CORE_message
+ 835  D3A7                  ;db '[NONE]',13,10,0
+ 836  D3A7 C3 5F D0         jp return_255_in_a
+ 837  D3AA
+ 838  D3AA              BDOS_Return_Login_Vector:
+ 839  D3AA                  ;call show_bdos_message
+ 840  D3AA              	;call CORE_message
+ 841  D3AA              	;db 'Ret_Log_Vec',13,10,0
+ 842  D3AA 21 FF FF         ld hl, $FFFF ; All drives are always logged in
+ 843  D3AD 7D               ld a, l
+ 844  D3AE 44               ld b, h
+ 845  D3AF C9           	ret
+ 846  D3B0
+ 847  D3B0              BDOS_Return_Current_Disk:
+ 848  D3B0                  ;call show_bdos_message
+ 849  D3B0              	;call CORE_message
+ 850  D3B0              	;db 'Ret_Curr_Disk',13,10,0
+ 851  D3B0                  ; The value is 0 = A .. 15 = P
+ 852  D3B0 3A EE D7         ld a, (current_disk)
+ 853  D3B3 E6 0F            and %00001111                       ; Make sure it is 0-15
+ 854  D3B5                  ;push af
+ 855  D3B5                  ;add a, 'A'
+ 856  D3B5                  ;call CORE_print_a
+ 857  D3B5                  ;call newline
+ 858  D3B5                  ;pop af
+ 859  D3B5 06 00            ld b, 0
+ 860  D3B7 C9           	ret
+ 861  D3B8
+ 862  D3B8              BDOS_Set_DMA_Address:
+ 863  D3B8                  ; Pass in de -> DMA Address
+ 864  D3B8 ED 53 E1 D7      ld (dma_address), de
+ 865  D3BC
+ 866  D3BC                  IF DEBUG_BDOS
+ 867  D3BC ~                call show_bdos_message
+ 868  D3BC ~            	call CORE_message
+ 869  D3BC ~            	db 'Set_DMA ',0
+ 870  D3BC ~                ex de, hl
+ 871  D3BC ~                call CORE_show_hl_as_hex
+ 872  D3BC ~                call CORE_newline
+ 873  D3BC                  ENDIF
+ 874  D3BC
+ 875  D3BC C3 57 D0         jp return_0_in_a
+ 876  D3BF
+ 877  D3BF              BDOS_Get_Addr_Alloc:
+ 878  D3BF                  ; IF DEBUG_BDOS
+ 879  D3BF                  ; call show_bdos_message
+ 880  D3BF              	; call CORE_message
+ 881  D3BF              	; db 'Get_DSKAL',13,10,0
+ 882  D3BF                  ; ENDIF
+ 883  D3BF
+ 884  D3BF 21 BD D7         ld hl, DISKALLOC
+ 885  D3C2 7D               ld a, l
+ 886  D3C3 44               ld b, h
+ 887  D3C4 C9           	ret
+ 888  D3C5
+ 889  D3C5              BDOS_Write_Protect_Disk:
+ 890  D3C5                  ;call show_bdos_message
+ 891  D3C5              	;call CORE_message
+ 892  D3C5              	;db 'Wr_Prot_Disk',13,10,0
+ 893  D3C5 C3 5A D0         jp return_1_in_a
+ 894  D3C8
+ 895  D3C8              BDOS_Get_RO_Vector:
+ 896  D3C8                  ;call show_bdos_message
+ 897  D3C8              	;call CORE_message
+ 898  D3C8              	;db 'Get_RO_Vect',13,10,0
+ 899  D3C8 C3 5A D0         jp return_1_in_a
+ 900  D3CB
+ 901  D3CB              BDOS_Set_File_Attributes:
+ 902  D3CB                  ;call show_bdos_message
+ 903  D3CB              	;call CORE_message
+ 904  D3CB              	;db 'Set_File_Attr',13,10,0
+ 905  D3CB C3 5A D0         jp return_1_in_a
+ 906  D3CE
+ 907  D3CE              BDOS_Get_Addr_Disk_Parms:
+ 908  D3CE                  IF DEBUG_BDOS
+ 909  D3CE ~                call show_bdos_message
+ 910  D3CE ~            	call CORE_message
+ 911  D3CE ~            	db 'Get_DPB ',0
+ 912  D3CE                  ENDIF
+ 913  D3CE
+ 914  D3CE                  ; Returns address in HL
+ 915  D3CE 21 AE D7         ld hl, dpblk
+ 916  D3D1 7D               ld a, l
+ 917  D3D2 44               ld b, h
+ 918  D3D3 C9           	ret
+ 919  D3D4
+ 920  D3D4              BDOS_Set_Get_User_Code:
+ 921  D3D4                  ;call show_bdos_message
+ 922  D3D4              	;call CORE_message
+ 923  D3D4              	;db 'Set_Get_User',13,10,0
+ 924  D3D4
+ 925  D3D4                  ; The user to set is passed in E. This is a value from 0 to 15.
+ 926  D3D4                  ; If the value is 255 then we are asking for the current user to be returned in a.
+ 927  D3D4
+ 928  D3D4 7B               ld a, e
+ 929  D3D5 FE FF            cp 255
+ 930  D3D7 28 0E            jr z, get_user_code
+ 931  D3D9              set_user_code:
+ 932  D3D9 7B               ld a, e
+ 933  D3DA E6 0F            and %00001111           ; Make sure it is 0-15
+ 934  D3DC 32 EF D7         ld (current_user), a    ; Store new value
+ 935  D3DF 3A EE D7         ld a, (current_disk)
+ 936  D3E2 5F               ld e, a
+ 937  D3E3 CD 00 D1         call BDOS_Select_Disk   ; Change to the appropriate folder
+ 938  D3E6 C9               ret
+ 939  D3E7              get_user_code:
+ 940  D3E7 3A EF D7         ld a, (current_user)
+ 941  D3EA 06 00            ld b, 0
+ 942  D3EC C9           	ret
+ 943  D3ED
+ 944  D3ED              BDOS_Read_Random:
+ 945  D3ED                  IF DEBUG_BDOS
+ 946  D3ED ~                call show_bdos_message
+ 947  D3ED ~            	call CORE_message
+ 948  D3ED ~            	db 'Rd_Rnd',13,10,0
+ 949  D3ED ~                call show_fcb
+ 950  D3ED                  ENDIF
+ 951  D3ED              BDOS_Read_Random1:
+ 952  D3ED D5               push de                                         ; store FCB for now
+ 953  D3EE CD 09 D7         call disk_activity_start
+ 954  D3F1 CD 62 D5         call get_random_pointer_from_fcb                ; random is in hl
+ 955  D3F4 CD 75 D4         call convert_random_pointer_to_normal_pointer   ; Normal pointer is in bcde
+ 956  D3F7 E1               pop hl                                          ; hl -> fcb
+ 957  D3F8 E5               push hl
+ 958  D3F9 CD 40 D5         call set_file_pointer_in_fcb                    ; FCB is now up-to-date
+ 959  D3FC
+ 960  D3FC D1               pop de                                          ; de -> FCB
+ 961  D3FD D5               push de
+ 962  D3FE                  ; Need to close any existing open file and open the new one.
+ 963  D3FE 3E 01            ld a, 1                                         ; Open new file but don't update file pointer
+ 964  D400 CD 7C D1         call bdos_open_file_internal
+ 965  D403 D1               pop de
+ 966  D404                  ; Now jump to the right place in the file
+ 967  D404 CD 6E D5         call get_file_pointer_from_fcb                  ; bcde = file pointer
+ 968  D407 CD 92 D5         call multiply_bcde_by_128                       ; bcde = byte location in file
+ 969  D40A CD 5A EC         call CORE_move_to_file_pointer                  ; move to that location
+ 970  D40D ED 5B E1 D7      ld de, (dma_address)
+ 971  D411 CD 6C EC         call CORE_read_from_file
+ 972  D414 20 0C            jr nz, BDOS_Read_Random2                        ; If fail to read, return error code
+ 973  D416 CD 69 EC         call CORE_close_file
+ 974  D419 CD B1 D5         call clear_current_fcb
+ 975  D41C CD 1E EC         call CORE_disk_off
+ 976  D41F C3 57 D0         jp return_0_in_a                                ; success
+ 977  D422              BDOS_Read_Random2:
+ 978  D422 CD 69 EC         call CORE_close_file
+ 979  D425 CD B1 D5         call clear_current_fcb
+ 980  D428 CD 1E EC         call CORE_disk_off
+ 981  D42B 3E 04            ld a, 4                                         ; "Seek to unwritten extent" error if we try to read
+ 982  D42D 06 00            ld b, 0                                         ; past the end of the file.
+ 983  D42F C9               ret
+ 984  D430
+ 985  D430              BDOS_Write_Random:
+ 986  D430                  IF DEBUG_BDOS
+ 987  D430 ~                call show_bdos_message
+ 988  D430 ~            	call CORE_message
+ 989  D430 ~            	db 'Wr_Rand',13,10,0
+ 990  D430                  ENDIF
+ 991  D430              BDOS_Write_Random1:
+ 992  D430 D5               push de                                         ; store FCB for now
+ 993  D431 CD 09 D7         call disk_activity_start
+ 994  D434                  ;call show_fcb
+ 995  D434 CD 62 D5         call get_random_pointer_from_fcb                ; random is in hl
+ 996  D437 CD 75 D4         call convert_random_pointer_to_normal_pointer   ; Normal pointer is in bcde
+ 997  D43A E1               pop hl                                          ; hl -> fcb
+ 998  D43B E5               push hl
+ 999  D43C CD 40 D5         call set_file_pointer_in_fcb                    ; FCB is now up-to-date
+1000  D43F
+1001  D43F D1               pop de                                          ; de -> FCB
+1002  D440 D5               push de
+1003  D441                  ; Need to close any existing open file and open the new one.
+1004  D441 3E 01            ld a, 1                                     ; Open new file but don't update file pointer
+1005  D443 CD 7C D1         call bdos_open_file_internal
+1006  D446 D1               pop de
+1007  D447                  ; Now jump to the right place in the file
+1008  D447 CD 6E D5         call get_file_pointer_from_fcb              ; bcde = file pointer
+1009  D44A CD 92 D5         call multiply_bcde_by_128                   ; bcde = byte location in file
+1010  D44D CD 5A EC         call CORE_move_to_file_pointer                   ; move to that location
+1011  D450 FE 14            cp USB_INT_SUCCESS
+1012  D452 20 13            jr nz, BDOS_Write_Random_fail
+1013  D454
+1014  D454 ED 5B E1 D7      ld de, (dma_address)
+1015  D458 CD 51 EC         call CORE_write_to_file
+1016  D45B CD 69 EC         call CORE_close_file                             ; Need to close the file to flush the data out to disk
+1017  D45E CD B1 D5         call clear_current_fcb
+1018  D461
+1019  D461 CD 1E EC         call CORE_disk_off
+1020  D464 C3 57 D0         jp return_0_in_a                                ; success
+1021  D467
+1022  D467              BDOS_Write_Random_fail:
+1023  D467 CD 69 EC         call CORE_close_file                             ; Need to close the file to flush the data out to disk
+1024  D46A CD B1 D5         call clear_current_fcb
+1025  D46D CD 1E EC         call CORE_disk_off
+1026  D470 3E 01            ld a, 1                                         ; Return error code TODO: 255???
+1027  D472 06 00            ld b, 0
+1028  D474 C9           	ret
+1029  D475
+1030  D475              convert_random_pointer_to_normal_pointer:
+1031  D475                  ; Pass in random pointer in hl
+1032  D475                  ; Returns normal pointer in bcde
+1033  D475
+1034  D475 EB               ex de, hl
+1035  D476 01 00 00         ld bc, 0
+1036  D479 C9               ret
+1037  D47A
+1038  D47A              BDOS_Compute_File_Size:
+1039  D47A                  IF DEBUG_BDOS
+1040  D47A ~                call show_bdos_message
+1041  D47A ~            	call CORE_message
+1042  D47A ~            	db 'Compute_File_Sz',13,10,0
+1043  D47A                  ENDIF
+1044  D47A
+1045  D47A                  ; DE -> FCB
+1046  D47A                  ; Sets the random-record count bytes part of the FCB to the number of 128-byte records in the file.
+1047  D47A                  ; Return A=0 FOR SUCCESS, or 255 if error.
+1048  D47A
+1049  D47A D5               push de                                         ; Store source FCB pointer for now
+1050  D47B CD 69 EC         call CORE_close_file                                 ; just in case there is an open one.
+1051  D47E
+1052  D47E                  ; IF DEBUG_BDOS
+1053  D47E                  ; call CORE_message
+1054  D47E                  ; db 'Compute File Size Source file:',13,10,0
+1055  D47E                  ; pop de
+1056  D47E                  ; push de
+1057  D47E                  ; call show_fcb
+1058  D47E                  ; ENDIF
+1059  D47E
+1060  D47E CD 85 D6         call copy_fcb_to_filename_buffer
+1061  D481
+1062  D481 CD AF D1         call open_cpm_disk_directory
+1063  D484
+1064  D484 21 ED FF         ld hl, filename_buffer+2                        ; Specify filename
+1065  D487 CD 63 EC         call CORE_open_file
+1066  D48A 20 27            jr nz, BDOS_Compute_File_Size_not_exist
+1067  D48C
+1068  D48C                  ; Read in the P_FAT_DIR_INFO into disk_buffer
+1069  D48C CD 4B EC         call CORE_dir_info_read
+1070  D48F 20 22            jr nz, BDOS_Compute_File_Size_not_exist
+1071  D491
+1072  D491                  ; Extract the file size into bchl
+1073  D491 21 E1 FF         ld hl, disk_buffer+$1C
+1074  D494 5E               ld e, (hl)
+1075  D495 23               inc hl
+1076  D496 56               ld d, (hl)
+1077  D497 23               inc hl
+1078  D498 4E               ld c, (hl)
+1079  D499 23               inc hl
+1080  D49A 46               ld b, (hl)
+1081  D49B EB               ex de, hl                           ; 32-bit filesize now in bchl
+1082  D49C
+1083  D49C                  ; Divide by 128
+1084  D49C CB 25            sla l                               ; Shift all left by 1 bit
+1085  D49E CB 14            rl h
+1086  D4A0 CB 11            rl c
+1087  D4A2 CB 10            rl b
+1088  D4A4
+1089  D4A4 6C               ld l, h
+1090  D4A5 61               ld h, c
+1091  D4A6 48               ld c, b
+1092  D4A7 06 00            ld b, 0                             ; We've shifted right 8 bits, so effectively divided by 128!
+1093  D4A9
+1094  D4A9                  ; Store in FCB
+1095  D4A9 D1               pop de                                          ; Get the FCB back
+1096  D4AA CD 5D EC         call CORE_set_random_pointer_in_fcb             ; store hl in FCB random pointer (bc is thrown away!)
+1097  D4AD                  ;call show_fcb
+1098  D4AD
+1099  D4AD                  ; Close the file.
+1100  D4AD CD 69 EC         call CORE_close_file
+1101  D4B0
+1102  D4B0 C3 5A D0         jp return_1_in_a
+1103  D4B3
+1104  D4B3              BDOS_Compute_File_Size_not_exist:
+1105  D4B3 D1               pop de
+1106  D4B4 C3 5F D0         jp return_255_in_a
+1107  D4B7
+1108  D4B7              BDOS_Set_Random_Record:
+1109  D4B7                  IF DEBUG_BDOS
+1110  D4B7 ~                push de
+1111  D4B7 ~                call show_bdos_message
+1112  D4B7 ~            	call CORE_message
+1113  D4B7 ~            	db 'Set_Rnd_Rc',13,10,0
+1114  D4B7 ~                call show_fcb
+1115  D4B7                  ENDIF
+1116  D4B7
+1117  D4B7                  ; Set the random record count bytes of the FCB to the number of the last record read/written by the sequential I/O calls.
+1118  D4B7                  ; FCB is in DE
+1119  D4B7 D5               push de
+1120  D4B8 CD 6E D5         call get_file_pointer_from_fcb          ; gets sequential pointer into bcde
+1121  D4BB EB               ex de, hl                               ; Lowest 16 bits of pointer go into hl
+1122  D4BC D1               pop de
+1123  D4BD CD 5D EC         call CORE_set_random_pointer_in_fcb     ; Store hl into random pointer
+1124  D4C0
+1125  D4C0                  IF DEBUG_BDOS
+1126  D4C0 ~                pop de
+1127  D4C0 ~                call show_fcb
+1128  D4C0                  ENDIF
+1129  D4C0
+1130  D4C0 C3 5A D0         jp return_1_in_a
+1131  D4C3
+1132  D4C3              BDOS_Reset_Drive:
+1133  D4C3                  IF DEBUG_BDOS
+1134  D4C3 ~                call show_bdos_message
+1135  D4C3 ~            	call CORE_message
+1136  D4C3 ~            	db 'Rst_Dr',13,10,0
+1137  D4C3                  ENDIF
+1138  D4C3
+1139  D4C3 CD B1 D5         call clear_current_fcb                          ; Clear out current FCB
+1140  D4C6 C3 57 D0         jp return_0_in_a
+1141  D4C9
+1142  D4C9              BDOS_38:
+1143  D4C9                  ;call show_bdos_message
+1144  D4C9              	;call CORE_message
+1145  D4C9              	;db '38',13,10,0
+1146  D4C9 C3 5A D0         jp return_1_in_a
+1147  D4CC
+1148  D4CC              BDOS_39:
+1149  D4CC                  ;call show_bdos_message
+1150  D4CC              	;call CORE_message
+1151  D4CC              	;db '39',13,10,0
+1152  D4CC C3 5A D0         jp return_1_in_a
+1153  D4CF
+1154  D4CF              BDOS_Write_Random_Zero_Fill:
+1155  D4CF                  IF DEBUG_BDOS
+1156  D4CF ~                call show_bdos_message
+1157  D4CF ~            	call CORE_message
+1158  D4CF ~            	db 'Wr_0',13,10,0
+1159  D4CF                  ENDIF
+1160  D4CF
+1161  D4CF C3 30 D4         jp BDOS_Write_Random1
+1162  D4D2
+1163  D4D2              BDOS_41:
+1164  D4D2              BDOS_42:
+1165  D4D2              BDOS_43:
+1166  D4D2              BDOS_44:
+1167  D4D2 C9               ret
+1168  D4D3
+1169  D4D3              BDOS_ERROR_MODE:
+1170  D4D3                  IF DEBUG_BDOS
+1171  D4D3 ~                call show_bdos_message
+1172  D4D3 ~            	call CORE_message
+1173  D4D3 ~            	db 'Er',13,10,0
+1174  D4D3                  ENDIF
+1175  D4D3 C9               ret
+1176  D4D4
+1177  D4D4              BDOS_46:
+1178  D4D4              BDOS_47:
+1179  D4D4              BDOS_48:
+1180  D4D4 C9               ret
+1181  D4D5
+1182  D4D5              ;-------------------------------------------------
+1183  D4D5              ;
+1184  D4D5              ; This is my understanding of the bytes in a FCB...
+1185  D4D5              ; DRIVE     1   0 = default, 1..16 = A..P                                                           0
+1186  D4D5              ; FILENAME  8   Filename in ASCII uppercase. Bit 7s are for attributes.                             1-8
+1187  D4D5              ; TYPE      3   Extension is ASCII uppercase. Bit 7s are for attributes.                            9-11
+1188  D4D5              ; EX        1   Extent Low Byte. An extent is 16384 bytes.                                          12
+1189  D4D5              ; S1        1                                                                                       13
+1190  D4D5              ; S2        1   Extent High Byte.                                                                   14
+1191  D4D5              ; RC        1   Record count for this extent (0-127)                                                15
+1192  D4D5              ; AL        16                                                                                      16-31
+1193  D4D5              ; CR        1   Current Record. A record is 128 bytes. But this CR goes 0..127, so max is 16384     32
+1194  D4D5              ; RRR       3                                                                                       33-35
+1195  D4D5
+1196  D4D5              ; So, to work out the current position in the file you need:
+1197  D4D5              ; (S2 * 256 + EX) * 16384  +  CR * 128 = file pointer in bytes
+1198  D4D5              ; or (S2 * 256 + EX) * 128  +  CR = file pointer in 128-byte records.
+1199  D4D5              ; The result is a 32 bit number.
+1200  D4D5
+1201  D4D5              ; This is what we do:
+1202  D4D5              ; We have a Current_FCB which represents the current file that the CH376 module has open.
+1203  D4D5              ; * If you open a file, that file's FCB gets copied into the Current FCB.
+1204  D4D5              ; * If you do a read or write operation on a file, we check if your FCB matches the Current FCB.
+1205  D4D5              ;   If it does then we are still talking about the currently open file, so just proceed.
+1206  D4D5              ;   If not we need to shut the open file, open this new file, and copy the FCB into the CURRENT FCB.
+1207  D4D5              ;   At the end of the operation we increase the file pointer by 128 and update the FCB and the Curr FCB.
+1208  D4D5              ; * If you close a file or change directory, we clear the CURRENT FCB.
+1209  D4D5              ;
+1210  D4D5              ; The "match" process relies on matching the first 12 chars of the FCB.
+1211  D4D5
+1212  D4D5              ; routines we need:
+1213  D4D5              ; * Clear CURR_FCB
+1214  D4D5              ; * Copy FCB to CURR_FCB
+1215  D4D5              ; * Compare FCB with CURR_FCB (compare name and file position)
+1216  D4D5              ; * Get File Pointer from FCB (it's a 32-bit number)
+1217  D4D5              ; * Increase File Pointer
+1218  D4D5              ; * Set File Pointer in FCB
+1219  D4D5
+1220  D4D5              initialise_fcb:
+1221  D4D5                  ; Pass in DE -> FCB
+1222  D4D5                  ; Pass in HL -> null-terminated filename
+1223  D4D5                  ; Copy the name into the FCB and set all the other counters to 0.
+1224  D4D5                  ; Return zero-flag-set for success, zero-flag-reset for error. (Invalid filename for example)
+1225  D4D5                  ; Also, preserves DE.
+1226  D4D5 D5               push de
+1227  D4D6 3E 00            ld a, 0
+1228  D4D8 12               ld (de), a                          ; Set drive = default
+1229  D4D9 13               inc de
+1230  D4DA 06 08            ld b, 8
+1231  D4DC              initialise_fcb1:
+1232  D4DC 7E               ld a, (hl)                          ; Copy filename
+1233  D4DD 23               inc hl
+1234  D4DE FE 2E            cp '.'
+1235  D4E0 28 0C            jr z, initialise_fcb2
+1236  D4E2 CD 27 D5         call is_filename_char_valid
+1237  D4E5 20 3C            jr nz, initialise_fcb_error
+1238  D4E7 CD 37 D5         call convert_a_to_uppercase
+1239  D4EA 12               ld (de), a
+1240  D4EB 13               inc de
+1241  D4EC 10 EE            djnz initialise_fcb1
+1242  D4EE              initialise_fcb2                         ; Did we stop before 8 bytes reached?
+1243  D4EE 3E 00            ld a, 0
+1244  D4F0 B8               cp b
+1245  D4F1 28 06            jr z, initialise_fcb3
+1246  D4F3 3E 20            ld a, ' '
+1247  D4F5              initialise_fcb4:
+1248  D4F5 12               ld (de), a                          ; Pad with spaces up to 8 bytes
+1249  D4F6 13               inc de
+1250  D4F7 10 FC            djnz initialise_fcb4
+1251  D4F9              initialise_fcb3:
+1252  D4F9 06 03            ld b, 3                             ; Now file extension
+1253  D4FB              initialise_fcb5:
+1254  D4FB 7E               ld a, (hl)                          ; Copy filename
+1255  D4FC 23               inc hl
+1256  D4FD FE 00            cp 0
+1257  D4FF 28 0C            jr z, initialise_fcb6
+1258  D501 CD 27 D5         call is_filename_char_valid
+1259  D504 20 1D            jr nz, initialise_fcb_error
+1260  D506 CD 37 D5         call convert_a_to_uppercase
+1261  D509 12               ld (de), a
+1262  D50A 13               inc de
+1263  D50B 10 EE            djnz initialise_fcb5
+1264  D50D              initialise_fcb6:                        ; Did we stop before 3 bytes reached?
+1265  D50D 3E 00            ld a, 0
+1266  D50F B8               cp b
+1267  D510 28 06            jr z, initialise_fcb8
+1268  D512 3E 20            ld a, ' '
+1269  D514              initialise_fcb7:
+1270  D514 12               ld (de), a                          ; Pad with spaces up to 3 bytes
+1271  D515 13               inc de
+1272  D516 10 FC            djnz initialise_fcb7
+1273  D518              initialise_fcb8:
+1274  D518 06 18            ld b, 24                            ; Put zeros in all the rest of the FCB
+1275  D51A 3E 00            ld a, 0
+1276  D51C              initialise_fcb9:
+1277  D51C 12               ld (de), a
+1278  D51D 13               inc de
+1279  D51E 10 FC            djnz initialise_fcb9
+1280  D520 D1               pop de
+1281  D521 BF               cp a                                ; set zero flag for success
+1282  D522 C9               ret
+1283  D523              initialise_fcb_error:
+1284  D523 D1               pop de
+1285  D524 F6 01            or 1                                ; clear zero flag for error
+1286  D526 C9               ret
+1287  D527
+1288  D527              is_filename_char_valid:
+1289  D527                  ; pass in char in a
+1290  D527                  ; Return zero set if char is *, ?, 0-9 or a-z or A-Z or _
+1291  D527 FE 2A            cp '*'
+1292  D529 C8               ret z
+1293  D52A FE 30            cp '0'
+1294  D52C 38 06            jr c, is_filename_char_valid_no
+1295  D52E FE 7F            cp 127
+1296  D530 30 02            jr nc, is_filename_char_valid_no
+1297  D532 BF               cp a                                ; set zero flag for success
+1298  D533 C9               ret
+1299  D534              is_filename_char_valid_no:
+1300  D534 F6 01            or 1                                ; clear zero flag for error
+1301  D536 C9               ret
+1302  D537
+1303  D537              convert_a_to_uppercase:
+1304  D537 FE 61            cp 'a'
+1305  D539 D8               ret c
+1306  D53A FE 7B            cp 'z'+1
+1307  D53C D0               ret nc
+1308  D53D D6 20            sub 32
+1309  D53F C9               ret
+1310  D540
+1311  D540              set_file_pointer_in_fcb:
+1312  D540                  ; Pass HL -> FCB (Note that this is an unusual way to pass it in)
+1313  D540                  ; Pass file pointer (in 128-byte records) in bcde.
+1314  D540                  ; Preserves hl
+1315  D540
+1316  D540                  ; Split bcde into S2, EX & CR.
+1317  D540                  ; To do this:
+1318  D540                  ; CR = e & %01111111                (i.e. a number 0..127)
+1319  D540                  ; Divide bcde by 128                (Shift right 7 bits, or shift left 1 bit then right 8)
+1320  D540                  ; EX = e, S2 = d
+1321  D540                  ; TODO: Test if this is correct. Note that the logic in set_file_size_in_fcb is different!?!?!?
+1322  D540                  ; The difference would only be apparent for files > 496K in size.
+1323  D540
+1324  D540 E5               push hl
+1325  D541 7B               ld a, e
+1326  D542 E6 7F            and %01111111
+1327  D544 F5               push af                             ; Store CR for now
+1328  D545
+1329  D545 CB 23            sla e                               ; Shift all left by 1 bit
+1330  D547 CB 12            rl d
+1331  D549 CB 11            rl c
+1332  D54B CB 10            rl b
+1333  D54D
+1334  D54D 5A               ld e, d
+1335  D54E 51               ld d, c
+1336  D54F 48               ld c, b
+1337  D550 06 00            ld b, 0                             ; We've shifted right 8 bits, so effectively right 7
+1338  D552
+1339  D552 F1               pop af                              ; Now a=CR, e = EX, d = S2
+1340  D553
+1341  D553 01 0C 00         ld bc, 12
+1342  D556 09               add hl, bc                          ; hl -> FCB.EX
+1343  D557 73               ld (hl), e
+1344  D558
+1345  D558 23               inc hl
+1346  D559 23               inc hl                              ; hl -> FCB.S2
+1347  D55A 72               ld (hl), d
+1348  D55B
+1349  D55B 01 12 00         ld bc, 18
+1350  D55E 09               add hl, bc                          ; hl -> FCB.CR
+1351  D55F 77               ld (hl), a
+1352  D560
+1353  D560 E1               pop hl
+1354  D561 C9               ret
+1355  D562
+1356  D562              get_random_pointer_from_fcb:
+1357  D562                  ; pass in de -> fcb
+1358  D562                  ; Random pointer is in fcb + 33 & 34.
+1359  D562                  ; return it in hl
+1360  D562                  ; preserve de
+1361  D562 D5               push de
+1362  D563 EB               ex de, hl
+1363  D564 01 21 00         ld bc, 33
+1364  D567 09               add hl, bc
+1365  D568 5E               ld e, (hl)
+1366  D569 23               inc hl
+1367  D56A 56               ld d, (hl)
+1368  D56B EB               ex de, hl
+1369  D56C D1               pop de
+1370  D56D C9               ret
+1371  D56E
+1372  D56E
+1373  D56E              get_file_pointer_from_fcb:
+1374  D56E                  ; Pass in DE -> FCB
+1375  D56E                  ; file pointer in 128-byte records =  (S2 * 256 + EX) * 128  +  CR
+1376  D56E                  ; 32-bit result is returned in bcde
+1377  D56E EB               ex de, hl
+1378  D56F 01 0C 00         ld bc, 12
+1379  D572 09               add hl, bc                          ; hl -> FCB.EX
+1380  D573 5E               ld e, (hl)                          ; e = EX
+1381  D574 23               inc hl
+1382  D575 23               inc hl
+1383  D576 56               ld d, (hl)                          ; d = S2
+1384  D577 01 12 00         ld bc, 18
+1385  D57A 09               add hl, bc                          ; hl -> FCB.CR
+1386  D57B 4E               ld c, (hl)                          ; c = CR
+1387  D57C 06 00            ld b, 0
+1388  D57E C5               push bc                             ; Store 16-bit version of CR for now
+1389  D57F 01 00 00         ld bc, 0                            ; 32-bit value of DE is now in BCDE
+1390  D582 CD 92 D5         call multiply_bcde_by_128
+1391  D585 E1               pop hl                              ; Retrieve 16-bit version of CR
+1392  D586 19               add hl, de
+1393  D587 EB               ex de, hl                           ; de holds low 16 bits of result
+1394  D588 60               ld h, b
+1395  D589 69               ld l, c
+1396  D58A 01 00 00         ld bc, 0
+1397  D58D ED 4A            adc hl, bc
+1398  D58F 44               ld b, h
+1399  D590 4D               ld c, l                             ; bcde is the 32-bit result
+1400  D591 C9               ret
+1401  D592
+1402  D592              multiply_bcde_by_128:
+1403  D592                  ; Pass in 32-bit number in BCDE
+1404  D592                  ; Result is returned in BCDE
+1405  D592                  ; Multiply by 128 is same as shift left 8 bits then shift right 1 bit
+1406  D592 41               ld b, c
+1407  D593 4A               ld c, d
+1408  D594 53               ld d, e
+1409  D595 1E 00            ld e, 0                             ; That's shift-left-8-bits done.
+1410  D597 CB 38            srl b
+1411  D599 CB 19            rr c
+1412  D59B CB 1A            rr d
+1413  D59D CB 1B            rr e                                ; That's shift-right-1-bit done.
+1414  D59F C9               ret
+1415  D5A0
+1416  D5A0              increase_bcde:
+1417  D5A0                  ; Pass in 32-bit number in BCDE
+1418  D5A0                  ; Increase it by 1.
+1419  D5A0                  ; Result is returned in BCDE
+1420  D5A0 3E 01            ld a, 1
+1421  D5A2 83               add a, e
+1422  D5A3 5F               ld e, a
+1423  D5A4 3E 00            ld a, 0
+1424  D5A6 8A               adc a, d
+1425  D5A7 57               ld d, a
+1426  D5A8 3E 00            ld a, 0
+1427  D5AA 89               adc a, c
+1428  D5AB 4F               ld c, a
+1429  D5AC 3E 00            ld a, 0
+1430  D5AE 88               adc a, b
+1431  D5AF 47               ld b, a
+1432  D5B0 C9               ret
+1433  D5B1
+1434  D5B1              clear_current_fcb:
+1435  D5B1                  ; Clears the entire current FCB
+1436  D5B1 11 8A D7         ld de, current_fcb+1
+1437  D5B4 21 89 D7         ld hl, current_fcb
+1438  D5B7 3E 00            ld a, 0
+1439  D5B9 77               ld (hl), a
+1440  D5BA 01 0B 00         ld bc, 11
+1441  D5BD ED B0            ldir
+1442  D5BF C9               ret
+1443  D5C0
+1444  D5C0              copy_fcb_to_current_fcb:
+1445  D5C0                  ; Pass in DE -> FCB
+1446  D5C0                  ; This copies the whole of that FCB into the current one and preserves DE.
+1447  D5C0 D5               push de
+1448  D5C1 21 89 D7         ld hl, current_fcb
+1449  D5C4 EB               ex de,hl
+1450  D5C5 01 24 00         ld bc, 36
+1451  D5C8 ED B0            ldir
+1452  D5CA D1               pop de
+1453  D5CB C9               ret
+1454  D5CC
+1455  D5CC              compare_current_fcb_name:
+1456  D5CC                  ; Compares the directory, filename and extension in one FCB with the current one.
+1457  D5CC                  ; pass in de -> fcb
+1458  D5CC D5               push de
+1459  D5CD 21 89 D7         ld hl, current_fcb
+1460  D5D0 06 0C            ld b, 12
+1461  D5D2              compare_current_fcb_name1:
+1462  D5D2 1A               ld a, (de)
+1463  D5D3 BE               cp (hl)
+1464  D5D4 20 07            jr nz, compare_current_fcb_fail
+1465  D5D6 13               inc de
+1466  D5D7 23               inc hl
+1467  D5D8 10 F8            djnz compare_current_fcb_name1
+1468  D5DA D1               pop de
+1469  D5DB BF               cp a                                ; set zero flag for success
+1470  D5DC C9               ret
+1471  D5DD              compare_current_fcb_fail:
+1472  D5DD D1               pop de
+1473  D5DE F6 01            or 1                                ; clear zero flag for error
+1474  D5E0 C9               ret
+1475  D5E1
+1476  D5E1              compare_current_fcb_pointer:
+1477  D5E1                  ; pass in de -> fcb
+1478  D5E1                  ; Compares cr, ex and s2
+1479  D5E1 D5               push de
+1480  D5E2 21 89 D7         ld hl, current_fcb
+1481  D5E5 01 0C 00         ld bc, 12
+1482  D5E8 09               add hl, bc
+1483  D5E9 EB               ex de, hl                           ; de -> currenct_fcb.ex
+1484  D5EA 09               add hl, bc                          ; hl -> fcb.ex
+1485  D5EB 1A               ld a, (de)
+1486  D5EC BE               cp (hl)                             ; Compare EXs
+1487  D5ED 20 EE            jr nz, compare_current_fcb_fail
+1488  D5EF 23               inc hl
+1489  D5F0 23               inc hl
+1490  D5F1 13               inc de
+1491  D5F2 13               inc de
+1492  D5F3 1A               ld a, (de)
+1493  D5F4 BE               cp (hl)                             ; Compare S2s
+1494  D5F5 20 E6            jr nz, compare_current_fcb_fail
+1495  D5F7 01 12 00         ld bc, 18
+1496  D5FA 09               add hl, bc
+1497  D5FB EB               ex de, hl
+1498  D5FC 09               add hl, bc
+1499  D5FD 1A               ld a, (de)
+1500  D5FE BE               cp (hl)                             ; Compare CRs
+1501  D5FF 20 DC            jr nz, compare_current_fcb_fail
+1502  D601 D1               pop de
+1503  D602 BF               cp a                                ; set zero flag for success
+1504  D603 C9               ret
+1505  D604
+1506  D604              compare_current_fcb:
+1507  D604                  ; Pass in de -> FCB
+1508  D604                  ; This gets compared to the Current_FCB.
+1509  D604                  ; Return z if the same.
+1510  D604                  ; Preserves de.
+1511  D604 CD CC D5         call compare_current_fcb_name
+1512  D607 C0               ret nz
+1513  D608 CD E1 D5         call compare_current_fcb_pointer
+1514  D60B C9               ret
+1515  D60C
+1516  D60C              show_fcb:
+1517  D60C                  ; Pass in de -> fcb
+1518  D60C                  ; Shows the FCB on screen.
+1519  D60C                  ; Preserves DE
+1520  D60C D5               push de
+1521  D60D CD 39 EC         call CORE_message
+1522  D610 46 43 42 3A      db 'FCB: ',0
+1522  D614 20 00
+1523  D616
+1524  D616                  ; Show Drive Letter
+1525  D616 1A               ld a, (de)
+1526  D617 13               inc de
+1527  D618 FE 00            cp 0
+1528  D61A 28 0F            jr z, show_fcb1
+1529  D61C C6 40            add a, 'A'-1
+1530  D61E CD 06 EC         call CORE_print_a
+1531  D621 3E 3A            ld a, ':'
+1532  D623 CD 06 EC         call CORE_print_a
+1533  D626 CD 36 EC         call CORE_space
+1534  D629 18 07            jr show_fcb2
+1535  D62B
+1536  D62B              show_fcb1:
+1537  D62B CD 39 EC         call CORE_message
+1538  D62E 2D 3A 20 00      db '-: ',0
+1539  D632              show_fcb2:
+1540  D632                  ; Show filename
+1541  D632 06 08            ld b, 8
+1542  D634              show_fcb3:
+1543  D634 1A               ld a, (de)
+1544  D635 13               inc de
+1545  D636 CD 06 EC         call CORE_print_a
+1546  D639 10 F9            djnz show_fcb3
+1547  D63B              show_fcb4:
+1548  D63B                  ; Show ext
+1549  D63B 3E 2E            ld a, '.'
+1550  D63D CD 06 EC         call CORE_print_a
+1551  D640 06 03            ld b, 3
+1552  D642              show_fcb5:
+1553  D642 1A               ld a, (de)
+1554  D643 E6 7F            and %01111111
+1555  D645 13               inc de
+1556  D646 CD 06 EC         call CORE_print_a
+1557  D649 10 F7            djnz show_fcb5
+1558  D64B              show_fcb_end:
+1559  D64B D1               pop de
+1560  D64C D5               push de
+1561  D64D
+1562  D64D CD 6E D5         call get_file_pointer_from_fcb              ; info comes back in bcde
+1563  D650 CD 39 EC         call CORE_message
+1564  D653 2C 20 70 74      db ', pt: ',0
+1564  D657 3A 20 00
+1565  D65A CD 74 D6         call show_bcde_as_hex
+1566  D65D CD 39 EC         call CORE_message
+1567  D660 2C 20 72 6E      db ', rn: ',0
+1567  D664 3A 20 00
+1568  D667 D1               pop de
+1569  D668 D5               push de
+1570  D669 CD 62 D5         call get_random_pointer_from_fcb            ; Gets the random record pointer in hl
+1571  D66C CD 3C EC         call CORE_show_hl_as_hex
+1572  D66F CD 33 EC         call CORE_newline
+1573  D672 D1               pop de
+1574  D673 C9               ret
+1575  D674
+1576  D674              show_bcde_as_hex:
+1577  D674                  ; Show the number in bcde as hex
+1578  D674                  ; Preserves bc & de
+1579  D674 78               ld a, b
+1580  D675 CD 78 EC         call CORE_show_a_as_hex
+1581  D678 79               ld a, c
+1582  D679 CD 78 EC         call CORE_show_a_as_hex
+1583  D67C 7A               ld a, d
+1584  D67D CD 78 EC         call CORE_show_a_as_hex
+1585  D680 7B               ld a, e
+1586  D681 CD 78 EC         call CORE_show_a_as_hex
+1587  D684 C9               ret
+1588  D685
+1589  D685              copy_fcb_to_filename_buffer:
+1590  D685                  ; Pass in de -> fcb
+1591  D685                  ; Transfer all the filename from fcb to the filename_buffer.
+1592  D685                  ; Skip NULLs spaces and add in the ".", and terminate with NULL.
+1593  D685                  ; Preserves de.
+1594  D685 D5               push de
+1595  D686 EB               ex de, hl                   ; hl = fcb
+1596  D687 11 EB FF         ld de, filename_buffer      ; de = filename_buffer
+1597  D68A 7E               ld a, (hl)                  ; First byte in FCB is 0 or 1-16. We want 0=>A, 15=>P
+1598  D68B FE 00            cp 0
+1599  D68D 20 04            jr nz, copy_fcb_to_filename_buffer1
+1600  D68F 3A EE D7         ld a, (current_disk)
+1601  D692 3C               inc a                       ; Adjust 0-15 to 1-16
+1602  D693              copy_fcb_to_filename_buffer1:
+1603  D693 C6 40            add a, 'A'-1
+1604  D695 12               ld (de), a
+1605  D696 13               inc de
+1606  D697 3E 2F            ld a, '/'
+1607  D699 12               ld (de), a
+1608  D69A 13               inc de
+1609  D69B 23               inc hl
+1610  D69C E5               push hl
+1611  D69D 06 08            ld b, 8
+1612  D69F              copy_fcb1:
+1613  D69F 7E               ld a, (hl)
+1614  D6A0 23               inc hl
+1615  D6A1 FE 00            cp 0
+1616  D6A3 28 08            jr z, copy_fcb2
+1617  D6A5 FE 20            cp ' '
+1618  D6A7 28 04            jr z, copy_fcb2
+1619  D6A9 12               ld (de), a
+1620  D6AA 13               inc de
+1621  D6AB 10 F2            djnz copy_fcb1
+1622  D6AD              copy_fcb2:
+1623  D6AD 3E 2E            ld a, '.'                   ; Put in the dot
+1624  D6AF 12               ld (de), a
+1625  D6B0 13               inc de
+1626  D6B1
+1627  D6B1 E1               pop hl
+1628  D6B2 01 08 00         ld bc, 8
+1629  D6B5 09               add hl, bc                   ; Move along to extension
+1630  D6B6 06 03            ld b, 3
+1631  D6B8              copy_fcb3:
+1632  D6B8 7E               ld a, (hl)
+1633  D6B9 23               inc hl
+1634  D6BA FE 00            cp 0
+1635  D6BC 28 08            jr z, copy_fcb4
+1636  D6BE FE 20            cp ' '
+1637  D6C0 28 04            jr z, copy_fcb4
+1638  D6C2 12               ld (de), a
+1639  D6C3 13               inc de
+1640  D6C4 10 F2            djnz copy_fcb3
+1641  D6C6              copy_fcb4:
+1642  D6C6 3E 00            ld a, 0
+1643  D6C8 12               ld (de),a
+1644  D6C9 D1               pop de
+1645  D6CA C9               ret
+1646  D6CB
+1647  D6CB              copy_fcb_to_filename_buffer_preserving_spaces:
+1648  D6CB                  ; Pass in de -> fcb
+1649  D6CB                  ; Transfer all the filename from fcb to the filename_buffer.
+1650  D6CB                  ; Skip NULLs spaces and add in the ".", and terminate with NULL.
+1651  D6CB                  ; Preserves de.
+1652  D6CB D5               push de
+1653  D6CC EB               ex de, hl                   ; hl = fcb
+1654  D6CD 11 EB FF         ld de, filename_buffer      ; de = filename_buffer
+1655  D6D0 7E               ld a, (hl)                  ; First byte in FCB is 0 or 1-16. We want 0=>A, 15=>P
+1656  D6D1 FE 00            cp 0
+1657  D6D3 20 04            jr nz, copy_fcb_to_filename_ps_buffer1
+1658  D6D5 3A EE D7         ld a, (current_disk)
+1659  D6D8 3C               inc a                       ; Adjust 0-15 to 1-16
+1660  D6D9              copy_fcb_to_filename_ps_buffer1:
+1661  D6D9 C6 40            add a, 'A'-1
+1662  D6DB 12               ld (de), a
+1663  D6DC 13               inc de
+1664  D6DD 3E 2F            ld a, '/'
+1665  D6DF 12               ld (de), a
+1666  D6E0 13               inc de
+1667  D6E1 23               inc hl
+1668  D6E2 E5               push hl
+1669  D6E3 06 08            ld b, 8
+1670  D6E5              copy_fcb1_ps:
+1671  D6E5 7E               ld a, (hl)
+1672  D6E6 23               inc hl
+1673  D6E7 FE 00            cp 0
+1674  D6E9 28 04            jr z, copy_fcb2_ps
+1675  D6EB 12               ld (de), a
+1676  D6EC 13               inc de
+1677  D6ED 10 F6            djnz copy_fcb1_ps
+1678  D6EF              copy_fcb2_ps:
+1679  D6EF 3E 2E            ld a, '.'                   ; Put in the dot
+1680  D6F1 12               ld (de), a
+1681  D6F2 13               inc de
+1682  D6F3
+1683  D6F3 E1               pop hl
+1684  D6F4 01 08 00         ld bc, 8
+1685  D6F7 09               add hl, bc                   ; Move along to extension
+1686  D6F8 06 03            ld b, 3
+1687  D6FA              copy_fcb3_ps:
+1688  D6FA 7E               ld a, (hl)
+1689  D6FB 23               inc hl
+1690  D6FC FE 00            cp 0
+1691  D6FE 28 04            jr z, copy_fcb4_ps
+1692  D700 12               ld (de), a
+1693  D701 13               inc de
+1694  D702 10 F6            djnz copy_fcb3_ps
+1695  D704              copy_fcb4_ps:
+1696  D704 3E 00            ld a, 0
+1697  D706 12               ld (de),a
+1698  D707 D1               pop de
+1699  D708 C9               ret
+1700  D709
+1701  D709              disk_activity_start:
+1702  D709 CD 1E EC         call CORE_disk_off
+1703  D70C 3A AD D7         ld a, (disk_flash)
+1704  D70F 2F               cpl
+1705  D710 32 AD D7         ld (disk_flash), a
+1706  D713 FE 00            cp 0
+1707  D715 C8               ret z
+1708  D716 CD 1B EC         call CORE_disk_on
+1709  D719 C9               ret
+1710  D71A
+1711  D71A              BDOS_jump_table:
+1712  D71A 51 D0            dw BDOS_System_Reset                ;equ 0        00
+1713  D71C 64 D0            dw BDOS_Console_Input               ;equ 1        01
+1714  D71E 72 D0            dw BDOS_Console_Output              ;equ 2        02
+1715  D720 77 D0            dw BDOS_Reader_Input                ;equ 3        03
+1716  D722 7A D0            dw BDOS_Punch_Output                ;equ 4        04
+1717  D724 7D D0            dw BDOS_List_Output                 ;equ 5        05
+1718  D726 80 D0            dw BDOS_Direct_Console_IO           ;equ 6        06
+1719  D728 91 D0            dw BDOS_Get_IO_Byte                 ;equ 7        07
+1720  D72A 94 D0            dw BDOS_Set_IO_Byte                 ;equ 8        08
+1721  D72C 97 D0            dw BDOS_Print_String                ;equ 9        09
+1722  D72E A5 D0            dw BDOS_Read_Console_Buffer         ;equ 10       0A
+1723  D730 E9 D0            dw BDOS_Get_Console_Status          ;equ 11       0B
+1724  D732 EC D0            dw BDOS_Return_Version_Number       ;equ 12       0C
+1725  D734 F1 D0            dw BDOS_Reset_Disk_System           ;equ 13       0D
+1726  D736 00 D1            dw BDOS_Select_Disk                 ;equ 14       0E
+1727  D738 77 D1            dw BDOS_Open_File                   ;equ 15       0F
+1728  D73A DF D1            dw BDOS_Close_File                  ;equ 16       10
+1729  D73C E8 D1            dw BDOS_Search_for_First            ;equ 17       11
+1730  D73E FF D1            dw BDOS_Search_for_Next             ;equ 18       12
+1731  D740 13 D2            dw BDOS_Delete_File                 ;equ 19       13
+1732  D742 65 D2            dw BDOS_Read_Sequential             ;equ 20       14
+1733  D744 AA D2            dw BDOS_Write_Sequential            ;equ 21       15
+1734  D746 02 D3            dw BDOS_Make_File                   ;equ 22       16
+1735  D748 33 D3            dw BDOS_Rename_File                 ;equ 23       17
+1736  D74A AA D3            dw BDOS_Return_Login_Vector         ;equ 24       18
+1737  D74C B0 D3            dw BDOS_Return_Current_Disk         ;equ 25       19
+1738  D74E B8 D3            dw BDOS_Set_DMA_Address             ;equ 26       1A
+1739  D750 BF D3            dw BDOS_Get_Addr_Alloc              ;equ 27       1B
+1740  D752 C5 D3            dw BDOS_Write_Protect_Disk          ;equ 28       1C
+1741  D754 C8 D3            dw BDOS_Get_RO_Vector               ;equ 29       1D
+1742  D756 CB D3            dw BDOS_Set_File_Attributes         ;equ 30       1E
+1743  D758 CE D3            dw BDOS_Get_Addr_Disk_Parms         ;equ 31       1F
+1744  D75A D4 D3            dw BDOS_Set_Get_User_Code           ;equ 32       20
+1745  D75C ED D3            dw BDOS_Read_Random                 ;equ 33       21
+1746  D75E 30 D4            dw BDOS_Write_Random                ;equ 34       22
+1747  D760 7A D4            dw BDOS_Compute_File_Size           ;equ 35       23
+1748  D762 B7 D4            dw BDOS_Set_Random_Record           ;equ 36       24
+1749  D764 C3 D4            dw BDOS_Reset_Drive                 ;equ 37       25
+1750  D766 C9 D4            dw BDOS_38
+1751  D768 CC D4            dw BDOS_39
+1752  D76A CF D4            dw BDOS_Write_Random_Zero_Fill      ;equ 40       28
+1753  D76C D2 D4            dw BDOS_41
+1754  D76E D2 D4            dw BDOS_42
+1755  D770 D2 D4            dw BDOS_43
+1756  D772 D2 D4            dw BDOS_44
+1757  D774 D3 D4            dw BDOS_ERROR_MODE                  ; eq 45       2D
+1758  D776 D4 D4            dw BDOS_46
+1759  D778 D4 D4            dw BDOS_47
+1760  D77A D4 D4            dw BDOS_48
+1761  D77C
+1762  D77C              filesize_buffer:
+1763  D77C 00 00 00...      ds 6
+1764  D782
+1765  D782              filesize_buffer_copy:
+1766  D782 00 00 00...      ds 6
+1767  D788
+1768  D788              filesize_units:
+1769  D788 00               ds 1
+1770  D789
+1771  D789              current_fcb:
+1772  D789                  ; We store a copy of the FCB of the currently open file here
+1773  D789 00 00 00...      ds 36
+1774  D7AD
+1775  D7AD              ;current_disk:
+1776  D7AD              ;    ds 1
+1777  D7AD
+1778  D7AD              disk_flash:
+1779  D7AD 00               db 0
+1780  D7AE
+1781  D7AE              ;
+1782  D7AE              dpblk:
+1783  D7AE              ; Fake disk parameter block for all disks
+1784  D7AE              	; defw	80		;sectors per track
+1785  D7AE              	; defb	5		;block shift factor	(5 & 31 = 4K Block Size)
+1786  D7AE              	; defb	31		;block mask
+1787  D7AE              	; defb	3		;extent mask
+1788  D7AE              	; defw	196		;disk size 197 * 4k = 788k
+1789  D7AE              	; defw	127		;directory max
+1790  D7AE              	; defb	$80		;alloc 0	((DRM + 1) * 32) / 4096 = 1, so 80H
+1791  D7AE              	; defb	0		;alloc 1
+1792  D7AE              	; defw	0		;check size ( 0 = fixed disk )
+1793  D7AE              	; defw	0		;track offset ( 0 = no reserved system tracks )
+1794  D7AE
+1795  D7AE              ; These ones were copied from runCPM!
+1796  D7AE 40 00        	defw	64		;sectors per track
+1797  D7B0 05           	defb	5		;block shift factor	(5 & 31 = 4K Block Size)
+1798  D7B1 1F           	defb	$1F		;block mask
+1799  D7B2 01           	defb	1		;extent mask
+1800  D7B3 FF           	defb	$FF		;disk size
+1801  D7B4 07           	defb	$07		;disk size
+1802  D7B5 FF           	defb	$FF		;directory max
+1803  D7B6 03           	defb	$03		;directory max
+1804  D7B7 FF           	defb	$FF		;alloc 0	((DRM + 1) * 32) / 4096 = 1, so 80H
+1805  D7B8 00           	defb	0		;alloc 1
+1806  D7B9 00 00        	defw	0		;check size ( 0 = fixed disk )
+1807  D7BB 02 00        	defw	2		;track offset ( 0 = no reserved system tracks )
+1808  D7BD
+1809  D7BD              DISKALLOC:
+1810  D7BD 00 00 00 00      db 0,0,0,0,0,0,0,0,0
+1810  D7C1 00 00 00 00
+1810  D7C5 00
+1811  D7C6 00 00 00 00      db 0,0,0,0,0,0,0,0,0
+1811  D7CA 00 00 00 00
+1811  D7CE 00
+1812  D7CF 00 00 00 00      db 0,0,0,0,0,0,0,0,0
+1812  D7D3 00 00 00 00
+1812  D7D7 00
+1813  D7D8 00 00 00 00      db 0,0,0,0,0,0,0,0,0
+1813  D7DC 00 00 00 00
+1813  D7E0 00
+1814  D7E1
+1815  D7E1              ; typedef  struct _FAT_DIR_INFO {
+1816  D7E1              ; 	UINT8 DIR_Name[ 11 ];					/* 00H, file name, a total of 11 bytes, fill in blanks for deficiencies */
+1817  D7E1              ; 	UINT8 DIR_Attr;						    /* 0BH, file attribute, refer to the following description */
+1818  D7E1              ; 	UINT8 DIR_NTRes;						/* 0CH */
+1819  D7E1              ; 	UINT8 DIR_CrtTimeTenth;				    /* 0DH, the time of file creation, counted in units of 0.1 seconds */
+1820  D7E1              ; 	UINT16 DIR_CrtTime;					    /* 0EH, file creation time */
+1821  D7E1              ; 	UINT16 DIR_CrtDate;					    /* 10H, file creation date */
+1822  D7E1              ; 	UINT16 DIR_LstAccDate;					/* 12H, the date of the last access operation */
+1823  D7E1              ; 	UINT16 DIR_FstClusHI;					/* 14H */
+1824  D7E1              ; 	UINT16 DIR_WrtTime;					    /* 16H, file modification time */
+1825  D7E1              ; 	UINT16 DIR_WrtDate;					    /* 18H, file modification date  */
+1826  D7E1              ; 	UINT16 DIR_FstClusLO;					/* 1AH */
+1827  D7E1              ; 	UINT32 DIR_FileSize;					/* 1CH, file length */
+1828  D7E1              ; }
+1829  D7E1
+1830  D7E1              dma_address:
+1831  D7E1 00 00            ds 2
+1832  D7E3
+1833  D7E3              ; TODO: This is in BDOS.asm and MemoeryStick.asm.
+1834  D7E3              ; It should only be here!
+1835  D7E3              CPM_FOLDER_NAME:
+1836  D7E3 2F 43 50 4D      db '/CPM',0
+1836  D7E7 00
+1837  D7E8              CPM_DISKS_NAME:
+1838  D7E8 44 49 53 4B      db 'DISKS',0
+1838  D7EC 53 00
+1839  D7EE
+1840  D7EE              current_disk:
+1841  D7EE 00               db 0
+1842  D7EF              current_user:
+1843  D7EF 00               db 0
+1844  D7F0
+1845  D7F0              temp_fcb:
+1846  D7F0 00 00 00...      ds 36
+1847  D814
+1848  D814              delete_flag:
+1849  D814 00               db 0
+1850  D815
+1851  D815              store_source:
+1852  D815 00 00            dw 0
+1853  D817
+1854  D817              store_target:
+1855  D817 00 00            dw 0
+1856  D819
+1857  D819              ; TODO these should only live in the CORE.
+1858  D819              YES_OPEN_DIR equ $41
+1859  D819              USB_INT_SUCCESS equ $14
+1860  D819
+1861  D819              BDOS_END equ $
+1862  D819
+1863  D819
+1864  D819
+1865  D819                  IF BDOS_END-BDOS_START>BDOS_SIZE
+1866  D819 ~                    .WARNING "The BDOS is too big! ",BDOS_SIZE," bytes max!"
+1867  D819                  ENDIF
 # file closed: bdos.asm
