@@ -19,4 +19,4 @@ sjasmplus core.asm --raw=core.bin --lst=core.lst
 
 
 echo '********************* z80ccp'
-sjasmplus z80ccp.asm --raw=z80ccp.bin --lst=z80ccp.lst
+;sjasmplus z80ccp.asm --raw=z80ccp.bin --lst=z80ccp.lst

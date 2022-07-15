@@ -2,8 +2,8 @@
 ;
 ; This occupies less than 0.5K
 
-    include "locations.asm"
-    include "core_jump.asm"
+    include "cfg_locations.asm"
+    include "cfg_core_jump.asm"
 
     org BIOS_START
 

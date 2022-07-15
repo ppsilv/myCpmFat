@@ -1,7 +1,7 @@
 ; CP/M BDOS
 
-    include "locations.asm"
-    include "core_jump.asm"
+    include "cfg_locations.asm"
+    include "cfg_core_jump.asm"
 
     org BDOS_START
 

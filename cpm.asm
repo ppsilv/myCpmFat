@@ -931,11 +931,8 @@ ccp_name        equ ccp_location-13            ; stores the name of the ccp file
 baud_rate_divisor   equ ccp_name-1
 flow_control_value  equ baud_rate_divisor-1
 
-    include "uart.asm"
+    include "drv_uart.asm"
     include "message.asm"
-    include "memorystick.asm"
-    include "filesize.asm"
+    include "drv_fat.asm"
+    include "utils/filesize.asm"
     include "monitor.asm"
-
-    include "tiny-basic.asm"
-    include "GOFL.asm"

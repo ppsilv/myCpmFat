@@ -18,7 +18,7 @@
 ; ram starting from 0000. CP/M will reside at the end of this space.
 ;
 
-	include "locations.asm"
+	include "cfg_locations.asm"
 	;   Set origin for CP/M
 
 	ORG	CCP_START
@@ -1776,7 +1776,7 @@ CDRIVE:	DEFB	0		;currently active drive.
 CHGDRV:	DEFB	0		;change in drives flag (0=no change).
 NBYTES:	DEFW	0		;byte counter used by TYPE.
 ;
-   include "core_jump.asm"
+   include "cfg_core_jump.asm"
 
 CCP_END	equ $
     IF CCP_END-CCP_START>CCP_SIZE

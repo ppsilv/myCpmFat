@@ -4,9 +4,9 @@
 #
 
 
-#all: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin
+all: bdos.bin bios.bin ccp.bin core.bin ccpZ80.bin cpm.hex
 
-#cpm: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin
+cpm: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin
 
 mon: cpm.hex
 
@@ -33,14 +33,15 @@ mon: cpm.hex
 # binary files would be rebuilt.
 #
 %.bin: %.asm $$(shell ls %.asm)
-	pasmo $<  $@
+	@echo 'Compiling: ' $< ' to ' $@
+	@pasmo $<  $@
 #	sjasmplus $<  $@
-	cp	*.bin masterDisk/cpm/
+	@echo 'Coping: ' $< ' to masterDisk/cpm/'$@
+	@cp	*.bin masterDisk/cpm/
 
 %.hex: %.asm $$(shell ls %.asm)
-	echo $$
-	echo $@
-	sjasmplus $<  --raw=$@ --lst=$@.lst
+	@echo 'Compiling: ' $< ' to ' $@
+	@sjasmplus --nologo --msg=none $<  --raw=$@ --lst=$@.lst
 
 sync:
 	cp *.bin *.lst

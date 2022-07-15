@@ -8,7 +8,7 @@
 ; CORE takes the top 3K of memory, $F400 - $FFFF
 ; It assembles to 2.53K right now.
 
-    include "locations.asm"
+    include "cfg_locations.asm"
 
     org CORE_START
 
@@ -120,10 +120,10 @@ CORE_set_file_size_in_fcb:
 CORE_change_to_slot2:    
     jp change_to_slot2
     
-    include "uart.asm"
+    include "drv_uart.asm"
     include "message.asm"
-    include "memorystick.asm"
-    include "PPI.asm"
+    include "drv_fat.asm"
+    include "drv_ppi.asm"
     include "cpm000.asm"
 
 filename_buffer 	equ 65535-20
