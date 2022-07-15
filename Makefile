@@ -4,15 +4,14 @@
 #
 
 
-all: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin cpm.bin
-#all: cpm.bin
+#all: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin
+
+#cpm: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin
+
+mon: cpm.hex
 
 
-#
-# Cleanup.
-#
-clean:
-	rm *.bin *.hex *.lst *.lst*
+
 
 #
 # This is a magic directive which allows GNU Make to perform
@@ -25,6 +24,7 @@ clean:
 #
 .SECONDEXPANSION:
 
+
 #
 # Convert an .asm file into a .bin file, via pasmo.
 #
@@ -33,14 +33,22 @@ clean:
 # binary files would be rebuilt.
 #
 %.bin: %.asm $$(shell ls %.asm)
-#	pasmo $<  $@
-	sjasmplus $<  $@
-
-%.hex: %.asm $$(shell ./gendep %.asm)
 	pasmo $<  $@
+#	sjasmplus $<  $@
+	cp	*.bin masterDisk/cpm/
 
+%.hex: %.asm $$(shell ls %.asm)
+	echo $$
+	echo $@
+	sjasmplus $<  --raw=$@ --lst=$@.lst
 
 sync:
-	cp *.bin dist/CPM/
-	cp *.hex dist/CPM/
+	cp *.bin *.lst
+	cp *.hex 
 	rsync  -vazr dist/CPM/ /media/skx/8BITSTACK/CPM/
+
+#
+# Cleanup.
+#
+clean:
+	rm *.bin *.hex *.lst *.lst*

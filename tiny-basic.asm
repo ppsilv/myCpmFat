@@ -47,7 +47,11 @@ LF      equ  0AH
 ; Lo-byte is stored second, with no special modification.
 DWA     MACRO     v
         DB v>>8+128
+        ;pasmo like this
+        ;DB v & 0FFH
+        ;SjASMPlus like this
         DB v&0FFH
+
         ENDM
 
 TBSTART:  

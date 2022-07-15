@@ -69,11 +69,16 @@ UART_INIT:	PUSH	AF
 			INC 	HL
 			LD		H,(HL)
 			LD 		L,A
-			LD		A,0x00: OUT (uart_IER),A	; Disable interrupts
-			LD		A,0x80: OUT (uart_LCR),A 	; Turn DLAB on
-			LD		A,L:	OUT (uart_tx_rx),A	; Set divisor low
-			LD		A,H:	OUT (uart_IER),A	; Set divisor high
-			POP		AF:		OUT (uart_LCR),A	; Write out flow control bits 8,1,N
+			LD		A,0x00
+			OUT (uart_IER),A	; Disable interrupts
+			LD		A,0x80
+			OUT (uart_LCR),A 	; Turn DLAB on
+			LD		A,L
+			OUT (uart_tx_rx),A	; Set divisor low
+			LD		A,H
+			OUT (uart_IER),A	; Set divisor high
+			POP		AF
+			OUT (uart_LCR),A	; Write out flow control bits 8,1,N
 			LD 		A, 0x81						; Turn on FIFO, with trigger level of 8.
 			OUT (uart_ISR), A					; This turn on the 16bytes buffer!	
 			RET
@@ -81,11 +86,16 @@ UART_INIT:	PUSH	AF
 configure_uart_cpm: 
 			LD		H, 0x00
 			LD 		L,A
-			LD		A,0x00: OUT (uart_IER),A	; Disable interrupts
-			LD		A,0x80: OUT (uart_LCR),A 	; Turn DLAB on
-			LD		A,L:	OUT (uart_tx_rx),A	; Set divisor low
-			LD		A,H:	OUT (uart_IER),A	; Set divisor high
-			LD		A, 0x03:		OUT (uart_LCR),A	; Write out flow control bits 8,1,N
+			LD		A,0x00
+			OUT (uart_IER),A	; Disable interrupts
+			LD		A,0x80
+			OUT (uart_LCR),A 	; Turn DLAB on
+			LD		A,L
+			OUT (uart_tx_rx),A	; Set divisor low
+			LD		A,H
+			OUT (uart_IER),A	; Set divisor high
+			LD		A, 0x03
+			OUT (uart_LCR),A	; Write out flow control bits 8,1,N
 			LD 		A, 0x81						; Turn on FIFO, with trigger level of 8.
 			OUT (uart_ISR), A					; This turn on the 16bytes buffer!	
 			RET
@@ -128,17 +138,21 @@ UART_TX:	PUSH 	HL
 			PUSH	AF 						; Stack AF
 			LD	B,low  UART_TX_WAIT			; Set CB to the transmit timeout
 			LD	C,high UART_TX_WAIT
-1:			IN	A,(uart_LSR)			; Get the line status register
+LOOP_UART_TX:
+			IN	A,(uart_LSR)			; Get the line status register
 			AND 	0x60					; Check for TX empty
-			JR	NZ,2F						; If set, then TX is empty, goto transmit
-			DJNZ	1B: DEC	C: JR NZ,1B		; Otherwise loop
+			JR	NZ,	OUT_UART_TX				; If set, then TX is empty, goto transmit
+			DJNZ	LOOP_UART_TX
+			DEC	C
+			JR NZ, LOOP_UART_TX		; Otherwise loop
 			POP	AF							; We've timed out at this point so
 			OR	A							; Clear the carry flag and preserve A
 			POP	BC							; Restore the stack
 			POP DE 
 			POP	HL
 			RET	
-2:			POP	AF							; Good to send at this point, so
+OUT_UART_TX:			
+			POP	AF							; Good to send at this point, so
 			OUT	(uart_tx_rx),A			; Write the character to the UART transmit buffer
 			call	delay2
 			POP	BC							; Restore the stack

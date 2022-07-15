@@ -613,7 +613,11 @@ COMMAND:
 	;halt
 	PUSH	BC			;note that (C) should be equal to:
 
-	ld	hl, bc
+	ld	A,	B
+	ld	H,	A
+	ld	A,	C
+	ld	L,	A
+	;LD	HL, BC
     call display_hl32_digit
 	pop bc
 	push bc

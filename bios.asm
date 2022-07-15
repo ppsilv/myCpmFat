@@ -198,5 +198,5 @@ UDFLAG	EQU	4		;current drive name and user number.
 BIOS_END equ $
 
     IF BIOS_END-BIOS_START>BIOS_SIZE
-        WARNING "The BIOS is too big! ',BIOS_SIZE," bytes max!"
+        WARNING "The BIOS is too big! ",BIOS_SIZE," bytes max!"
     ENDIF
