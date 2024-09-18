@@ -43,4 +43,4 @@ liquido como mostra a foto z80_002.jpg.
 
             ********************************************************************
 
-
+            Nessa data falta refazer o esquema elétrico.
