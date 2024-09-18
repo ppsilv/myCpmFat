@@ -12,3 +12,6 @@ mais recentes, pois no projeto BSX tem commits meus recentes e não sei qual dos
 projetos é o que eu estava considerando ser o final.
 
 
+O projeto cpmfat foi usado somente como fonte de informações para esse projeto
+O projeto bsx foi gravado uma vez na placa e ele até mostra log no display de cristal
+liquido como mostra a foto z80_002.jpg.
