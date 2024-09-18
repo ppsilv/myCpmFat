@@ -26,5 +26,21 @@ liquido como mostra a foto z80_002.jpg.
             vai nela. onde por os outros binários vou pesquisar como fiz pois não
             tem instrução atualmente.
 
+            Agora a placa está completamente testada.
+            Gravei a versão cpm20240918.hex compilada hoje
+
+            Para compilar é preciso ter:
+
+            pasmo cross compiler, to compile cpm e applicações cpm
+            sjasmplus cross compiler, to compile cpm.asm o programa monitor
+
+            No linux para gravar baixar o https://github.com/ppsilv/minipro
+            Para compilar: make
+            Para instalar: copie o programa minipro para /usr/bin
+
+            Para gravar na eprom apesar de extensão hex o programa é um binário.
+            minipro  -p AT29C512 -s -w cpm.hex
+
+            ********************************************************************
 
 

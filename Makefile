@@ -1,14 +1,11 @@
-
 #
 # The files we wish to generate.
 #
 
-
 all: bdos.bin bios.bin ccp.bin core.bin ccpZ80.bin cpm.hex
-
-cpm: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin
-
+#cpm: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin
 mon: cpm.hex
+monb: cpm.bin
 
 
 
@@ -33,14 +30,14 @@ mon: cpm.hex
 # binary files would be rebuilt.
 #
 %.bin: %.asm $$(shell ls %.asm)
-	@echo 'Compiling: ' $< ' to ' $@
+	@echo 'Compiling with pasmo: ' $< ' to ' $@
 	@pasmo $<  $@
 #	sjasmplus $<  $@
 	@echo 'Coping: ' $< ' to masterDisk/cpm/'$@
 	@cp	*.bin masterDisk/cpm/
 
 %.hex: %.asm $$(shell ls %.asm)
-	@echo 'Compiling: ' $< ' to ' $@
+	@echo 'Compiling with sjasmplus: ' $< ' to ' $@
 	@sjasmplus --nologo --msg=none $<  --raw=$@ --lst=$@.lst
 
 sync:
@@ -52,4 +49,4 @@ sync:
 # Cleanup.
 #
 clean:
-	rm *.bin *.hex *.lst *.lst*
+	rm *.bin *.hex *.lst
