@@ -91,38 +91,38 @@ loader_entry:
     di
     ld  hl, loader_stack
     ld  sp, hl
-    ;jp skip_over_int_and_nmi
 
-skip_over_int_and_nmi:
-	LD      A, 0x80 			; All ports output A,B and C
+	LD      A, $80 			; All ports output A,B and C
 	OUT     (PIO_M), A		; 
-	LD      A, 0xA0    
+	LD      A, $A0
 	OUT     (PIO_A), A	
-    LD  HL, UART_BAUD_38400
-    LD  A,  0x03
+
+    LD      HL,UART_BAUD_38400       ; Baud rate = 38400
+    LD      A,$03                  ; 8 bits, 1 stop, no parity
     call configure_uart         ; Put these settings into the UART
     call    long_pause
 
     call message
    	db 27,'[2J',27,'[H'
-    db 'Z80 Sandbox Monitor & CP/M Loader v2.0',13,10,0
+    db 'Z80 Monitor & CP/M Loader v2.0',13,10,0
    
 
     ; Check MCR
-    ld a, %00100010
-    out (uart_MCR), a
-    call message
-    db '16C550: ',0
-    in a, (uart_MCR)
-    call show_a_as_hex
-    call newline
+;    ld a, %00100010
+;    out (uart_MCR), a
+;    call message
+;    db '16C550: ',0
+;    in a, (uart_MCR)
+;    call show_a_as_hex
+;    call newline
 
     call message
     db 'Configure USB Drive...',13,10,0
     call configure_memorystick
-    call message
-    db 'Check CH376 module exists...',13,10,0
-    call check_module_exists
+    jp  c,   monitor_loop
+    ;call message
+    ;db 'Check CH376 module exists...',13,10,0
+    ;call check_module_exists
     call message
     db 'Get CH376 module version...',13,10,0
     call get_module_version

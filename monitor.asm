@@ -72,7 +72,7 @@ notd:
 not66:
 	cp '6'					; Higher page
 	jr nz,noth
-	ld a, 0x80
+	ld a, $80
 	ld (current_page),a
 	call show_page
 	jp monitor_loop
@@ -182,6 +182,16 @@ show_welcome_message:
 	ret
 
 monitor_init:
+
+                        ;lcd routines
+          ;;              CALL    initializeDisplay
+          ;;              LD      HL,MSGLCD001
+          ;;              CALL    LcdPrintString
+          ;;              LD      A, $40
+           ;;             CALL    cursorPos
+            ;;            LD      HL,MSGLCD002
+             ;;           CALL    LcdPrintString
+
     ; Four flashes on the USER (blue) LED and disk (yellow) LED
     ld b, 4
 monitor_init1:
@@ -210,7 +220,7 @@ ram_fill:
 copy_ram:
     ; Copy the first 16k of ROM down to ram
 	ld hl,0
-	ld de,	0x8000
+	ld de,	$8000
 	ld bc,	1024*16
 	ldir
     ret
@@ -316,7 +326,7 @@ ram_loop:
 ; -------------------------------------------------------------------------------------------------
 goto_page_0:
 
-	ld a, 0x0
+	ld a, $0
 	ld (current_page), a
 	call newline
 	call show_page
@@ -437,4 +447,6 @@ current_page 	equ 60004					; Currently displayed monitor page
 test_buffer 	equ 60006					; 32 x 24 char buffer (768 bytes)
 
 	include "printing.asm"
-
+;	include "i2cdriver.asm"
+;	include "Lcd_i2c.asm"
+;   include "delay.asm"

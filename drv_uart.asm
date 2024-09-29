@@ -10,54 +10,12 @@ UART_FREQUENCY: EQU 19660800	; 82C50 | 16C550 CLOCK
 UART_BAUD_9600:		DW	UART_FREQUENCY/(9600 * 16)
 UART_BAUD_14400:	DW	UART_FREQUENCY/(14400 * 16)
 UART_BAUD_19200:	DW	UART_FREQUENCY/(19200 * 16)
-UART_BAUD_38400:	DW	UART_FREQUENCY/(38400 * 16)
+UART_BAUD_38400:	DW  $20 ;UART_FREQUENCY/(38400 * 16)
 UART_BAUD_57600:	DW	UART_FREQUENCY/(57600 * 16)
 UART_BAUD_115200:	DW	UART_FREQUENCY/(115200 * 16)
 
 ; Initialises the 16c550c UART for input/output
-;configure_uart:
-	; Configure the UART 16550 after a reset.
-	; For the sake of definitely getting the job done, let's pause here for ages before doing it.
-	; Without this pause the Z80 can get started before the UART is ready.
-	; Don't ask me how I know this.
-	;
-	; Pass in the required BAUD rate divisor in b.
-	; Pass in the required hardware flow control in c.
-;	push bc
-;	call long_pause
-;	pop bc
 
-;	LD		A,	0x00
-;	OUT 	(uart_IER),A			; Disable interrupts
-
-;    ld 		A,	80H                 ; Go into "Divisor Latch Setting mode"
-;    out 	(uart_LCR),a            ; by writing 1 into bit 7 of the Line Control register
-;    nop								; These tiny "nop" pauses probably do nothing. TODO: Try removing them!
-
-;    ld 		A, b                    ; low byte of divisor
-;    out 	(uart_tx_rx), A
-;    nop
-;    ld 		A, 0                          ; high byte
-;    out 	(uart_IER), A
-;    nop
-
-;    ld a,03H                        ; Configure stop bits etc, and exit
-                                    ; "Divisor latch setting mode"
-
-;    out (uart_LCR),a                ; 8 bits, no parity, 1 stop bit, bit 7 = 0
-;	nop								; a slight pause to allow the UART to get going
-
-;	ld a, 0x81 						;%10000001					; Turn on FIFO, with trigger level of 8.
-;	out (uart_ISR), a				; This definitely helps receive 16 chars very fast!
-
-	;ld a, c
-	;cp 0
-	;jr z, flowcontrol_done
-    
-	;LD      A,0x00                  ;no flow control
-	;ld a, %00100010
-	;out (uart_MCR), a				; Enable auto flow control for /RTS and /CTS
-;	ret
 flowcontrol_done:
 	nop
 	nop
@@ -69,21 +27,22 @@ UART_INIT:	PUSH	AF
 			INC 	HL
 			LD		H,(HL)
 			LD 		L,A
-			LD		A,0x00
+			LD		A,$00;
 			OUT (uart_IER),A	; Disable interrupts
-			LD		A,0x80
+			LD		A,$80;
 			OUT (uart_LCR),A 	; Turn DLAB on
-			LD		A,L
-			OUT (uart_tx_rx),A	; Set divisor low
-			LD		A,H
-			OUT (uart_IER),A	; Set divisor high
-			POP		AF
+			LD		A,L;
+			OUT (uart_DLL),A	; Set divisor low
+			LD		A,H;
+			OUT (uart_DLH),A	; Set divisor high
+			POP		AF;
 			OUT (uart_LCR),A	; Write out flow control bits 8,1,N
-			LD 		A, 0x81						; Turn on FIFO, with trigger level of 8.
-			OUT (uart_ISR), A					; This turn on the 16bytes buffer!	
+			LD 		A,$81;
+			OUT (uart_ISR),A	; Turn on FIFO, with trigger level of 8.
+								                ; This turn on the 16bytes buffer!
 			RET
 
-configure_uart_cpm: 
+configure_uart_cpm:
 			LD		H, 0x00
 			LD 		L,A
 			LD		A,0x00
@@ -97,8 +56,9 @@ configure_uart_cpm:
 			LD		A, 0x03
 			OUT (uart_LCR),A	; Write out flow control bits 8,1,N
 			LD 		A, 0x81						; Turn on FIFO, with trigger level of 8.
-			OUT (uart_ISR), A					; This turn on the 16bytes buffer!	
+			OUT (uart_ISR), A					; This turn on the 16bytes buffer!
 			RET
+
 
 UART_TX_WAIT		EQU	600		; Count before a TX times out
 
@@ -108,7 +68,7 @@ UART_TX_WAIT		EQU	600		; Count before a TX times out
 ; F = NC if no character read
 ;
 UART_RX:	IN	A,(uart_LSR)		; Get the line status register
-			AND 	0x01				; Check for characters in buffer
+			AND 	$01				; Check for characters in buffer
 			ret	Z					; Just ret (with carry clear) if no characters
 			IN	A,(uart_tx_rx)		; Read the character from the UART receive buffer
 			SCF 						; Set the carry flag
@@ -140,7 +100,7 @@ UART_TX:	PUSH 	HL
 			LD	C,high UART_TX_WAIT
 LOOP_UART_TX:
 			IN	A,(uart_LSR)			; Get the line status register
-			AND 	0x60					; Check for TX empty
+			AND 	$60					; Check for TX empty
 			JR	NZ,	OUT_UART_TX				; If set, then TX is empty, goto transmit
 			DJNZ	LOOP_UART_TX
 			DEC	C
@@ -164,7 +124,7 @@ OUT_UART_TX:
 ; This routine delay 746us
 delay2:
 			PUSH   AF
-			LD     A, 0xFF          
+			LD     A, $FF
 delay2loop: DEC    A              
 			JP     NZ, delay2loop  ; JUMP TO DELAYLOOP2 IF A <> 0.
 			POP    AF

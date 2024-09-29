@@ -1,3 +1,3 @@
 #!/bin/bash
 #
-minipro  -p AT29C512 -s -w cpm.hex
+minipro  -p AT29C512 -s -w cpm.bin

@@ -4,14 +4,17 @@
 ;--------------------;
 
 configure_memorystick:
+    call reset_ch376_module
+    call  check_module_exists
+    JP    C, NO_MODULE
     ld b, 5                                 ; Have 5 attempts at configuring the module before giving up
 configure_memorystick1:
     push bc
     call connect_to_usb_drive
-    jr nz, failed_to_setup
+    jr   c, failed_to_setup
     call connect_to_disk
     call mount_disk
-    pop bc
+    pop  bc
     ret
 failed_to_setup:
     call long_pause
@@ -20,8 +23,10 @@ failed_to_setup:
     call long_pause
     pop bc
     djnz configure_memorystick1
+NO_MODULE:
     call message
-    db 'CH376S error.',13,10,0
+    db   'ERROR: No disk available',13,10,0
+    SCF
     ret
 
 ;----------------------------------------------------------------
@@ -38,15 +43,16 @@ check_module_exists:
     ld a, CHECK_EXIST
     call send_command_byte
 
-    ld a, 123               ; We send an arbitrary number
+    ld a, $A8               ; We send an arbitrary number
     call send_data_byte
 
     call read_data_byte
 
-    cp 255-123      ; The result is 255 minus what we sent in
+    cp $57      ; The result is 255 minus what we sent in
     ret z
     call message
     db 'ERROR: CH376S module not found.',13,10,0
+    SCF
     ret
 
 ;-----------------------------------------------------------------
@@ -73,7 +79,7 @@ set_usb_host_mode:
     cp USB_INT_CONNECT
     ret z
     call message
-    db 'ERROR: No USB Disk?',13,10,0
+    db 'ERROR: No disk...',13,10,0
     ret
 
 ;-----------------------------------------------------------------
@@ -156,8 +162,16 @@ connect_to_usb_drive:
     ; Connects us up to the USB Drive.
     ; Returns Zero flag = true if we can connect ok.
     call reset_ch376_module 
+
     call set_usb_host_mode
     cp USB_INT_CONNECT
+    jr nz, fim_connect_to_usb_drive
+    call message
+    db 'CH376 found and connected.',13,10,0
+    XOR A
+    ret
+fim_connect_to_usb_drive:
+    SCF
     ret
 
 create_file:
@@ -392,8 +406,8 @@ read_data_bytes_into_buffer1:
     ret
     
 wait_til_not_busy:
-    ; call message
-    ; db 'waiting...', 13, 10, 0
+    ;call message
+    ;db 'waiting...', 13, 10, 0
     ld bc, 60000            ; retry max 60000 times!!!
 wait_til_not_busy1:
     push bc

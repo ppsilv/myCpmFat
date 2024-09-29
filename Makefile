@@ -2,13 +2,8 @@
 # The files we wish to generate.
 #
 
-all: bdos.bin bios.bin ccp.bin core.bin ccpZ80.bin cpm.hex
-#cpm: bdos.bin bios.bin ccp.bin core.bin z80ccp.bin
-mon: cpm.hex
-monb: cpm.bin
-
-
-
+#To be compiled with pasmo
+all: bdos.bin bios.bin ccp.bin core.bin ccpZ80.bin cpm.bin
 
 #
 # This is a magic directive which allows GNU Make to perform
@@ -31,14 +26,9 @@ monb: cpm.bin
 #
 %.bin: %.asm $$(shell ls %.asm)
 	@echo 'Compiling with pasmo: ' $< ' to ' $@
-	@pasmo $<  $@
-#	sjasmplus $<  $@
+	pasmo $<  $@
 	@echo 'Coping: ' $< ' to masterDisk/cpm/'$@
 	@cp	*.bin masterDisk/cpm/
-
-%.hex: %.asm $$(shell ls %.asm)
-	@echo 'Compiling with sjasmplus: ' $< ' to ' $@
-	@sjasmplus --nologo --msg=none $<  --raw=$@ --lst=$@.lst
 
 sync:
 	cp *.bin *.lst
@@ -49,4 +39,4 @@ sync:
 # Cleanup.
 #
 clean:
-	rm *.bin *.hex *.lst
+	rm *.bin
