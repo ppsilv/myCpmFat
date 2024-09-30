@@ -23,8 +23,13 @@ monitor_loop2:
 	cp 0					; If it's null, ignore it
 	jr z,monitor_loop1
 	cp '0'					; '0' = go to page 0
-	jr nz,not0
+	jr nz,load_program
 	call goto_page_0
+	jp monitor_loop
+load_program:
+	cp '1'					; If it's null, ignore it
+	jr nz,not0
+	call load_program1
 	jp monitor_loop
 not0:
 	cp 'u'					; User light toggle
@@ -156,7 +161,7 @@ show_welcome_message:
 	db 13,10
 	db 27,'[42m','+---------------------------------+',13,10
 	db 27,'[42m','|',27,'[40m','                                 ',27,'[42m','|',13,10
-	db 27,'[42m','|',27,'[40m','          Z80 Sandbox            ',27,'[42m','|',13,10
+	db 27,'[42m','|',27,'[40m','          Z80 Monitor            ',27,'[42m','|',13,10
 	db 27,'[42m','|',27,'[40m','           by pdsilva            ',27,'[42m','|',13,10
 	db 27,'[42m','|',27,'[40m','     Monitor v2.00 July 2022     ',27,'[42m','|',13,10
 	db 27,'[42m','|',27,'[40m','   CP/M Loader  v2.00 july 2022  ',27,'[42m','|',13,10
@@ -385,7 +390,18 @@ print_a_as_decimal_units1:
 	call print_a
 	ret
 
-
+load_program1:
+	call message
+	db 'load program...',13,10,0
+load_program2:
+	call UART_RX
+	jr	 NC, load_program2
+	cp $39
+	jr   z, fim_load_program1
+	call print_a
+	jr   load_program2
+fim_load_program1:
+	ret
 load_jupiter_ace:
     ; Load CORE.BIN into its proper location
     ld hl, NAME_OF_CORE
@@ -447,6 +463,6 @@ current_page 	equ 60004					; Currently displayed monitor page
 test_buffer 	equ 60006					; 32 x 24 char buffer (768 bytes)
 
 	include "printing.asm"
-;	include "i2cdriver.asm"
-;	include "Lcd_i2c.asm"
-;   include "delay.asm"
+	include "i2cdriver.asm"
+	include "Lcd_i2c.asm"
+	include "delay.asm"

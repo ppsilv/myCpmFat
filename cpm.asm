@@ -105,7 +105,14 @@ loader_entry:
     call message
    	db 27,'[2J',27,'[H'
     db 'Z80 Monitor & CP/M Loader v2.0',13,10,0
-   
+
+    CALL    initializeDisplay
+    LD      HL,MSGLCD001
+    CALL    LcdPrintString
+    LD      A, 0x40
+    CALL    cursorPos
+    LD      HL,MSGLCD002
+    CALL    LcdPrintString
 
     ; Check MCR
 ;    ld a, %00100010
@@ -894,7 +901,9 @@ CPM_CFG_NAME:
     db 'CPM.CFG',0
 UART_CFG_NAME:
     db 'UART.CFG',0
-
+;             1234567890123456
+MSGLCD001 db 'Z80 Monitor V2.0'
+MSGLCD002 db 'Uart38400 CPM2.2'
 
 first_eight_bytes:
     db $C3, $03, $F4, $00, $00, $C3, $00, $EA
