@@ -1,4 +1,4 @@
-# myCpmFat
+# myCpmFat Board Z80Boad2022RA
 Based on z80-playground
 
 Este projeto está sendo recuperado, pois os códigos e o diretório onde eu estava
