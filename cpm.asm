@@ -104,8 +104,10 @@ loader_entry:
 
     call message
    	db 27,'[2J',27,'[H'
-    db 'Z80 Monitor & CP/M Loader v2.01 Z80BOAD2022-RA',13,10,0
-
+    ;db 'Z80 Monitor & CP/M Loader v2.01 Z80BOAD2022-RA',13,10,0
+   	db 27,'[41m'
+    db 'Z80 Monitor & CP/M Loader v2.01 Z80BOAD2022-RA'
+   	db 27,'[42m',13,10,0
 
     CALL    initializeDisplay
     LD      HL,MSGLCD001
