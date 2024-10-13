@@ -97,14 +97,15 @@ loader_entry:
 	LD      A, $A0
 	OUT     (PIO_A), A	
 
-    LD      HL,UART_BAUD_38400       ; Baud rate = 38400
+    LD      HL,UART_BAUD       ; Baud rate
     LD      A,$03                  ; 8 bits, 1 stop, no parity
     call configure_uart         ; Put these settings into the UART
     call    long_pause
 
     call message
    	db 27,'[2J',27,'[H'
-    db 'Z80 Monitor & CP/M Loader v2.0',13,10,0
+    db 'Z80 Monitor & CP/M Loader v2.01 Z80BOAD2022-RA',13,10,0
+
 
     CALL    initializeDisplay
     LD      HL,MSGLCD001

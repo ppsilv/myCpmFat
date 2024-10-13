@@ -34,9 +34,11 @@ sync:
 	cp *.bin *.lst
 	cp *.hex 
 	rsync  -vazr dist/CPM/ /media/skx/8BITSTACK/CPM/
-
+grava:
+	minipro  -p AT29C512 -s -w cpm.bin
 #
 # Cleanup.
 #
 clean:
-	rm *.bin
+	rm *.bin *.lst
+

@@ -155,33 +155,33 @@ unknown_char:
 	call print_a			; If we don't understand it, show it!
 	call newline
 	jp monitor_loop
-
+aaa
 show_welcome_message:
 	call message
 	db 13,10
-	db 27,'[42m','+---------------------------------+',13,10
-	db 27,'[42m','|',27,'[40m','                                 ',27,'[42m','|',13,10
-	db 27,'[42m','|',27,'[40m','          Z80 Monitor            ',27,'[42m','|',13,10
-	db 27,'[42m','|',27,'[40m','           by pdsilva            ',27,'[42m','|',13,10
-	db 27,'[42m','|',27,'[40m','     Monitor v2.00 July 2022     ',27,'[42m','|',13,10
-	db 27,'[42m','|',27,'[40m','   CP/M Loader  v2.00 july 2022  ',27,'[42m','|',13,10
-	db 27,'[42m','|',27,'[40m','                                 ',27,'[42m','|',13,10
-	db 27,'[42m','+---------------------------------+',27,'[40m',13,10,13,10
+	db 27,'[42m','+----------------------------------+',13,10
+	db 27,'[42m','|                                  |',13,10
+	db 27,'[42m','|',27,'[41m','          Z80  Monitor',27,'[42m','            |',13,10
+	db 27,'[42m','|           by pdsilva             |',13,10
+	db 27,'[42m','|     Monitor  v2.01 July 2022     |',13,10
+	db 27,'[42m','|',27,'[43m','   CP/M Loader  v2.01 july 2022',27,'[42m','   |',13,10
+	db 27,'[42m','|                                  |',13,10
+	db 27,'[42m','+----------------------------------+',13,10,13,10
 	db 'c = CP/M v2.2', 13, 10
+	db '0 = Dump ROM page ZERO', 13, 10
+	db '6 = Dump RAM page ZERO', 13, 10
+	db 'h = Move to Higher Page', 13, 10
+	db 'l = Move to Lower Page', 13, 10
+	db 'm = Memory Map', 13, 10
+	db 'u = User led toggle', 13, 10
+	db 'd = Disk led toggle', 13, 10
+	db '3 = Rom led ON', 13, 10
+	db '4 = Rom led OFF', 13, 10
+	db '/ = Show this Menu',13,10
 	;db 't = Tiny Basic',13,10
 	;db 'g = Game-of-Life',13,10
-	db 'm = Memory Map', 13, 10
-	;db '0 = Show Page 0 of Memory', 13, 10
-	;db 'h = Move to Higher Page', 13, 10
-	;db 'l = Move to Lower Page', 13, 10
-	db 'u = User LED toggle', 13, 10
-	db '3 = ROM ON', 13, 10
-	db '4 = ROM OFF', 13, 10
 	;db '5 = Copy ram', 13, 10
-	db 'd = Disk LED toggle', 13, 10
 	;db '# = Execute HALT instruction',13,10
-
-	db '/ = Show this Menu',13,10
 	;db 'j = Poor-Man''s Jupiter Ace',13,10
 	db 13,10,0
 	ret
@@ -271,7 +271,7 @@ ram_location:
 	jp shown_location
 rom_location:
 	call message
-	db 27,'[41m','R',27,'[0m',0
+	db 27,'[41m','R',27,'[42m',0
 shown_location:
 	
 	ld a,b				; restore initial value
@@ -285,45 +285,48 @@ shown_location:
 
 	call newline
 	; Now show a row all of ram
-	ld b, 64
+	ld b, 67
 ram_loop:
 	push bc
 	call message
-	db 27,'[42m','r',27,'[0m',0
+	db 27,'[44m','r',27,'[42m',0
 	pop bc
 	djnz ram_loop
 
 	call newline
 	call message
-	db 'Z80 Sandbox structure by pdsilva',13,10
-	db '|       |       |       |       |       |       |       |      |',13,10
+    db 27,'[46m',13,10
+	db 'Z80 structure by pdsilva',13,10
+    db 27,'[45m',13,10
+	db '   |       |       |       |       |       |       |       |      |',13,10
 	db '0000    2000    4000    6000    8000    A000    C000    E000   FFFF',13,10
-	db '0K      8K      16K     24K     32K     40K     48K     56K    64K',13,10,13,10
+	db '  0K      8K     16K     24K     32K     40K     48K     56K    64K',13,10,' ',13,10
 	db 27,'[41m','R',27,'[0m',' = ROM    '
-	db 27,'[42m','r',27,'[0m',' = RAM',13,10
-    db 13,10
+	db 27,'[44m','r',27,'[0m',' = RAM',13,10
+    db 27,'[42m',13,10
 	db '16C550C UART Ports     CH376S Module Ports',13,10
 	db '-------------------    -------------------',13,10
-	db 'TX / RX          B8    Data Port        A0',13,10
-	db 'Interrupt Enable B9    Command Port     A1',13,10
-	db 'Interrup Status  BA    ',13,10
-	db 'Line Control     BB    ',13,10
-	db 'Modem Control    BC <---- 76543210',13,10
-	db 'Line Status      BD      Bit 0 = User LED',13,10
-	db 'Modem Status     BE      Bit 2 = Disk LED',13,10
-	db 'Scratch          BF      Bit 3 = ROM Enable',13,10
-	db 13,10
+	db 27,'[43mTX / RX.........:',27,'[41mB8',27,'[43m    Data Port...',27,'[41m.....:A0',13,10
+	db 27,'[43mInterrupt Enable:',27,'[41mB9',27,'[43m    Command Port',27,'[41m.....:A1',13,10
+	db 27,'[43mInterrup Status.:',13,10
+	db 27,'[43mLine Control....:',13,10
+	db 27,'[43mModem Control...:',27,'[41mBC',27,'[43m <---- 76543210',13,10
+	db 27,'[43mLine Status.....:',27,'[41mBD',27,'[43m    Bit 0 =',27,'[41m User LED',13,10
+	db 27,'[43mModem Status....:',27,'[41mBE',27,'[43m    Bit 2 =',27,'[41m Disk LED',13,10
+	db 27,'[43mScratch.........:',27,'[41mBF',27,'[43m    Bit 3 =',27,'[41m ROM Enable',13,10,' '
+	db 27,'[42m',13,10
 	db 'I2C - Z80              PPI 8255 	',13,10
 	db '-------------------    -------------------',13,10
-	db 'SCL              80    Port A           A8',13,10
-	db 'SDA_WR           88    Port B           A9',13,10
-	db 'SDA_RD           B0    Port C           AA',13,10
-	db '                       Ctrl             AB',13,10 
+	db 27,'[43mSCL.............:',27,'[41m80',27,'[43m    Port A........:',27,'[41m80A8',13,10
+	db 27,'[43mSDA_WR..........:',27,'[41m88',27,'[43m    Port B........:',27,'[41m80A9',13,10
+	db 27,'[43mSDA_RD..........:',27,'[41mB0',27,'[43m    Port C........:',27,'[41m80AA',13,10
+	db 27,'[43m                       Ctrl..........:',27,'[41m  AB',13,10
+	db 27,'[42m',13,10
 	db 'PCF8574 - Z80              	',13,10
 	db '-------------------    -------------------',13,10
-    DB 'Port             27',13,10
-	db 'The EEPROM is an ATMEL AT29C512 ID 1F5D',13,10
-	db 13,10,0
+    DB 27,'[43mPort............:',27,'[41m27',13,10
+	db 27,'[43mThe EEPROM is an ATMEL AT29C512 ID:',27,'[41m 1F5D',13,10,' '
+	db 27,'[42m',13,10,0
 	ret
 
 	db 'DANGER ENDS '

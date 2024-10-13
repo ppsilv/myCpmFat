@@ -32,18 +32,17 @@ BOOT:
     call CORE_message
     db 27,'[2J'                     ; clear screen
     db 27,'[H'                      ; cursor home
-    db 27,'[0m'                     ; clear attributes
+    ;;db 27,'[0m'                     ; clear attributes
     ;;db 27,'[?25h'                   ; Show cursor
+;    db 27,'[41m'
+;    db '------paulo paulo CP/M v2.2 - 2022',13,10
     db 27,'[41m'
-    db 'CP/M v2.2 - 2022',13,10
-    db 27,'[46m'
     db 'Hardware version 202206-RA',13,10
     db 'Copyright (C) Digital Research',13,10
     db 'Implemented by pdsilva Z80Boad2022-RA',13,10
     db '64K ram memory',13,10
     db 'System with drives A thru P',13,10
     db 13,10
-    db 27,'[43m'
     db 0
 
     call CORE_message
@@ -78,8 +77,6 @@ shown_ccp_name:
     ld hl, (ccp_location)
     call CORE_show_hl_as_hex
     call CORE_newline
-    call CORE_message
-    db 27,'[42m',0
 
     call CORE_rom_off
     call CORE_user_off

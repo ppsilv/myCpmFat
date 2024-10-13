@@ -10,6 +10,9 @@ clear_screen:
 show_page:
 	call clear_screen
 	
+	ld a,0x30
+	call print_a
+
 	ld a,(current_page)
 	ld d,a
 	ld e,0					; de holds address of start of page to show
@@ -76,16 +79,20 @@ show_as_char1:
 show_ctrl:
 	push af
 	call message
-	db 27,'[7m',0
+	db 27,'[41m',0
 	pop af
 	add a, 64
 	call print_a
 	call message
-	db 27,'[0m',0
+	db 27,'[42m',0
 	ret
 show_unknown:
-	ld a,'?'
+	call message
+	db 27,'[41m',0
+	ld a,'.'
 	call print_a
+	call message
+	db 27,'[42m',0
 	ret
 	
 ; SHOW_DE_AS_HEX
