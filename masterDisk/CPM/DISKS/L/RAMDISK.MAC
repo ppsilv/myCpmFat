@@ -1,0 +1,161 @@
+;---------------------------------------------------------------------------
+;
+;	SUPERBIOS implementation example - Memory disk
+;
+;--------------------------------------------------------------------------
+
+nbanks	equ	4	;number of 16K banks available
+memory	equ	16h	;SBC memory control port
+bnkslct	equ	40h	;bank select for memory disk
+rambase	equ	4000h	;bank address - 4000h recommended
+dirbuf	equ	0F900h	;for standard system
+secbuf	equ	0F980h	;use floppy deblocking buffer for two-stage transfer
+
+.z80
+
+;	org at 0 code relative, control location at link time
+
+jp	ramhome
+jp	ramsel
+jp	rsettrk
+jp	rsetsec
+jp	rsetdma
+jp	ramread
+jp	ramwrite
+ret
+nop
+nop			;no flush needed
+
+db	'RAMDISK '	;module name for display in more advanced loader
+
+ramhome: ld	C,0
+
+rsettrk: ld	A,C
+	ld	(ramtrk),A
+	ret
+
+rsetsec: ld	A,C
+	ld	(ramsec),A
+	ret
+
+rsetdma: ld	(ramdma),BC
+	ret
+
+ramsel:	ld	HL,ramdph
+	ret
+page 60
+
+;	Disk tables for memory disk - see CP/M 2 Alteration Guide for details
+
+ramdph:	dw	0,0,0,0		;no sector translate
+	dw	dirbuf		;use dirbuf in floppy module
+	dw	ramdpb
+	dw	0		;no directory check
+	dw	ramalv		;allocation vector
+
+ramdpb:	dw	128		;128 sectors per track - each 16K bank is a one
+				;track
+	db	3		;BSH  -  use 1K blocks if <257K memory
+	db	7		;BLM
+	db	0		;EXM
+	dw	16*banks-1	;if using 1K blocks
+	dw	63		;64 directories should be enough
+	db	0c0h		;two directory blocks
+	db	0
+	dw	0		;no directory check
+	dw	0		;no system tracks
+
+ramalv:	2*nbanks-1		;for 1K blocks
+
+ramtrk:	ds	1
+ramsec:	ds	1
+ramdma:	ds	2
+page
+;-------------------------------------------------------------------------
+;
+;	The only actual i/o involved is blockmoves between the memory bank
+;	and the user's DMA area.  If the DMA area is masked by the bank
+;	address, we must transfer through a secondary buffer.
+;
+;-------------------------------------------------------------------------
+
+ramread:
+	ld	C,0		;read/write flag
+	jr	ramio
+
+ramwrite:
+	ld	C,0ffh
+
+ramio:	ld	HL,(ramdma)
+	ld	B,H
+	ld	A,11000000b
+	and	B		;get two high order bits of address
+	dec	A		;if bank addressed at 4000h
+	jr	nz,onetran
+				;DMA address is masked by memory bank
+	ld	A,C
+	or	A
+	jr	z,dblread
+				;must do write through secondary buffer
+	ld	DE,secbuf
+	ld	BC,128
+	ldir			;move from DMA to secondary buffer
+
+	ld	HL,secbuf	;make onetran think this is DMA address
+	ld	C,A		;read/write flag
+	jr	onetran
+
+dblread:
+	ld	HL,secbuf
+	call	onetran		;read from bank to secondary buffer
+
+	ld	DE,(ramdma)
+	ld	HL,secbuf
+	ld	BC,128
+	ldir			;move from secondary buffer to user DMA
+	ret			;A set to 0 in onetran
+page
+onetran:
+	call	bankon		;turn on memory bank
+	ld	A,(ramsec)
+	srl	A
+	ld	DE,rambase
+	rr	E		;put low order bit of A (odd number of sectors)
+	add	A,D		;in E and base + sectors/2 in D
+	ld	D,A
+	ld	A,C		;readwrite flag
+	ld	BC,128
+	or	A
+	jr	nz,dowrite	;write operation
+	ex	DE,HL		;set to read to user DMA
+
+dowrite: 
+	ldir
+	call	bankoff		;restore SBC memory
+	xor	A
+	ret			;return with no errors
+
+
+bankon:				;turn on 16K bank at 4000h
+				;can use A,B,DE
+	ld	A,00101101b	;turn off 4000h bank on SBC
+	out	(memory),A
+	ld	A,(ramtrk)	;each track is one 16K bank
+	dec	A
+	ld	B,A
+	ld	A,1
+	jr	z,setbnk	;bank 0
+shift:	add	A,A
+	djnz	shift
+				;A now has one bit set at position (ramtrk)
+setbnk:	out	(bnkslct),A	;for boards with one bit per bank
+	ret
+
+
+bankoff:
+	xor	A
+	out	(bnkslct),A	;turn of memory board
+	ld	A,00101111b	;turn on 4000h bank of SBC memory
+	ret
+end
+

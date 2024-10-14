@@ -1,0 +1,126 @@
+          SUPRERBIOS internal interface specifications
+
+
+     Thå  SUPERBIOÓ ió á modular¬  tablå driveî prograí  designeä 
+for easy expansion and modification.
+
+     Thå  firsô  twï  memorù  pageó oæ thå  SUPERBIOÓ  perforí  á 
+mappinç froí logicaì unitó tï physicaì drivers®  Thió parô oæ thå 
+program will not normally need to be changed.
+
+     Thå  logicaì tï physicaì devicå assignmenô tablå ió aô  100È 
+relativå  tï  thå starô oæ thå BIOS®   Iô containó  sixteeî  disë 
+entries¬ fouò consolå entries¬ fouò lisô entries¬ onå reader¬ anä 
+onå punch®   Á tablå entrù consistó oæ twï bytes®  Thå firsô bytå 
+ió thå higè ordeò bytå oæ thå addresó oæ thå devicå handler®  Thå 
+handleò moduleó alwayó starô oî á pagå boundary¬  sï thió bytå ió 
+sufficienô  tï  specifù thå addresó oæ alì thå  routineó  iî  thå 
+handler®   Thå seconä bytå ió á devicå numbeò withiî thå handler®  
+Foò example¬ á harä disë formatteä aó twï logicaì driveó woulä bå 
+addresseä  bù twï tablå entries¬  botè witè thå samå addresó  buô 
+with two device numbers (0 and 1, usually).
+
+     Thió  mappinç  systeí makeó iô possiblå tï  reconfigurå  thå 
+system without having to reassemble the BIOS.
+
+     Driveò  moduleó comå iî twï flavors¬  characteò i/ï handleró 
+(consoleó  anä  lisô devices© anä disë  handlers®   Eacè  handleò 
+module starts on a page boundary with a jump table.
+
+
+Character handlers:
+
+     The jump table is :
+
+table+0        jp   poll console character in
+table+3        jp   console character input
+table+6        jp   console character output
+table+9        jp   list character output
+table+0C       jp   list status
+
+table+0F       eight character ASCII name for module
+
+     Thå routineó receivå exactlù thå samå paramteró aó describeä 
+iî  thå  CP/Í  ² Alteratioî Guide®   Iî  addition¬  eacè  routinå 
+receiveó  thå devicå numbeò iî A®   Thå routineó wilì  returî  tï 
+their caller whatever the normal code for CP/M 2 would be.
+.paŠDisk Handlers:
+
+     The jump table is :
+
+table+0        jp   home
+table+3        jp   select disk
+table+6        jp   set track
+table+9        jp   set sector
+table+0C       jp   read sector
+table+0F       jp   write sector
+table+12H      jp   flush buffers
+
+     Eacè  routinå  excepô flusè receiveó thå  normaì  parameteró 
+passeä  accordinç  tï  thå CP/Í ² Alteratioî  guide®   Thå  writå 
+routinå wilì receivå thå deblockinç informatioî iî Ã describeä iî 
+thå appendiø oî sectoò blocking/deblocking®   (Seå alsï thå  codå 
+foò  reaä anä writå iî thå floppù modulå oæ thå SUPERBIOS)®   Thå 
+device number is passed in A.
+
+     Selecô disë receiveó twï addtionaì paramters®   Oî thå firsô 
+calì tï selecô á giveî disë afteò á warí boot¬ biô · oæ Á wilì bå 
+set®   Iæ  thå selecô ió successfuì (knowî bù thå selecô  routinå 
+returninç á nonzerï valuå iî HL)¬  thå biô wilì bå reset¬ anä biô 
+7 of A will be reset until the next warm boot.
+
+     Selecô  alsï receiveó á parameteò iî B®   Â ió zerï oî entrù 
+tï  selecô iæ thå lasô disë succesfullù selecteä waó iî thå  samå 
+modulå aó thå ne÷ disë beinç selected®   Thió informatioî maù  bå 
+useful in determining buffer flushing strategies.
+
+     Thå  flusè  entrù poinô ió useä bù thå logicaì  disë  selecô 
+handler®  Flusè ió calleä oî thå currentlù selecteä disë wheneveò 
+á  disë iî á differenô modulå ió selected®   Thió ió á sigî  thaô 
+anù  shareä bufferó musô bå flushed®   Flusè shoulä returî ° iî Á 
+iæ  thå flusè waó successful¬  nonzerï iæ aî erroò  occured®   Iæ 
+flush returns an error code, the new disk select will be denied.
+
+
+DMA address handling:
+
+     Undeò certaiî conditions¬  thå BDOÓ wilì issuå á selecô disë 
+calì tï á ne÷ disk¬ anä expecô thå previouó DMÁ addresó tï remaiî 
+iî force®  Therefore¬ thå Seô DMÁ addresó BIOÓ calì simplù storeó 
+thå valuå aô á fixeä locatioî (FÅ anä FÆ relativå tï thå starô oæ 
+thå BIOS)®  Youò reaä anä writå routineó wilì havå tï geô thå DMÁ 
+address from this location before each operation.
+.paŠInterrupt handlers:
+
+     Aô  thå moment¬  thå SUPERBIOÓ doeó noô havå anù  interrupt-
+driveî  code®   However¬  futurå releaseó wilì uså interruptó foò 
+typeahead¬ harä disë controller¬ anä possiblù otheò useó aó well®  
+Thå uså oæ thå Z8° alternatå registeò seô ió reserveä foò  systeí 
+uså ONLY®  Thió wilì enablå improveä performancå iî aî interrupt-
+driveî   enviromenô   sincå  contexô  switchinç  wilì  bå   fast®  
+Therefore¬  wå  recommenä thaô anù modificationó yoõ makå tï  thå 
+codå dï noô uså thå alternatå registers¬ excepô iî youò interrupô 
+handlers.
+
+     Verù fe÷ CP/Í programó uså thå alternatå registeò  set®   Iæ 
+yoõ  uså  onå oæ thoså thaô does¬  wå suggesô yoõ includå á  flaç 
+bytå tï indicatå tï youò interrupô handleró thaô theyõ musô  savå 
+registers®   Thió  wilì  bå includeä iî thå nexô releaså  oæ  thå 
+SUPERBIOS.
+
+     Thå SUPERBIOÓ disableó interruptó wheî thå CPÕ ió waitinç oî 
+aî INTRÑ oò DRÑ froí thå FDC¬  durinç seeë anä sectoò read/write®  
+Interruptó  cannoô bå enableä durinç thå sectoò  read/write¬  buô 
+thå  seeë  caî bå rewritteî tï bå polleä iæ yoõ neeä thå  CPÕ  tï 
+samplå interruptó durinç thå seeë period®  Á realtimå clocë usinç 
+á  6° Hú interrupô wiì loså timå durinç disë access¬  buô á ±  Hú 
+clock should be OK.
+
+
+
+Example SUPERBIOS module:
+
+     Thå  filå RAMDISK.MAÃ ió includeä aó aî examplå oæ á modulaò 
+disë driver®  Iô showó thå uså oæ thå disë calls¬ anä caî bå useä 
+as is.
+

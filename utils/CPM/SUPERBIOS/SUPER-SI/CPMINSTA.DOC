@@ -1,0 +1,51 @@
+               Creatinç  á bootablå SUPERBIOÓ disë 
+               foò customeró whï alreadù owî CP/M
+
+
+1©    Patcè youò copù oæ MOVCPM.COÍ aó describeä iî thå  attacheä 
+Digitaì  Researcè Note®   Thió ió necessarù becauså thå SUPERBIOÓ 
+useó  á sectoò blocking/deblockinç algorithí (differenô thaî  thå 
+Digitaì Researcè algorithm© thaô useó thå directorù writå codå iî 
+Ã tï flusè disë bufferó afteò filå closing.
+
+2)   Make a copy of your SUPERBIOS distribution disk to work on.
+     Do PIP B:=*.*[vo] then use SYSGEN to transfer the loader.
+
+3©    Puô thå copù oæ oæ thå SUPERBIOÓ distributioî disë iî  youò 
+seconä floppù drivå (B:)¬ anä youò currenô CP/Í systeí disë (witè 
+thå patcheä MOVCPM.COM© iî thå firsô floppù drivå (A:).
+
+4)   Run MOVCPM and DDT to create a system file.
+
+     A>MOVCPÍ 61 ª       ¨ 61Ë ió thå normaì systeí sizå )
+
+     CONTSTRUCTING 61K CP/M V2.2
+     READY FOR "SYSGEN" OR "SAVE 34 CPM61.COM"
+
+     A>SAVE 34 B:CPM61.COM
+
+     A>B:
+     B>A:DDÔ  CPM61.COÍ  ¨  Uså youò DDÔ tï brinç iî CP/M )
+
+     NEXT      PC
+     2300      0100
+
+     -M980,1F7F,100      ( Move the CCP and BDOS to 100H )
+
+     -ICPM.SYS
+     -R1600              ( The CPM.SYS file has the BIOS image )
+
+     -M2D00,3700,1700    ( Move the new BIOS to 1700H )
+
+     -l1700,1702         ( Make sure move went OK )
+
+      1700 JMP FA00
+
+     -G0                 ( Exit and save )
+
+     B>ERA CPM.SYS
+     B>SAVE 34 CPM.SYS
+
+5©   Yoõ no÷ havå á bootablå systeí disë equivalenô tï thoså senô 
+to customers who have purchased CP/M from Advanced Micro Digital.
+

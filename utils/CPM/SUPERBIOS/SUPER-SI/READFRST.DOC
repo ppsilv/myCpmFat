@@ -1,0 +1,45 @@
+            SUPERBIOS distribution diskette contents:
+
+CPM.SYS      ió  á  memorù  imagå  oæ CP/Í  witè  thå  SUPERBIOS®  
+             Customeró whï havå noô purchaseä CP/Í froí  Advanceä 
+             Micrï  Digitaì  wilì receivå á CPM.SYÓ witè thå  CCĞ 
+             anä   BDOÓ  zeroeä  out®    Seå   CPMINSTA.DOÃ   foò 
+             installatioî procedure.
+
+USER.DOC     giveó  basiã informatioî necessarù foò thå operatioî 
+             oæ CP/Í witè thå SUPERBIOS¬ aó welì aó á descriptioî 
+             oæ thå contentó oæ alì thå .DOÃ files-
+             CPMINSTA.DOC¬ NEWSIZE.DOC¬ FORMAT.DOC¬ INTRFACE.DOC
+
+SUPRBIOS.MAC ió  thå sourcå filå foò thå SUPERBIOS®   Iô  caî  bå 
+             editeä   anä  reassembleä  iæ  modificatioî  oæ  thå 
+             SUPERBIOÓ   ió   desired®     Thå   procedurå    foò 
+             incorporatinç   á   ne÷   BIOÓ   ió   describeä   iî 
+             NEWSIZE.DOC.
+
+FORMAT.COM   ió  thå  SUPERBIOÓ floppù disë formaô  program®   Iô 
+             wilì  onlù ruî oî thå SUPEÒ QUAÄ SBC¬  buô wilì  ruî 
+             undeò  thå previouó BIOS®   Internaì detailó oæ  thå 
+             disk formats are described in FORMAT.DOC.
+
+LDRGEN.COM   ió  thå  equivalenô oæ SYSGEN.COÍ iî á  normaì  CP/Í 
+             system®   LDRGEN.COÍ  transferó thå  SUPERBIOÓ  colä 
+             starô   loadeò  froí  sourcå  (usuallù  á  disk©  tï 
+             destination®  Detailó oæ thå loadeò operatioî arå iî 
+             LOADER.DOC.
+
+FORMAT.ASM   is the source file for FORMAT.COM.
+
+SBCBOOT.ASM  ió thå sourcå filå foò thå colä loadeò oî tracë zerï 
+             sector one, which is brought in by the monitor PROM.
+
+SBCBOOT.HEX  ió  thå assembleä SBCBOOT.ASM¬  foò installatioî  iî 
+             customized loaders.
+
+LDRBDOS.MAC  ió  thå  sourcå filå foò thå  logicaì  (non-hardwarå 
+             dependent) portion of the loader.
+
+LDRBIOS.MAC  ió thå sourcå filå foò thå hardwarå driveró tï  makå 
+             thå  loadeò  worë  witè thå SUPEÒ QUAÄ  floppù  disë 
+             controller.
+

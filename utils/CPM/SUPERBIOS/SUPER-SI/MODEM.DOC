@@ -1,0 +1,327 @@
+
+
+
+                        CP/M MODEM PROGRAM DOCUMENTATION
+                                    05/18/82
+
+        Thió  prograí  useó  thå filå transfeò routineó writteî  bù  Warä 
+        Christenseî iî hió CP/Í filå transfeò prograí (V2.° aó oæ 8/6/79© 
+        anä ió compatablå witè hió prograí iî singlå filå transfeò  mode® 
+        Multi-filå  transferó  arå  onlù  possiblå  betweeî  twï  systemó 
+        runninç thå prograí describeä below.
+
+        This program has two functions:
+
+                1.  Communication
+                2.  Program transfer
+
+
+        COMMUNICATIONS
+
+        Thå  prograí  maù emulatå á terminaì oò echï datá bacë tï  sendeò 
+        (acô aó á computer).
+
+        Terminal Mode  -  'T' Option
+
+             Thå terminaì modå maù bå calleä witè oò withouô á filå name® 
+             Iæ  á  filå  ió specifieä (iô shoulä bå á  ne÷  file)¬  theî 
+             anythinç  receiveä bù thå modeí maù bå saveä iî  memorù  anä 
+             lateò writteî oî disk® Thå savå featurå ió toggleä ON/OFÆ bù 
+             Control-Y®  Á  coloî (:© wilì bå printeä aô thå beginninç oæ 
+             eacè linå wheî memorù savå ió active®  Thå coloî wilì noô bå 
+             transmitteä oveò thå modeí noò wilì iô bå saveä iî memory.
+
+             Iæ  á  filå ió noô specified¬  theî memorù savå caî  noô  bå 
+             activated.
+
+             Iæ  thå memorù buffeò ió fulì (thå buffeò ió froí thå toğ oæ 
+             thå prograí tï thå bottoí oæ BDOS)¬ thå contentó arå automa-
+             ticallù  writteî tï disë (buô thå filå ió noô  yeô  closed)® 
+             Communicationó  maù theî continuå witè thå buffeò reinitial-
+             ized®  Thå  computeò witè whicè yoõ arå  communicatinç  musô 
+             accepô  thå X-OÎ anä X-OFÆ (Control-Ñ anä Control-S© conven-
+             tionó oò datá wilì bå lost.
+
+             Wheî communicationó arå over¬ uså Control-Å tï exiô froí thå 
+             Terminaì modå anä enteò thå Menu®  Thå filå tï whicè yoõ arå 
+             writinç musô theî bå closeä bù usinç thå 'WRT§  command®  Iæ 
+             thió  ió noô done¬  alì datá wilì bå lost®  É decideä noô tï 
+             closå thå filå automaticallù sincå therå wilì bå timeó  wheî 
+             yoõ  leavå terminaì modå anä theî decidå tï  re-enter®  Thió 
+             maù  bå  donå whilå iî thå Menõ bù usinç thå 'RET§  command® 
+             Yoõ maù re-enteò Terminaì modå anä savå iî thå samå filå  aó 
+             manù  timeó  aó yoõ wisè aó lonç aó yoõ havå noô closeä  thå 
+             filå witè thå 'WRT§ command.
+
+             Whilå  iî  Terminaì  mode¬  Control-Ô wilì puô yoõ  iî  Filå 
+             Transfeò mode®  Thió wilì allo÷ yoõ tï senä thå contentó  oæ 
+             aî  ASCIÉ  filå oveò thå modem®  Thió routinå doeó nï  erroò Š
+
+
+
+
+
+
+
+
+
+
+             checkinç  anä therå arå nï protocoló specifieä betweeî  thió 
+             prograí anä thå receivinç computeò otheò thaî thaô iô shoulä 
+             bå  readù  tï receivå datá viá  thå  modem®  Control-Ø  wilì 
+             canceì thå transfer.
+
+        Computer mode - 'E' Option
+
+             Thió  modå echoó datá receiveä bù otheò computer®  Onlù  onå 
+             computeò maù bå iî thió modå aô onå time®  Therå ió nï  savå 
+             featurå iî thió mode® Usefuì iæ yoõ wisè tï communicatå witè 
+             somebodù runninç thå terminaì portioî oæ thå program.
+
+        File transfer - 'S' and 'R' Options
+
+             Theså  featureó  arå thå samå aó iî thå CP/Í  Modeí  prograí 
+             writteî  bù Warä Christenseî excepô thaô upoî completioî  oæ 
+             thå transfer¬  controì returnó tï thå Menõ unlesó thå secon-
+             darù  'T§  optioî haó beeî selected®  Iî  thå  latteò  case¬ 
+             controì  returnó tï Terminaì mode®  Remembeò thaô iæ yoõ arå 
+             operatinç  á  remotå computeò usinç  á  timesharinç  prograí 
+             (sucè  aó  Warä Christensen'ó "BYE")¬  thå remotå shoulä  bå 
+             instructeä  tï  senä oò receivå iî thå quieô (Q© modå  aó  á 
+             secondarù option®  Exampleó oæ commandó foò sendinç anä  re-
+             ceivinç arå listeä below.
+
+        Multi-file transfers
+
+             Usinç thå Â (batch© secondarù option¬ morå thaî onå filå anä 
+             ambiguouó filenameó maù bå transferred®  Tï senä files¬  uså 
+             thå  primarù optioî "S¢ anä thå secondarù optioî "B¢  (alonç  
+             witè  anù  otheò secondarù options)®  Tï receivå  thå  fileó 
+             beinç sent¬ uså thå "R¢ primarù optioî anä thå "B¢ secondarù 
+             option®  Fileó  maù noô bå nameä sincå filenameó arå senô bù 
+             thå sendinç program¬  buô á disë drivå maù bå specifieä  (oò 
+             elså thå fileó arå writteî tï thå defaulô drive).
+
+        Backup option
+
+             Therå  ió á bytå aô thå beginninç oæ thå prograí (106H© thaô 
+             wilì creatå á backuğ filå iæ á filå oî thå disë haó thå samå 
+             namå aó thå filå beinç receiveä iî multi-filå transfeò  (seå 
+             MODEM.SET)®  Iæ thió bytå ió seô tï 0FFH¬ á backuğ filå wilì 
+             bå  created®  Iæ  iô  ió zerï thå filå oî thå disë  wilì  bå  
+             deleteä beforå thå ne÷ filå ió received®  Iæ yoõ arå runninç 
+             CP/Í  ² anä á filå oî thå disë ió designateä R/Ï oò  SYS¬  á 
+             backuğ  wilì bå createä whetheò thå bytå aô 106È ió  seô  oò 
+             not.
+
+             Bå  carefuì  - iæ  yoõ arå runninç CP/Í ± anä thå  drivå  oî 
+             whicè  yoõ arå receivinç haó aî R/Ï filå witè thå samå  namå 
+             createä bù CP/Í 2¬  thå R/Ï filå caî noô bå accesseä (found¬ 
+             changed¬  erased¬  etc.© bù CP/Í 1®  Yoõ wilì thereforå havå 
+             twï fileó witè thå samå namå wheî yoõ arå runninç CP/Í 2® Tï 
+             fiø thió problem¬  uså CP/Í ± tï changå thå namå oæ thå filå 
+             thaô  ió noô R/O®  Theî uså CP/Í ² tï dï whaô yoõ wanô  witè Š
+
+
+
+
+
+
+
+
+
+
+             thå R/Ï file.
+
+             Examples:
+
+             Thå  sendeò enteró SBÔ B:*.COÍ tï senä alì thå COÍ fileó  oî 
+             disë  B®  Alsï  specifieä waó returî tï terminaì  modå  wheî 
+             done.
+
+             Thå  receiveò enteró RÂ tï receivå alì thå fileó beinç  senô 
+             oî thå defaulô drive.
+
+             Thå  sendeò enteró thå commanä SÂ ASM.COÍ *.HEØ B:M*.ª whicè 
+             wilì senä ASM.COÍ froí thå defaulô drive¬  alì thå HEØ fileó 
+             froí thå defaulô drive¬  anä alì thå fileó startinç witè "M¢ 
+             froí thå Â drive.
+
+             Multifilå transferó maù onlù bå donå froí thå menu®  Iô  maù 
+             noô bå specifieä wheî thå MODEÍ prograí ió called®  Iî otheò 
+             wordó  A>MODEÍ  SAÂ *.COÍ wilì resulô iî aî  INVALIÄ  OPTIOÎ 
+             erroò message.
+
+
+        Return to Menu - 'M' option
+
+             When asked to select an option, 'M' returns to Menu.
+
+        The MENU
+
+             Iæ thå Modeí prograí ió entereä witè nï option¬  thå Menõ ió 
+             called®  Thå Menõ giveó thå choicå oæ selectinç thå standarä 
+             optionó aó defineä bù Warä Christenseî (T¬ E¬ R¬ anä S)® Thå 
+             Terminaì modå haó beeî greatlù expandeä aó describeä  above® 
+             Thå  "R¢ anä "S¢ commandó musô bå calleä witè á filenamå  oò 
+             yoõ  wilì bå requireä tï enteò thå primarù commanä (Ó oò  R© 
+             anä thå filenamå agaiî (buô NOÔ thå secondarù options)®   Iæ 
+             yoõ  wanô multi-filå transfers¬ theî thå "R¢ optioî doeó noô 
+             neeä á filename.
+
+        REÔ  - Yoõ maù alsï enteò terminaì modå usinç thå 'RET§  command¬ 
+             buô nï datá wilì bå saveä sincå á filå maù noô bå nameä witè 
+             'RET'® Uså thå 'RET§ commanä tï RE-ENTEÒ Terminaì modå afteò 
+             iô  haó firsô beeî entereä witè thå 'T§ option®  Iæ thió  ió 
+             done¬  yoõ  wilì stilì bå ablå tï savå thå communicationó iæ 
+             yoõ werå doinç sï beforå yoõ exitteä thå terminaì mode.
+
+        WRÔ - Thå 'WRT§ commanä musô bå useä afteò leavinç Terminaì mode® 
+             Thió  writeó  thå lasô buffeò tï disë anä closeó  thå  file® 
+             Failurå tï uså thå 'WRT§ commanä resultó iî losó oæ alì datá 
+             anä á filå oæ lengtè zero.
+
+        DEÌ  - Thå 'DEL§ commanä eraseó thå mosô recenô filå accesseä  iî 
+             Terminaì  mode®  Usefuì iæ yoõ decidå  afteò  communicationó 
+             thaô yoõ don'ô wanô tï savå informatioî jusô gathered.
+
+        CPM - The 'CPM' command reboots and returns to CP/M.Š
+
+
+
+
+
+
+
+
+
+
+
+        XPÒ  - Thå 'XPR§ commanä ió á togglå whicè causeó thå menõ tï  bå 
+             printeä oò noô printed®  Initiallù thå menõ ió oî unlesó thå 
+             prograí ió calleä witè thå "X¢ optioî (ie® A>MODEÍ Ø ).
+
+        DIÒ  - Thå 'DIR§ commanä listó thå directorù oæ á  CP/Í  disk®  Á 
+             drivå  maù bå specifieä (ie®  DIÒ B:© oò thå  defaulô  drivå 
+             wilì bå listed® Afteò thå directorù ió listed¬ thå menõ wilì 
+             noô bå printeä whetheò XPÒ modå ió oî oò off® Iæ XPÒ modå ió 
+             oî anä yoõ wisè tï seå thå menu¬ hiô return.
+
+
+        LISTING OF COMMANDS AND OPTIONS
+
+            Primary options
+
+                S - send a CP/M file (must specify file/s)
+                R - receive  a CP/M file (must name file unless B sec opt used)
+                T - terminal mode (specify file if memory save wanted)
+                E - terminal mode with echo
+                M - return to menu
+                X - used only when program is called to initially
+                    toggle menu off
+
+            Secondary options
+
+                B - multi-file mode for sending and receiving files
+                T - return to terminal mode after transfer (memory save off)
+                R - view what is received in file transfer
+                S - view what is being sent in file transfer
+                V - view what is being sent or received in file transfer
+                T - Terminal mode (used with remotely controlled computer)
+
+        EXAMPLES        (fn = filename,  ft = filetype)
+
+             Send another file
+
+                                       S fn.ft
+
+             Receivå filå oî Â drive¬ vie÷ whaô ió beinç received¬ returî 
+             tï terminaì modå 
+
+                                       RRT B:fn.ft
+
+             Senä  alì COÍ files¬  nï messageó oî console
+
+                                       SBQ *.COM
+
+             Send two files from two different drives
+
+                                   SB A:fn1.ft1  B:fn2.ft2
+
+             Receive files being sent by above on drive A
+
+                                   RB A:Š
+
+
+
+
+
+
+
+
+
+
+
+             Terminaì mode¬ savå communicatioî iî file¬ (iî terminaì musô 
+             typå CTRL-Ù tï starô save¬  iî menõ musô typå "WRT¢ tï closå 
+             file.)
+
+                                   T fn.ft
+
+
+        COMPUTER TO COMPUTER TRANSFERS
+
+             Tï uså thió prograí foò transfeò oæ fileó betweeî twï compu-
+             teró  thaô  eacè arå runninç thió prograí anä  arå  directlù 
+             connecteä  togetheò bù aî RS-23² seriaì linë iô ió necessarù 
+             tï bå carefulì iî connectinç them® Eacè computer'ó senä datá 
+             linå musô bå connecteä tï thå otheró receivå datá line.
+
+             EXAMPLE:
+
+                       pins                                 pins
+             /----------\            RS-232 CABLE              /----------\
+             |          |2____________________________________3|          |
+             | Computer |                                      | Computer |
+             |   # 1    |3____________________________________2|   # 2    |
+             |          |                                      |          |
+             |          |7____________________________________7|          |
+             \----------/                                      \----------/
+         
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

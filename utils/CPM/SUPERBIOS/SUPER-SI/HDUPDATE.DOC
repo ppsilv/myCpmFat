@@ -1,0 +1,132 @@
+
+
+
+                    Hard Disk Superbios Documentation Update
+
+             Thió  filå ió designeä tï explaiî somå oæ thå changeó iî thå 
+        superbioó  thaô havå beeî madå foò thå harä disë anä tï  describå 
+        some of the new programs that have been added.
+
+
+        SUPER BIOS
+
+             Thå  superbioó  haó  haä driveró foò  thå  Advanceä  Digitaì 
+        HDC100± Harä Disë controller¬  interrupô consolå inpuô anä outpuô 
+        anä  warí  booô froí proí insteaä oæ froí disë  includeä  iî  it® 
+        Theså  driveró caî bå selecteä viá conditionaì assemblù switches¬ 
+        whetheò  theù  arå  includeä aô alì anä whaô typå  oæ  harä  disë 
+        driveó tï supporô iæ included.
+
+             Therå  arå alsï assemblù switcheó foò thå numbeò  oæ  floppù 
+        driveó  anä whetheò thå floppieó arå thå firsô logicaì driveó  oò 
+        not.
+
+             Thå  harä disë driveò wilì supporô mosô anù SA100° oò  ST50¶ 
+        interfacå  harä disë iî anù combinatioî aó lonç aó yoõ don'ô  trù 
+        tï miø SA100° interfacå witè ST506® Aó supplieä thå bioó containó 
+        equates for the following disk drives:
+
+             SEAGATE TECHNOLOGY
+                  ST503     ST506
+
+             TANDON MAGNETICS
+                  TM601S    TM602S    TM603S    TM603SE   TM501
+                  TM502     TM503
+
+             SHUGART ASSOCIATES
+                  SA602     SA604     SA606     SA1002    SA1004
+
+             QUANTUM
+                  Q2010     Q2020     Q2030     Q2040
+
+             MINISCRIBE
+                  4010      4020
+
+        other drives can be added without a lot of difficulty.
+
+             Aó  mentioneä  abovå  thå  bioó  no÷  includeó  supporô  foò 
+        interrupô  inpuô and/oò outpuô oî thå consolå port®  Thió caî  bå 
+        selecteä foò eitheò inpuô oò outpuô oò botè oò neitheò aó desireä 
+        by the user.
+
+             Thå  warí  booô froí proí allowó thå disë iî drivå A: tï  bå 
+        changeä  tï differenô densitieó oò tï diskó withouô aî  operatinç 
+        systeí aô warí booô time® Thió ió donå bù relocatinç thå CCĞ froí 
+        proí  tï  raí anä reinitializinç BDOÓ insteaä oæ readinç theí  iî 
+        froí  thå  disk®  Thió  procesó requireó á copù  oæ  thå  CCĞ  iî 
+        relocatablå  formaô  tï bå iî thå toğ 2.25ë oæ thå oî boarä  booô 
+        prom. Contact the factory for implementation of this option.Š
+
+
+
+
+
+
+
+
+
+
+
+
+        FMTHD & HDBADMPR
+
+             FMTHÄ  ió  thå  formaô routinå foò  thå  HDC100±  harä  disë 
+        controller. The format used is 16 512 byte sectors per track.
+
+             HDBADMPÒ  ió á prograí whicè wilì mağ ouô onå baä sectoò peò 
+        track®  Thió caî bå useä iæ thå medió oî youò harä disë drivå haó 
+        defects in it.
+
+
+        LDRGEN
+
+             Thió ió á ne÷ copù oæ thå loadeò generatoò prograí seô uğ tï 
+        handle the hard disk drive.
+
+
+        LDRBDOS & LODRBIOS
+
+             Theså  arå  ne÷ copieó oæ thå loadeò bdoó  anä  loadeò  bioó 
+        modified for use with the hard disk.
+
+
+        SBCBOOT
+
+             Thió  ió  á ne÷ copù oæ thå sectoò ° booô modifieä  foò  uså 
+        with the Microsoft M80 assembler.
+
+
+        SBCHBOOT
+
+             This is the sector 0 boot routine for the hard disk.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

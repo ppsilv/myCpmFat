@@ -1,0 +1,668 @@
+
+	.z80
+
+	include	SUPRBIOS.LIB
+
+rtrys	equ	010d
+
+;----------------------------------
+; HDC-1001 REGISTER PORT ADDRESSES
+; ---------------------------------
+
+hbase	equ	0e0h			; base port address of hdc-1001
+hdata	equ	hbase+0			; data register
+herror	equ	hbase+1			; error register
+hwrtpre	equ	hbase+1			; write pre-compensation register
+hseccnt	equ	hbase+2			; sector count register
+hsec	equ	hbase+3			; sector number register
+hcyllow	equ	hbase+4			; cylinder low register
+hcylhi	equ	hbase+5			; cylinder high register
+hsdh	equ	hbase+6			; size - drive - head register
+hstatus	equ	hbase+7			; status register port
+hcmd	equ	hbase+7			; command register port
+
+;-------------------
+; HDC-1001 COMMANDS
+;-------------------
+
+cmdrst	equ	010h			; restore command
+cmdrd	equ	020h			; read sector command
+
+;-----------------------------
+; STATUS REGISTER BIT TESTERS
+;-----------------------------
+
+bsybit	equ	080h			; busy bit
+rdybit	equ	040h			; data request bit
+errbit	equ	001h			; error bit	
+
+;------------------
+; BIOS JUMP VECTOR
+;------------------
+start:
+	jp	boot
+	jp	wboot
+	jp	const
+	jp	conin
+	jp	conout
+	jp	list
+	jp	punch
+	jp	reader
+	jp	hhome
+	jp	hseldsk
+	jp	hsettrk
+	jp	hsetsec
+	jp	setdma
+	jp	hread
+	jp	hwrite
+	jp	listst
+	jp	sectran
+
+;-----------
+; COLD BOOT
+;-----------
+
+boot:
+	ret
+
+;-----------
+; WARM BOOT
+;-----------
+
+wboot:
+	ret
+
+;-------------
+; LIST OUTPUT
+;-------------
+
+list:
+	ret
+
+;--------------
+; PUNCH OUTPUT
+;--------------
+
+punch:
+	ret
+
+;---------------
+; READER OUTPUT
+;---------------
+
+reader:
+	ret
+
+;-------------
+; LIST STATUS
+;-------------
+
+listst:
+	ret
+
+;----------------
+; CONSOLE STATUS
+;----------------
+	
+const:				;poll serial in-return A=0ff if char ready, else 0
+	add	A,A
+	inc	A			;A=command port
+	ld	C,A
+	in	A,(C)
+	and	1
+	ret	z			;no character waiting
+	ld	A,0ffh
+	ret
+
+;---------------
+; CONSOLE INPUT
+;---------------
+
+conin:
+	ld	B,A
+	call	const
+	ld	A,B
+	jr	z,conin			;loop until character received
+	add	A,A
+	ld	C,A
+	in	A,(C)
+	and	7fh			;mask high order bit
+	ret
+
+;----------------
+; CONSOLE OUTPUT
+;----------------
+ 
+conout::
+	ld	B,C	;character to output
+	add	A,A
+	inc	A
+	ld	C,A
+serst::	in	A,(C)
+	and	4
+	jr	z,serst
+	dec	C
+	out	(C),B
+	ret
+
+;	miscellaneous character i/o routines
+pmsg::					;equivalent to BDOS function 9 (print)
+	ld	A,(DE)
+	cp	'$'
+	ret	z
+	ld	C,A
+	inc	DE
+	push	DE
+	xor	A
+	call	conout
+	pop	DE
+	jr	pmsg
+
+phex::					;print A in hex
+	push	AF
+	rra
+	rra
+	rra
+	rra
+	call	hex1
+	pop	AF
+hex1::	and	0fh
+	add	A,90h
+	daa
+	adc	A,40h
+	daa
+	ld	C,A
+	xor	A
+	jp	conout
+
+;------------------
+; SET DMA ADDRESS
+;-----------------
+
+setdma:
+	ld	(dmaadr),bc		; shared among all drivers
+	ret
+
+;--------------------
+; SECTOR TRANSLATION
+;--------------------
+
+sectran:
+	ld	h,b
+	ld	l,c
+	ret
+
+;-------------
+; SELECT DISK
+;-------------
+
+hseldsk:
+	ld	hl,ddb0			; get deblocking parameters
+	ld	de,dbconst		; move dblk pars to usage area
+	ld	bc,13d			; 13 bytes of dblk pars
+	ldir				; move as block
+
+	ld	hl,dph0			; ret w. dsk parameter hder in hl
+
+	ret
+
+;------
+; HOME
+;------
+
+hhome:
+	call	restore			; restore drive heads to trk 0
+	ret
+	
+;-----------
+; SET TRACK
+;-----------
+
+hsettrk:
+	ld	(sektrk),bc		; bc contains selected track n.
+	ret
+
+;------------
+; SET SECTOR
+;------------
+
+hsetsec:
+	ld	(seksec),bc		; bc contains selected sector no.
+	ret
+
+;-------------
+; READ SECTOR
+;-------------
+
+hread:
+	xor	a			; clear accumulator
+	ld	(rtcnt),a		; reset retry count
+	ld	a,1			; set operation to read
+	ld	(oper),a		; save it for when we do xfer
+
+	call	deblk			; deblock phy sec, buf adr, and blk sec
+	call	inbuf			; check if new sector is in buf
+	call	xfer			; transfer data out of buf into dma
+	
+	ld	a,(rtcnt)		; if rtcnt not zero then error
+
+	ret
+
+;--------------
+; WRITE SECTOR
+;--------------
+hwrite:
+	ret
+
+;------------------------------------
+; DEBLOCK PHY SEC, BUF ADDR, BLK SEC
+;------------------------------------
+
+deblk:
+	ld	a,(pdrv)		; get phy drv from dsk deblk parameters
+	ld	(sekprv),a		; save it as sek phy drv
+
+	ld	a,(secshf)		; convert sek sec to phy sec
+	ld	de,(seksec)		; secshf is log2 cpm sps
+	call	shfr16			; shift de-reg, a-reg times
+	ld	a,(hstspt_1)		; de now contains sec rel to cyl 
+	and	e			; mask for sec rel to platter
+	ld	(dsec),a		; save it as deblocked sector
+
+	ld	a,(hdshf)		; convert seksec to phy head
+	ld	de,(seksec)		; hdshf is log2 cpm spt
+	call	shfr16			; hd no is high bits, so no msk needed
+	ld	a,(hdoff)		; add in head off set for partioning
+	add	a,e			; cartriage drv must be part. by hds 
+	ld	(dhd),a			; save it as deblocked head no.	
+
+	lä	a,(cpmsps_1©		» converô sekseã tï hsô buæ no.
+	ld	de,(seksec)		; mask out low order bits of sec no
+	and	e			; since buf no <= 8, need only lsb 
+	ld	e,a			; mul buf no x128 to get rel adr in buf
+	ld	d,0			; zero out high order of multiplicitan
+
+	ld	a,7			; convert hst buf no. to hst buf adr
+	call	shfl16			; mult by 128 (shift lf 7)
+	ld	hl,hstbuf		; base addr of hst buf
+	add	hl,de			; add in offset
+	ld	(dadr),hl		; save it as deblocked buf addr
+
+	ld	a,(blkshf)		; convert seksec to blk no.
+	ld	de,(seksec)		; blkshf = log2 cpm spb, what we are 
+	call	shfr16			; doing is, bl=int(sesc/cpmspb)
+	ld	(dblk),de		; save as blk no. on this trk
+
+	ld	a,(hstspb_1)		; convert seksec to hst sec no. in blk
+	ld	de,(dsec)		; must use sec just deblocked 
+	and	e			; and deblk sec w. hst spb
+	ld	(dblsec),a		; save it as deblocked block sec 
+	
+	ret
+
+;----------------------------
+; CHECK IF NEW SEC IS IN BUF
+;----------------------------
+
+inbuf:
+	ld	a,(seklrv)		; check if new drv = old drv
+	ld	hl,hstlrv		; first check if log drives are same
+	cp	(hl)			; compare w. last accessed drv
+	jp	nz,difblk		; if drvs are dif, then so is blk
+
+	ld	de,(sektrk)		; check if new trk = old trk
+	ld	hl,(hsttrk)		; this is the old trk
+	call	cmp16			; so far drv same
+	jp	nz,difblk		; if trks are dif, then so is blk
+
+	ld	a,(dhd)			; check if new head = old head
+	ld	hl,hsthd		; so far drv, trk same
+	cp	(hl)			; if dif hd, could be
+	jp	nz,ckblk		; same blk if blk size > phy trk siz
+
+	ld	a,(dsec)		; check if new sec = old sec
+	ld	hl,hstsec		; this is the old sec
+	cp	(hl)			; so far drv, trk, hd same
+	jp	nz,ckblk		; could be same blk even if dif sec
+
+	call	sethst			; everything same, set buf addr though
+
+	ret
+
+ckblk:
+	ld	hl,(dblk)		; check if new sec is in same blk
+	ld	de,(hstblk)		; if the new blk equal old blk
+	call	cmp16			; then do not reset usage vars
+	jp	nz,difblk		; regardless fall through to prerd  
+
+samblk:
+	call	hflush			; sam blk, but dif blk sec so flush old
+	ld	hl,usgblk		; check if this sec free in block
+	ld	de,(dblsec)		; look in block usage vector
+	ld	d,0			; index down to correct entry in vector
+	add	hl,de			; hl now contains addr of blk usg entry
+
+	ld	b,(hl)			; get blk usage flag
+	ld	a,(oper)		; get oper 
+	or	b			; if (sec not fre) or (oper is read)
+	jp	nz,prerd		; then need to pre-read sector
+
+nprerd:
+	call	sethst			; sector not allocated
+	ret
+difblk:	                                       			     
+	call	hflush
+	call	setusg			; sector not in block
+prerd:
+	call	sethst			; sector in blk but alloc, or dif blk
+	call	hrdhst			; read in new setor
+	ret
+
+;-------------------
+; FLUSH HOST BUFFER
+;-------------------
+
+hflush:
+	ld	a,(wrtpnd)		; check if host buffer active
+	and	a			; wrtpnd =0 if inactive, =0ff if active
+	call	nz,hwrthst		; physicaly flush buffer if active
+
+	xor	a			; clear write pending
+	ld	(wrtpnd),a		; host buffer now in active
+
+	ret
+
+;---------------------------------
+; SET DEBLOCKED VARS TO HOST VARS
+;---------------------------------
+
+sethst:
+	ld	hl,sekvars+2		; blk move sek & dblk vars to hst vars
+	ld	de,hstvars		; dont need seksec so sekvars+2 
+	ld	bc,14d			; this is how many to move
+	ldir				; set host variables
+	ret
+
+;--------------------------------------
+; TRANSFER DATA TO/FROM BUFFER AND DMA
+;--------------------------------------
+
+xfer:
+	ld	bc,080h			; transfer 128 bytes
+	ld	de,(dmaadr)		; load cpm addr (dma addr storage) 
+	ld	hl,(hstadr)		; load buf addr
+
+	ld	a,(oper)		; check if read or write operation
+	or	a			; oper =0 if read, =1 if write
+	jp	nz,transf		; jump if read
+
+	ex	de,hl			; read operation so switch directions
+transf:
+	ldir				; send 128 byte block
+
+	ret
+
+;--------------------------------
+; SET OR RESET BLOCK USAGE FLAGS
+;--------------------------------
+
+rsetusg:
+	ld	b,0			; set all block sectors in blk to free
+	jp	setblk			; sec in blk not allocated if =0
+setusg:
+	ld	b,0ffh			; set all block sectors in blk to used
+setblk:
+	ld	a,(hstspb_1)		; get no of host sector per block
+	ld	hl,usgblk		; get addr of blk sector usage vector
+setflg:
+	ld	(hl),b			; set or reset block usage flag
+	inc	hl			; point to next flag loc
+	dec	a			; dec count of block sectors to go
+	jp	p,setflg		; loop if more to set
+	ret		
+
+;------------------------------
+; UPDATE BLOCK USAGE VARIABLES
+;------------------------------
+
+update:
+	ld	de,(blksec)		; we have just written to a sec in blk
+	ld	d,0			; so set block sec usage flag to used
+	ld	hl,usgblk 		; first point to flag
+	add	hl,de			; de contains sector no. in block 
+	ld	a,0ffh			; 0ff means sector in block is not free
+	ld	(hl),a			; set flag 
+	ret
+
+;------------
+; WRITE HOST
+;------------
+
+hwrthst:
+	ret
+
+;-----------
+; READ HOST
+;-----------
+
+hrdhst:
+	call	settsk			; first set up controller registers
+
+	ld	a,cmdrd			; load a with command to read sector
+	out	(hcmd),a		; send read command to command reg
+
+	call	polbsy			; wait until not busy
+	call	rxdta			; transfer data from cnt buf to hst buf
+	call	retrys			; check for errors
+	jp	nz,hrdhst		; retrys sets zero flg if no errors
+	ret
+
+;---------------
+; SET TASK FILE
+;---------------
+
+settsk:
+	ld	a,(hstprv)		; get physical drive no.
+	ld	b,a			; save in b so can use a for mem fetch
+	sla	b			; rotate phy drive to correct position
+	sla	b			; drive is expected in bits 3 and 4
+	sla	b			; last shift for drive
+	ld	a,(hstsdh)		; get sdh sect size setting
+	or	b			; or it in w. rotated phy drive no
+	ld	b,a			; save result in b
+	ld	a,(hsthd)		; get host head no.
+	or	b			; or it in w. drv and sec siz
+	out	(hsdh),a		; send it siz drv hd register
+
+	ld	bc,(hsttrk)		; host track is really host cylinder
+	ld	a,b			; move msb to a-reg for out inst
+	out	(hcylhi),a		; send high byte to cylhi reg
+	ld	a,c			; move lsb  to a-reg
+	out	(hcyllow),a		; send to cyl low
+
+	ld	a,(hstsec)		; get host sector no
+	out	(hsec),a		; send to sector register
+
+	ret
+
+;-----------
+; SEND DATA    
+;-----------
+
+snddta: 
+	ret
+
+;--------------
+; RECIEVE DATA
+;--------------
+
+rxdta:
+	ld	a,(hstsiz)		; this is how many bytes to move
+	ld	b,a			; set up for inir
+	ld	c,hdata			; this is where the data comes from
+	ld	hl,hstbuf		; this is where the data goes
+	inir				; block move data into hst buf 
+
+	ld	a,(hstsiz+1)		; check if moving 512 bytes
+	and	2			; msb would be 2 if 512 bytes
+	jp	z,rxout			; jump over if moveing 128 or 256 only 
+	inir				; b should be zero, hl and c set also
+rxout:
+	ret
+
+;--------------------------------
+; RESTORE DRIVE HEADS TO TRK 000
+;--------------------------------
+
+restore:
+	ld	a,(stprte)		; set step rate when doing a restore
+	ld	b,cmdrst		; get a restore command
+	or	b			; or in step rate
+	out	(hcmd),a		; send it to the command register 
+
+	call	polbsy			; wait until not busy
+
+	ret
+
+;-----------
+; POLL BUSY
+;-----------
+
+polbsy:
+	in	a,(hstatus)		; read status port
+	and	a			; set flags
+	jp	m,polbsy		; loop if busy bit set
+
+	and	errbit			; mask for error bit
+	ret
+
+;---------------------
+; SET RETRY CONDITION
+;---------------------
+
+retrys:
+	in	a,(hstatus)		; read status register
+	and	errbit			; mask for error bit
+	jp	z,rtout			; jump to exit rtry
+
+	ld	a,(rtcnt)		; get no. of retrys so far
+	inc	a			; increment retry count
+	ld	(rtcnt),a		; save it for next time
+	cp	rtrys			; set not z flg, unless rtcnt = rtrys
+	ret				; return w. flag set or reset
+rtout:
+	xor	a			; clear zero flag
+	ld	(rtcnt),a		; clear retry cnt in case had to retry
+	ret				; return w. no errors
+
+;----------------
+; SHIFT RIGHT 16
+;----------------
+
+shfr16:
+	and	a			; shift de reg right a-reg times
+	jp	z,xr16			; jump over loop if shift 0 times
+shfrlp:
+	srl	d                	; shift msb first, bit 0 into carry
+	rr	e			; rotate carry into bit 7 lsb
+	dec	a			; decrement shift counter
+	jp	nz,shfrlp		; loop util finished
+xr16:
+	ret
+
+;---------------
+; SHIFT LEFT 16
+;---------------
+
+shfl16:
+	and	a			; shift de-reg left a-reg times
+	jp	z,xl16			; check for shift zero times
+shfllp:
+	sla	e			; shf lsb first, c = bit 7, bit 0 = 0
+	rl	d			; shf msb, bit 0 = carry
+	dec	a			; decrement shift counter
+	jr	nz,shfllp		; loop until a-reg eq zero
+xl16:
+	ret
+
+;------------------------------
+; COMPARE 16-BIT DE AND HL REG
+;------------------------------
+
+cmp16:
+	ld	a,e			; compare e-reg w. l-reg 
+	xor	l			; xor will zero accum. if e = l 
+	ret	nz			; return if not equal
+	ld	a,d			; compare d-reg w. h-reg
+	xor	h			; set zero flag if same
+	ret
+		
+;------------------------------------------------
+; DATA STORAGE
+;------------------------------------------------
+
+dmaadr:	 dw	0080h			; dma address storage
+rtcnt:	 db	0			; retry counter
+smapadr: dw	0			; seek drive map entry address
+
+sekvars: 				; seek variables 
+seksec:	dw	0			; seek sector 
+seklrv:	db	0			; seek logical drive 
+sekprv:	db	0			; seek physical drive
+sektrk:	dw	0			; seek track
+
+dhd:	db	0			; deblocked head 
+dsec:	db	0			; deblocked sector 
+dadr:	dw	0			; deblocked buffer address
+dblk:	dw	0			; deblocked block no. in cylinder
+dblsec:	db	0			; deblocked host sector no. in block
+
+dbconst:				; deblocking constants (calc in ddp)
+secsiz:	  dw	0			; host sector size
+sdhsiz:	  db	0			; shd reg sector siz
+pdrv:	  db	0			; physical drive
+hdoff:	  db	0			; head offset
+stprte:	  db	0			; cmd reg step rate	
+hstspt_1: db	0			; host sector per track  
+hstspb_1: db	0			; host sectors per block	
+hdshf:	  db	0			; log2 cpm spt
+blkshf:	  db	0			; log2 cpm spb
+hdmsk:	  db	0			; heads - 1
+secshf:	  db	0			; log2 cpm sps
+cpmsps_1: db	0			; cpm sps - 1
+
+hstvars:				; host drive variables
+hstlrv: db	0			; last logical drive operated on
+hstprv:	db	0			;      physical drive
+hsttrk:	dw	0			;      track (equiv to cylinder)	
+hsthd:	db	0			;      head
+hstsec:	db	0			;      sector
+hstadr:	dw	0			;      buffer address
+hstblk:	dw	0			;      block no. in current cylinder 
+blksec:	db	0			;      host sector no. in block
+hstsiz:	dw	0			;      physical sector size
+hstsdh:	db	0			;      sdh register sector size setting
+
+wrtpnd:	db	0			; write pending (host buffer active)
+wrttyp:	db	0			; write type (0=use, 1=dir, 2=free)
+
+oper:	db	0			; operation (0=write, 1=read)
+
+;------------------------------------------------------------------------------
+;			    DRIVE PARAMETER DEFINITIONS
+;------------------------------------------------------------------------------
+;
+; dskdef < drvtyp0, drvtyp1, ... , drvtypm>
+;
+;------------------------------------------------------------------------------
+
+	dskdef	<dma55>
+
+endmod	equ	$
+
+	end
+
+
+
+	end
+

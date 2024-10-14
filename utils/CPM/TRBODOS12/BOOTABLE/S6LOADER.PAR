@@ -1,0 +1,7 @@
+DSKAST = 0,DSKDRA	;ONLY 1 DISK DRIVE
+;   SEE S6MASTER.PAR FILE FOR EXPLANATION OF DRVTBL PROGRAMMING
+DRVTBL = 0		; 8" FLOPPY DRIVE
+MAXFPY = 1		;NUMBER OF FLOPPY DRIVES
+LOADFN = 0,"OSMASTER","SYS"
+MEMTOP = (0FFFF)	;0FFFF = TEST ALL OF MEMORY
+			;(0)   = DON'T TEST MEMORY

@@ -1,0 +1,3227 @@
+	TITLE	ADVANCED DIGITAL SUPERBIOS FOR SUPER QUAD Dec 18 1982 14:30
+
+;*****************************************************************
+;**								**
+;**		ADVANCED DIGITAL SUPER QUAD Z80 SBC		**
+;**								**
+;**			   SUPER BIOS				**
+;**								**
+;**	This bios contains drivers for:				**
+;**								**
+;**		Floppy disk					**
+;**		Hard disk					**
+;**		Two serial ports				**
+;**		Parallel port					**
+;**								**
+;**		Console input and output can be polled or	**
+;**		interrupt driven. Seperatly sellected.		**
+;**								**
+;**		Warm boot can be from disk or from prom.	**
+;**								**
+;**								**
+;**	Written by:						**
+;**								**
+;**		Scott Carter					**
+;**		Greg Lindberg					**
+;**								**
+;*****************************************************************
+
+	SUBTTL	Customization Equates
+page	60
+	.z80
+true	equ	0ffffh
+false	equ	0
+
+mini	equ	false		;true for minifloppy BIOS
+special equ	false		;true for 8"-5" special board
+m48tpi	equ	false		;true for 48tpi mini drives
+m96tpi	equ	false		;true for 96tpi mini drives
+nmbfpy	equ	2		;number of floppy disk drives
+fpyfrst	defl	true		;true if floppies are first logical drives
+				;only valid if hard disk installed
+
+prmboot	equ	true		;true for warmboot from prom (use only with warm boot prom)
+intrin	equ	true		;true for interrupt console input (Type ahead)
+introut	equ	false		;true for interrupt console output (Buffered console output)
+
+parprnt	equ	true		;true for parallel printer, false for serial printer
+
+;------------------------------------------------------------------------
+;	This is the seek rate constant!!  seekrt, below, is an offset!
+	seekrate equ	0		;6ms for 8", 12ms for 5"
+					;seek rate 0=3ms, 1=6ms, 2=10ms, 3=15ms
+					;these times double for minifloppies
+
+;***   Hard Disk selection choices   ***
+ST503	EQU	1		; Seagate Technology ST503
+ST506	EQU	2
+TM601S	EQU	3		; Tandon Magnetics TM601S
+TM602S	EQU	4
+TM603S	EQU	5
+TM603SE	EQU	6
+TM501	EQU	7		; Tandon Magnetics TM501
+TM502	EQU	8
+TM503	EQU	9
+SA602	EQU	10		; Shugart Associates SA602
+SA604	EQU	11
+SA606	EQU	12
+SA1002	EQU	13		; Shugart Associates SA1002
+SA1004	EQU	14
+Q2010	EQU	15		; Quantum Q2010
+Q2020	EQU	16
+Q2030	EQU	17
+Q2040	EQU	18
+M4010	EQU	19		; MiniScribe 4010
+M4020	EQU	20
+
+;***   HDC1001 Physical drives ***
+hd0	equ	M4020		; Set to type of drive or false if not used
+hd1	equ	false		;  all drives must have same interface type
+hd2	equ	false		;   i.e. all SA1000 type or all ST506 type
+hd3	equ	false
+
+	SUBTTL	SYMBOLIC EQUATES
+	page
+	if	intrin or introut
+ints	equ	true
+	else
+ints	equ	false
+	endif
+
+;	board hardware equates
+cmd	equ	0ch		;fdc command register
+trk	equ	cmd+1		;track register
+sec	equ	cmd+2		;sector register
+data	equ	cmd+3		;data register
+wait	equ	14h		;INTRQ and DRQ synch port (see manual)
+
+pioad	equ	4		;PIO channel A data
+pioac	equ	6		; "    "     " control
+piobd	equ	5		; "    "     B data
+piobc	equ	7		; "    "     " control
+
+memry	equ	16h		;memory control port
+;
+;	sector deblocking equates
+;
+hstcnt	equ	8		;number of sectors in buffer
+hstshft equ	3		;shift factor for # of sectors in buffer
+
+	if	mini 
+ddpspt	equ	4		;double density physical sectors per track
+	if	m48tpi
+tracks	equ	39		;minifloppies
+	else
+tracks	equ	76		;96tpi drives
+	endif
+	else
+ddpspt	equ	8		;eight inch
+tracks	equ	76
+	endif
+
+dpblen	equ	15		;length of a DPB
+;
+;	floppy disk hardware parameter offsets
+;	******	these are offsets into table do not change ******
+;
+density	equ	0		;0=single, 1=single side double D, 2= 2S2D
+seekrt	equ	1		;THIS IS OFFSET INTO TABLE, VALUE IN TABLE CAN BE
+				;seek rate 0=3ms, 1=6ms, 2=10ms, 3=15ms
+				;these times double for minifloppies
+pspt	equ	2		;physical sectors per track (one side)
+drvtrk	equ	3		;track a floppy is at
+parmlen equ	4		;length of the parameter block
+;
+;	miscellaneous equates
+;
+iobyte	equ	3		;used to select various consoles and printers
+cdisk	equ	4		;default disk user number
+bdos	equ	5
+retries equ	10		;retry count for disk operations
+inbfsz	equ	32		;size of input buffer for interrupt input must be power of 2
+outbfsz	equ	64		;size of output buffer for interrupt output must be power of 2
+
+	public	savnum,biosiz,mxld64k,kld64k,syssiz,ldofst,allfpy,lastadd
+
+	SUBTTL	Hard disk equates 
+	page
+
+;***   HDC1001 Disk equates   ***
+HOFF	EQU	1			; Number of reserved tracks for loader
+
+TST	MACRO	DN			;physical hard disk defined
+	IF	HD&DN
+x	defl	1
+	else
+x	defl	0
+	endif
+	endm
+
+hddsks	defl	0			;number of physical hard disk drives
+hdldrvs	defl	0			;number of logical hard disk drives
+
+hdtst	macro
+	rept	4
+	tst	%hddsks			;test all four physical drives
+	iff	x
+	exitm
+	endif
+	.lall
+hddsks	defl	hddsks+1
+	.xall
+	endm		;end rept
+	endm		;end hdtst
+
+	hdtst				;calculate number of physical hard disks
+
+	if	hddsks			;set flag for hard disks
+hard	equ	true
+	else
+hard	equ	false
+fpyfrst	defl	true			;force floppies first if no hard disks
+	endif
+;
+ddb	macro	data,comm
+;	define a db statement
+	db	data			comm
+	endm
+;
+ddw	macro	data,comm
+;	define a dw statement
+	dw	data			comm
+	endm
+;
+defds	macro	lab,space
+lab:	ds	space
+	endm
+;
+lds	macro	lb,dn,val
+size	defl	val&dn
+	defds	lb&dn,%size
+	endm
+
+	.sfcond
+	if	hard			;put this stuff in only if needed
+	.lfcond
+
+;***   Port equates for HDC1001   ***
+HDCBASE	EQU	0E0H		; Base of HDC1001
+HDCDATA	EQU	HDCBASE		; Data port
+WPC	EQU	HDCBASE+1	; Write precomp port
+HDCERR	EQU	WPC		; Error port
+SECNT	EQU	HDCBASE+2	; Sector count
+SECNO	EQU	HDCBASE+3	; Sector number
+CYLLO	EQU	HDCBASE+4	; Cylinder low
+CYLHI	EQU	HDCBASE+5	; Cylinder high
+SDH	EQU	HDCBASE+6	; Size/Drive/Head
+COMND	EQU	HDCBASE+7	; Command register
+STATUS	EQU	COMND		; Status register
+
+;***   Command equates for HDC1001   ***
+CREST	EQU	10H		; Restore command
+CSEEK	EQU	70H		; Seek command
+CREAD	EQU	20H		; Read sector command
+CWRITE	EQU	30H		; Write command
+CFORM	EQU	50H		; Format track
+
+inter	equ	8		;hard disk sector interleave factor
+secs	equ	16		;Physical sectors per track per head
+hstsiz	equ	512		;size of a hard disk physical sector
+hdstcnt	equ	hstsiz/128	;cp/m sectors per physical sector
+blksiz	equ	4096		;cp/m block size
+cpmspt	equ	hdstcnt*secs	;cp/m sectors per track per head
+cpmscbk	equ	blksiz/128	;cp/m sectors per cp/m block
+;
+dpbg	macro	dn,secs,bls,blm,ext,dks,dir,al0,al1,cks,off,phys
+	.lall
+dpb&dn:	dw	secs			;sec per track
+	db	bls			;block shift
+	db	blm			;block mask
+	db	ext			;extnt mask
+	dw	dks			;disk size-1
+	dw	dir			;directory max
+	db	al0			;alloc0
+	db	al1			;alloc1
+	dw	cks			;check size
+	dw	off			;offset
+	db	phys			;physical disk drive
+	.xall
+	endm
+
+hdscg	macro	dn,mxcl,mxhd,stprt
+	.lall
+hdesc&dn:
+	db	hdcbase			;base i/o port address
+	db	dn			;physical unit no.
+	db	inter			;hardware interleave
+	db	secs			;sectors per track
+	dw	mxcl			;last cylinder
+	db	mxhd			;last head
+	db	hstsiz/128		;sector size/128
+	db	stprt			;step rate
+	.xall
+	endm
+
+dsktyp	macro	dn,typ
+	.lall
+	.sfcond
+	if	typ eq ST503 
+hpb&dn	macro	no
+	dw	-1,hdesc&dn	
+als&no	defl	004Ch			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,128,5,31,1,607,511,240,0,0,1,%dn
+	hdscg	%dn,152,1,3
+	endm
+hddr&dn	defl	1
+	endif	
+
+	if	typ eq ST506
+hpb&dn	macro	no
+	dw	-1,hdesc&dn	
+als&no	defl	0098h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,256,5,31,1,1215,511,240,0,0,1,%dn
+	hdscg	%dn,152,3,3
+	endm
+hddr&dn	defl	1
+	endif	
+
+	if	typ eq TM601S
+hpb&dn	macro	no
+	dw	-1,hdesc&dn	
+als&no	defl	004Ch			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,128,5,31,1,607,511,240,0,0,1,%dn
+	hdsc	%dn,152,1,3
+	endm
+hddr&dn	defl	1
+	endif	
+
+	if	typ eq TM602S
+hpb&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0098h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,256,5,31,1,1215,511,240,0,0,1,%dn
+	hdsc	%dn,152,3,3
+	endm
+hddr&dn	defl	1
+	endif	
+
+	if	typ eq TM603S
+hpb&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	00E4h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,384,5,31,1,1823,1023,255,0,0,1,%dn
+	hdscg	%dn,152,5,3
+	endm
+hddr&dn	defl	1
+	endif
+
+	if	typ eq TM603SE
+hdpb603E0&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,384,5,31,1,2047,1023,255,0,0,1,%dn
+	hdscg	%dn,229,5,3
+	endm
+
+hdpb603E1&dn	macro	no
+als&no	defl	00FFh			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,384,5,31,1,699,511,240,0,0,172,%dn
+	endm
+
+hpb&dn	macro	no
+	local	x
+x	defl	no
+	hdpb603E0&dn	%x
+x	defl	x+1
+	hdpb603E1&dn	%x
+	endm
+hddr&dn	defl	2
+	endif
+
+	if	typ eq TM501
+hpb&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0099h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,128,5,31,1,1219,511,240,0,0,1,%dn
+	hdscg	%dn,305,1,3
+	endm
+hddr&dn	defl	1
+	endif
+
+	if	typ eq TM502
+hdpb5020&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,256,5,31,1,2047,1023,255,0,0,1,%dn
+	hdscg	%dn,305,3,3
+	endm
+
+hdpb5021&dn	macro	no
+als&no	defl	0031H			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,256,5,31,1,391,511,240,0,0,257,%dn
+	endm
+
+hpb&dn	macro	no
+	local	x
+x	defl	no
+	hdpb5020&dn	%x
+x	defl	x+1
+	hdpb5021&dn	%x
+	endm
+hddr&dn	defl	2
+	endif
+
+	if	typ eq TM503
+hdpb5030&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,384,5,31,1,2047,1023,255,0,0,1,%dn
+	hdscg	%dn,305,5,3
+	endm
+
+hdpb5031&dn	macro	no
+als&no	defl	00CAH			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,384,5,31,1,1611,1023,255,0,0,172,%dn
+	endm
+
+hpb&dn	macro	no
+	local	x
+x	defl	no
+	hdpb5030&dn	%x
+x	defl	x+1
+	hdpb5031&dn	%x
+	endm
+hddr&dn	defl	2
+	endif
+
+	if	typ eq SA602
+hpb&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0050h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,128,5,31,1,635,511,240,0,0,1,%dn
+	hdscg	%dn,159,1,3
+	endm
+hddr&dn	defl	1
+	endif
+
+	if	typ eq SA604
+hpb&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	009Fh			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,256,5,31,1,1271,511,240,0,0,1,%dn
+	hdsc	%dn,159,3,3
+	endm
+hddr&dn	defl	1
+	endif
+
+	if	typ eq SA606
+hpb&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	00EFh			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,384,5,31,1,1907,1023,255,0,0,1,%dn
+	hdscg	%dn,159,5,3
+	endm
+hddr&dn	defl	1
+	endif
+
+	if	typ eq SA1002
+hpb&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0080h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,128,5,31,1,1019,511,240,0,0,1,%dn
+	hdscg	%dn,255,1,0
+	endm
+hddr&dn	defl	1
+	endif
+
+	if	typ eq SA1004
+hpb&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	00FFh			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,256,5,31,1,2039,1023,255,0,0,1,%dn
+	hdscg	%dn,255,3,0
+	endm
+hddr&dn	defl	1
+	endif
+
+	if	typ eq Q2010
+hpb&dî	macrï	no
+	dw	-1,hdesc&dn
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,128,5,31,1,2043,1023,255,0,0,1,%dn
+	hdscg	%dn,511,1,0
+	endm
+hddr&dn	defl	1
+	endif
+
+	if	typ eq Q2020
+hdpb20&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,256,5,31,1,2047,1023,255,0,0,1,%dn
+	hdscg	%dn,511,3,0
+	endm
+
+hdpb21&dn	macro	no
+als&no	defl	00FFh			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,256,5,31,1,2039,1023,255,0,0,257,%dn
+	endm
+
+hpb&dn	macro	no
+	local	x
+x	defl	no
+	hdpb20&dn	%x
+x	defl	x+1
+	hdpb21&dn	%x
+	endm
+hddr&dn	defl	2
+	endif
+
+	if	typ eq Q2030
+hdpb30&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,384,5,31,1,2047,1023,255,0,0,1,%dn
+	hdscg	%dn,511,5,0
+	endm
+
+hdpb31&dn	macro	no
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,384,5,31,1,2047,1023,255,0,0,172,%dn
+	endm
+
+hdpb32&dn	macro	no
+als&no	defl	00FEh			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,384,5,31,1,2031,1023,255,0,0,343,%dn
+	endm
+
+hpb&dn	macro	no
+	local	x
+x	defl	no
+	hdpb30&dn	%x
+x	defl	x+1
+	hdpb31&dn	%x
+x	defl	x+1
+	hdpb32&dn	%x
+	endm
+hddr&dn	defl	3
+	endif
+
+	if	typ eq Q2040
+hdpb40&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,512,5,31,1,2047,1023,255,0,0,1,%dn
+	hdscg	%dn,511,7,0
+	endm
+
+hdpb41&dn	macro	no
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,512,5,31,1,2047,1023,255,0,0,129,%dn
+	endm
+
+hdpb42&dn	macro	no
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,512,5,31,1,2047,1023,255,0,0,257,%dn
+	endm
+
+hdpb43&dn	macro	no
+als&no	defl	00FEh			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,512,5,31,1,2031,1023,255,0,0,385,%dn
+	endm
+
+hpb&dn	macro	no
+	local	x
+x	defl	no
+	hdpb40&dn	%x
+x	defl	x+1
+	hdpb41&dn	%x
+x	defl	x+1
+	hdpb42&dn	%x
+x	defl	x+1
+	hdpb43&dn	%x
+	endm
+hddr&dn	defl	4
+	endif
+
+	if	typ eq M4010
+hpb&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	00F0h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,128,5,31,1,1915,1023,255,0,0,1,%dn
+	hdscg	%dn,479,1,0
+	endm
+hddr&dn	defl	1
+	endif
+
+	if	typ eq M4020
+hdpb4020&dn	macro	no
+	dw	-1,hdesc&dn
+als&no	defl	0100h			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,256,5,31,1,2047,1023,255,0,0,1,%dn
+	hdscg	%dn,480,3,0
+	endm
+
+hdpb4021&dn	macro	no
+als&no	defl	00DFh			;size of allocation vector
+css&no	defl	0			;number of checksum elements
+	dpbg	%no,256,5,31,1,1783,1023,255,0,0,257,%dn
+	endm
+
+hpb&dn	macro	no
+	local	x
+x	defl	no
+	hdpb4020&dn	%x
+x	defl	x+1
+	hdpb4021&dn	%x
+	endm
+hddr&dn	defl	2
+	endif
+
+hdldrvs	defl	hdldrvs+hddr&dn
+	.lfcond
+	.xall
+	endm
+
+
+x	defl	0
+	rept	hddsks
+	dsktyp	%x,hd%x			;define hard disk parameters
+x	defl	x+1
+	endm
+
+;
+;
+dskhdr	macro	dn
+;	define a single disk header list
+	.lall
+hdph&dn:
+	dw	0000h,0000h		;translate table
+	dw	0000h,0000h		;scratch area
+	dw	dirbuf,dpb&dn		;dir buff,parm block
+	dw	hdcsv&dn,hdalv&dn		;check, alloc vectors
+	.xall
+	endm
+;
+hddisks	macro	nd
+;	define nd disks
+ndisks	defl	nd			;for later reference
+dpbase	equ	$			;base of disk parameter blocks
+;	generate the nd elements
+dsknxt	defl	nmbfpy
+	rept	nd
+	dskhdr	%dsknxt
+dsknxt	defl	dsknxt+1
+	endm
+	endm
+;
+lgdrvs	defl	0
+;
+hdpbs	macro	dn,lgno
+	hpb&dn	lgno
+lgdrvs	defl	hddr&dn
+	endm
+;
+hddpbs	macro	times			;define hard disk parameter blocks
+	local	x,y
+x	defl	0
+y	defl	nmbfpy
+	rept	times
+	hdpbs	%x,%y			;define dpb's for this hd drive
+x	defl	x+1			;bump counters
+y	defl	y+lgdrvs
+	endm
+	endm
+;
+hdvect	macro
+;	generate the necessary ram data areas
+dsknxt	defl	nmbfpy
+	rept	ndisks			;once for each disk
+	lds	hdalv,%dsknxt,als
+	lds	hdcsv,%dsknxt,css
+dsknxt	defl	dsknxt+1
+	endm
+	endm
+;
+logdsk	defl	nmbfpy
+
+	endif		;hard disk definitions
+	.lfcond
+
+fdskhdr	macro	dn
+	.lall
+fdph&dn:
+	dw	trans,0,0,0
+	dw	dirbuf,fdpbase
+	dw	chk0&dn,all0&dn
+	.xall
+	endm
+fdisks	macro
+x	defl	0
+	rept	nmbfpy
+	fdskhdr	%x
+x	defl	x+1
+	endm
+	endm
+
+dwdsk	macro	drvr,lgdsk
+	dw	drvr+lgdsk
+	endm
+
+DSKTBL	MACRO				;DEFINES DISK ASSIGNMENT TABLE
+
+x	defl	0
+	.lall
+drvtbl	equ	$+1
+	.xall
+
+	if	fpyfrst	
+	dw	fpy
+
+	rept	nmbfpy-1
+	dwdsk	fpy,%x
+x	defl	x+1
+	endm		;rept
+
+y	defl	0
+
+	rept	hdldrvs
+	dwdsk	hdc,%x
+
+	iff	y		;if first time thru
+x	defl	0		;reset x for hard disk logical drives starting at 0
+y	defl	y+1
+	else
+x	defl	x+1
+	endif
+	endm		;rept
+
+	else		;fpyfrst
+
+	dw	hdc
+
+	rept	hdldrvs-1
+	dwdsk	hdc,%x
+x	defl	x+1
+	endm		;rept
+
+y	defl	0
+
+	rept	nmbfpy
+	dwdsk	fpy,%x
+
+	iff	y		;if first time thru
+x	defl	0		;reset x for hard disk logical drives starting at 0
+y	defl	y+1
+	else
+x	defl	x+1
+	endif
+	endm		;rept
+	endif
+
+	ddb	%x,<;last logical drive>
+
+	rept	16-nmbfpy-hdldrvs
+	dw	0
+	endm		;rept
+	endm		;dsktbl
+
+	SUBTTL	BIOS ENTRY AND PUBLIC TABLES
+	page
+;
+;	BIOS jump table
+start::	jp	coldboot
+wboota::	jp	wboot
+	jp	const
+	jp	conin
+	jp	conout
+	jp	list
+	jp	punch
+	jp	reader
+	jp	home
+	jp	seldsk
+	jp	settrk
+	jp	setsec
+	jp	setdma
+	jp	read
+	jp	write
+	jp	listst
+	jp	sectran
+
+ccpstart::
+	dw	start-1600h	;CP/M boot address
+bdosjmp::
+	dw	start-0dfah	;BDOS jump
+
+;
+;	warm boot table
+;	filled in by CPMLDR
+;
+;	contains entries of form dw track, dw first sector, dw last sector
+;	it is a map of where the image of the CCP and BDOS reside on disk
+
+bootbl::	
+	dw	0,0,0			;space for four entries
+	dw	0,0,0
+	dw	0,0,0
+	dw	0,0,0
+	dw	0			;extra to guarantee 0 track to exit properly
+page
+	if	ints			;interrupt driven i/o
+	ds	16-(($-start) mod 16)
+;
+;	serial channel interrupt vector table
+;	contains one entry for each interrupt that
+;	can be generated by sio/dart
+;
+serinttbl::
+	dw	intret			; channel B transmitter buffer empty
+	dw	intret			; channel B external interrupts
+	dw	intret			; channel B receiver ready
+	dw	intret			; channel B special receive interrupt
+
+	if	introut
+	dw	tran0int		; channel A transmitter buffer empty
+	else
+	dw	intret			; channel A transmitter buffer empty
+	endif
+
+	dw	intret			; channel A external interrupts
+
+	if	intrin
+	dw	recv0int		; channel A receiver ready
+	else
+	dw	intret			; channel A receiver ready
+	endif
+
+	dw	intret			; channel A special receive interrupt
+	endif
+
+	SUBTTL	Driver dispatcher
+	page
+home::	ld	D,0
+	jr	dskjmp
+
+settrk::
+	ld	D,6
+	jr	dskjmp
+
+setsec::
+	ld	D,9
+	jr	dskjmp
+
+read::	ld	D,0ch
+	jr	dskjmp
+
+write::	ld	D,0fh
+
+dskjmp::				;go to correct disk routine
+	ld	A,(curdsk)	;current logical drive
+getvec:: ld	HL,drvtbl
+dskcon::	add	A,A
+	ld	E,A
+	ld	A,D		;low order byte of vector supplied
+	ld	D,0
+	add	HL,DE
+	ld	D,(HL)		;high order byte of jump vector
+	inc	HL
+	ld	E,A		;vector lsb
+	ld	A,(HL)		;driver number
+	ex	DE,HL
+jphl::	jp	(HL)
+
+curdsk::
+	db	0		;currently selcted logical drive
+
+	ret			;and leave
+page
+;	Console/list vectors
+const::	ld	D,0
+	jr	conjmp
+
+conin::	ld	D,3
+	jr	conjmp
+
+conout::
+	ld	D,6
+	jr	conjmp
+
+list::	ld	D,9
+	jr	lstjmp
+
+listst::
+	ld	D,0ch
+
+lstjmp::
+	ld	A,(iobyte)
+	rlca
+	rlca			;make 0-3
+	ld	HL,lsttbl
+	jr	jmp2
+
+conjmp::				;get jump for console drivers
+	ld	A,(iobyte)
+	ld	HL,contbl
+jmp2:	and	00000011b	;get console field
+	jr	dskcon
+
+reader::
+	ld	d,3
+	ld	hl,rdrtbl
+	ld	a,(iobyte)
+	jr	gordr
+
+punch::	ld	d,6
+	ld	hl,puntbl
+	ld	a,(iobyte)
+	rra
+	rra
+gordr::	rra
+	rra
+	jr	jmp2
+
+	SUBTTL	Configuration tables
+	page
+;-----------------------------------------------------------------------
+;
+;	Hardware configuration table
+;
+org	100h-2
+iodma::	db	80h			;this is the low order byte
+					;of the 80h default				
+
+	dsktbl				;define disk assignment table
+
+contbl	equ	$+1
+	dw	cpu
+	dw	cpu			;default=serial 0
+	db	1			;alternate=serial 1
+	db	0,0,0			;space for two more console drivers
+
+lsttbl	equ	$+1
+	dw	cpu
+
+	if parprnt
+	dw	cpu+2			;default=parallel
+	db	1			;alternate=serial 1
+	else
+	dw	cpu+1			;default=serial 1
+	db	2			;alternate=parallel
+	endif
+
+	db	0,0,0
+
+rdrtbl	equ	$+1
+	dw	cpu
+	dw	cpu+1			;default=serial 1
+	db	0			;alternate=serial 0
+	db	0,0,0			;space for two more readers drivers
+
+puntbl	equ	$+1
+	dw	cpu
+	dw	cpu+1			;default=serial 1
+	db	0			;alternate=serial 0
+	db	0,0,0,0			;space for two more punch drivers
+
+	SUBTTL	Warm boot code
+	page
+;
+;	Wboot reads in the CCP and BDOS from the CPM.SYS file
+;	CPMLDR initializes the bootbl to be a list of items of
+;
+;	track (dw), first sector(db), last sector(db)
+;
+wboot::
+	if	not prmboot		;use this code if warm boot from disk
+
+	if	ints
+	di				;turn interrupts off
+	endif
+
+	ld	SP,100			;use default buffer
+	ld	C,0			;drive A::
+ 	call	seldsk			;select drive A::
+	ld	A,H
+	or	L
+	jp	z,booterr		;bad select
+
+	ld	E,(HL)
+	inc	HL
+	ld	D,(HL)			;DE=sector translate from DPH
+	ld	(bootxlt),DE
+	ld	HL,(ccpstart)		;start of CCP-starting DMA
+
+	ld	IY,bootbl-6		;point to boot table
+
+nxttrk:	push	HL			;current DMA
+					;read sectors of next track
+	ld	DE,6			;update track pointer
+	add	IY,DE
+	ld	C,(IY)
+	ld	B,(IY+1)		;BC=track
+	ld	A,B
+	or	C
+	jr	z,bootdone		;last track done
+	call	settrk
+	ld	C,(IY+2)		;get next sector to read
+	ld	B,(IY+3)
+	dec	BC			;pre decrement it
+	ld	(nextsc),BC		;save it
+
+nxtsec:	pop	BC			;DMA
+	push	BC
+	call	setdma
+	scf				;clear carry flag
+	ccf
+	ld	BC,(nextsc)		;get next sector to read
+	inc	BC			;update it
+	ld	L,(IY+4)		;get last sector
+	ld	H,(IY+5)
+	sbc	HL,BC			;any more on this track
+	pop	HL			;fix stack
+	jr	c,nxttrk		;done with last sector
+	ld	(nextsc),BC		;save next sector
+	ld	DE,128
+	add	HL,DE			;update DMA
+	push	HL
+	ld	DE,(bootxlt)
+	call	sectran
+	ld	C,L
+	ld	B,H
+	call	setsec
+	call	read
+	or	A
+	jr	nz,booterr		;physical read error
+	jr	nxtsec
+
+	endif				;disk boot code
+
+
+bootdone::				;set low memory
+	if	ints and prmboot
+	di				;turn interrupts off
+	endif
+
+	ld	HL,(bdosjmp)
+	ld	(6),HL			;normal BDOS jump
+	ld	HL,wboota
+	ld	(1),HL			;warm boot jump
+	ld	A,0c3h			;'JP' intruction
+	ld	(0),A
+	ld	(5),A
+
+	if	prmboot			;warmboot from prom code
+;
+VROFST	EQU	54H			;OFFSET BELOW BIOS FOR BDOS VARIABLE AREA
+CLRLEN	EQU	4DH			;LENGTH OF BDOS VARIABLE AREA TO CLEAR
+RELCCP	EQU	0F800H			;BEGINNING OF RELOCATABLE CCP IN PROM
+RELTAB	EQU	RELCCP-100H		;BEGINNING OF RELOCATION TABLE
+;
+;	This routine clears the variable area of bdos for warmboot
+;	from prom
+;
+CLEAR::	LD	HL,START-VROFST		;FIND ADDRESS OF BDOS VARIABLES
+	LD	(HL),0E5H		;SET FIRST VARIABLE
+	XOR	A			;SET UP FOR NEXT VARIABLES
+	ld	(start-0af3h),A		;clear listing toggle
+	INC	HL			;
+	LD	(HL),A			;CLEAR NEXT
+	INC	HL			;
+	LD	(HL),A			;CLEAR NEXT
+	INC	HL			;
+	LD	(HL),A			;CLEAR NEXT
+	INC	HL			;
+	LD	(HL),A			;CLEAR NEXT
+	INC	HL			;
+	LD	(HL),80H		;INIT NEXT
+	INC	HL			;
+	LD	(HL),A			;CLEAR NEXT
+	PUSH	HL			;SAVE THIS ADDRESS (SOURCE FOR CLEAR)
+	INC	HL			; (DESTINATION)
+	EX	DE,HL			;PUT DESTINATION ADDRESS IN DE
+	POP	HL			;GET SOURCE ADDRESS BACK
+	LD	BC,CLRLEN		;SET LENGTH
+	LDIR				;CLEAR REST OF VARIABLES
+;
+	LD	DE,CCPMOVER		;DESTINATION FOR CCPMOVER
+	LD	HL,WRMLDR		;SOURCE FOR CCPMOVER
+	LD	BC,LDRLEN		;LENGTH TO MOVE
+	LDIR				;MOVE CCPMOVER TO LOW MEMORY
+	JP	CCPMOVER		;GO DO IT
+;
+WRMLDR::
+	.PHASE	80H
+;
+;	This routine will relocate the ccp from the on board prom
+;	to memory regardless of system size.
+;
+;	ccp should be located in upper 2k of onboard prom with
+;	relocation table in 256 bytes below it.
+;
+CCPMOVER::
+	LD	DE,(CCPSTART)		;GET ADDRESS TO LOAD CCP TO
+	LD	A,4FH			;TURN PROM ON
+	OUT	(MEMRY),A		;
+;
+STRTMOV::
+	LD	HL,RELCCP		;GET BEGINNING RELOCATABLE CCP
+	LD	B,D			;PUT RELOCATION OFFSET INTO B
+	LD	IY,RELTAB		;GET ADDRESS OF RELOCATION TABLE
+	LD	IX,CCPLEN		;GET ADDRESS OF CCP LENGTH
+STRTLOP::
+	LD	C,8			;SET UP RELOCATION BIT COUNTER
+	LD	A,(IY+0)		;GET RELOCATION BYTE
+MOVLOP::
+	RLCA				;NEED TO RELOCATE IT
+	PUSH	AF			;SAVE AF
+	LD	A,(HL)			;GET BYTE TO MOVE
+	JR	NC,STOR			;SKIP RELOCATION IF NOT NEEDED FOR THIS BYTE
+	ADD	A,B			; OTHERWISE RELOCATE BYTE
+STOR::	LD	(DE),A			;STORE BYTE AT NEW LOCATION
+	POP	AF			;GET BACK
+	INC	DE			;UPDATE POINTERS
+	INC	HL			;
+	DEC	(IX+0)			;DONE MOVING YET
+	JR	NZ,NOTDNE		;IF LOW BYTE NOT ZERO SKIP REST OF CHECK
+	DEC	(IX+1)
+	JR	Z,DNEMOV		;IF SO LEAVE
+NOTDNE::
+	DEC	C			;NEED TO UPDATE RELOCATION BYTE POINTER
+	JR	NZ,MOVLOP		;IF NOT GO DO MORE
+	INC	IY			; OTHERWISE BUMP POINTER
+	JR	STRTLOP			; AND GO TO REINITIALIZE COUNTER
+;
+DNEMOV::
+	LD	A,6FH			;TURN PROM OFF
+	OUT	(MEMRY),A		;
+
+	endif				;prom boot code
+
+	ld	HL,(ccpstart)
+	ld	A,(cdisk)
+	ld	C,A
+
+	if	ints
+	ei				;turn interrupts on
+	endif
+
+	jp	(HL)			;go to CP/M
+
+	if	prmboot
+;
+;
+CCPLEN::
+	DW	800H			;COUNTER FOR LENGTH OF CCP TO RELOCATE
+;
+LDRLEN	EQU	$-CCPMOVER		;LENGTH OF CCPMOVER
+;
+	.DEPHASE
+WRMLDRN	EQU	$
+
+	else
+
+nextsc:	ds	2			;temp storage for next sector to read an wboot
+bootxlt::
+	dw	0			;boot disk sector translate table
+
+	endif
+
+booterr::
+	ld	DE,badbootmsg
+	call	pmsg
+	halt				;must reset system
+
+badbootmsg::
+	db	'Warm boot error-reset system'
+crlf::	db	0dh,0ah,'$'
+
+	SUBTTL	Console and List drivers
+	page
+cpuio 	equ	(($-start-1)/256)+1
+;
+;	Console/list drivers
+;	All have entry A=driver number, other parameters per CP/M
+;	A=0 serial port 0; A=1 serial port 1; A=2 parallel (list only)
+org	cpuio*256
+cpu::
+			;standard console/list routines for CPU serial ports
+	jp	pserin		;
+	jp	serin		;these three go direct to serial
+	jp	serout		;
+	jp	lstout
+	jp	pollst
+
+db	'SBCIO   '	;module name for display
+	
+pserin::			;poll serial in-return A=0ff if char ready, else 0
+	add	A,A
+
+	if	intrin
+	jr	z,polbuf			;for first serial port
+	endif
+
+	inc	A
+			;A=command port
+	ld	C,A
+	in	A,(C)
+	and	1
+	ret	z	;no character waiting
+	ld	A,0ffh
+	ret
+
+	if	intrin
+polbuf::
+	ld	hl,(outptri)		;get pointers input and output locs in buffer
+	ld	a,h
+	sub	l			;any thing in buffer
+	ret	z			;nothing there
+	ld	a,0ffh			;there is something
+	ret
+	endif
+
+serin::
+	ld	B,A
+	call	pserin
+	ld	A,B
+	jr	z,serin	;loop until character received
+	add	A,A
+
+	if	intrin
+	jr	z,bufin			;for first serial port
+	endif
+
+	ld	C,A
+	in	A,(C)
+	and	7fh	;mask high order bit
+	ret
+
+	if	intrin
+bufin::	di				;disable interrupts for saftey
+	ld	h,0			;make into offset to retrieve from
+	ld	de,inpbuf		;get address of buffer
+	add	hl,de			;get address
+	ld	a,l			;update pointer
+	inc	a
+	and	inbfsz-1
+	ld	(outptri),a
+	ei				;ok to turn interrupts on now
+	ld	a,(hl)			;get char
+	ret				;all done
+
+recv0int::
+	ld	(svstk),SP		;save user stack pointer
+	ld	SP,locstk
+	push	HL			;save registers
+	push	DE
+	push	AF
+	ld	HL,(outptri)		;check if overflow
+	inc	H
+	ld	A,L
+	and	inbfsz-1
+	cp	H
+	jò	nz,rcv0±		;skið iæ rooí foò more
+	IN	A,(0)			;clear input port
+	xor	A			;clear channel no.
+	ld	C,07			;send bell
+	call	serout
+	jr	rcv02			;exit
+
+rcv01:	ld	de,(inptri)		;get pointer to store address
+	ld	d,0
+	ld	hl,inpbuf		;get address of base of buffer
+	add	hl,de			;find next address in buffer
+	in	a,(0)			;get input char
+	and	7fh			;mask out parity
+	ld	(hl),a			;save char
+	ld	a,l			;update pointer
+	inc	a
+	and	inbfsz-1
+	ld	(inptri),a
+rcv02:	pop	AF
+	pop	DE
+	pop	HL			;restore registers
+	ld	SP,(svstk)
+	endif
+
+	if	ints			;enable for bad interrupts
+intret::
+	ei				;enable interrupts
+	reti				;return from interrupt
+	endif
+	page
+
+serout::
+	ld	B,C	;character to output
+	add	A,A
+
+	if	introut
+	jr	z,bufout		;for first serial port if interrupts
+	endif
+
+	inc	A
+	ld	C,A
+serst::	in	A,(C)
+	and	4
+	jr	z,serst
+	dec	C
+	out	(C),B
+	ret
+
+	if	introut
+bufout::
+	di				;kill interrupts for a bit
+	ld	hl,(inptro)		;get buffer pointers
+	ld	a,l			;anything in buffer
+	sub	h
+	jr	z,chkout		;if not go check if anything in transmitter
+	ei				;interrupts on again for a bit
+bfot1:	ld	hl,(inptro)		;get buffer pointers
+	inc	l			;any room in buffer
+	ld	a,l
+	and	outbfsz-1
+	sub	h
+	jr	z,bfot1			;wait if not
+	di				;turn interrupts off some more
+	dec	l			;set up pointer into buffer
+	ld	h,0
+	ld	de,outbuf
+	add	hl,de
+	ld	(hl),c			;put char into buffer
+	ld	a,l			;update input pointer
+	inc	a
+	and	outbfsz-1
+	ld	(inptro),a
+	ei				;interrupts on
+	ret				;and return
+
+chkout::
+	in	a,(1)			;get transmitter status
+	and	4			;is transmitter empty
+	jr	z,bfot1		;if not go put char into buffer
+	ld	a,c			;otherwise send char
+	out	(0),a
+	ei				;and now return with interrupts on
+	ret
+
+tran0int::
+	ld	(svstk),SP		;save user stack pointer
+	ld	SP,locstk
+	push	HL			;save registers
+	push	DE
+	push	AF
+	ld	hl,(inptro)		;anything more to send
+	ld	a,l
+	sub	h
+	jr	z,trret			;if not leave
+	ld	l,h			;get address of next char to send
+	ld	h,0
+	ld	de,outbuf
+	add	hl,de
+	ld	a,(hl)			;get char to send
+	out	(0),a			;send it
+	inc	l			;update pointer
+	ld	a,l
+	and	outbfsz-1
+	ld	(outptro),a
+	jr	trint1
+trret:	ld	a,28h			;reset tx interrupt
+	out	(1),a
+trint1:
+	if	intrin
+	jp	rcv02			;if interrupt input use that return
+	else
+	pop	AF			;restore registors
+	pop	DE
+	pop	HL
+	ld	SP,(svstk)
+	ei				;interrupts back on
+	reti				;and return
+	endif		;intrin
+	endif		;introut
+page
+;	these are the drivers modified for use with the printer
+
+lstout:: cp	2	;parallel?
+	jr	z,plist
+	ld	B,A	;must be serial
+	ld	E,C
+lstot1::
+	call	plserout
+	or	A
+	ld	A,B
+	jr	z,lstot1
+	dec	C
+	out	(C),E
+	ret
+
+pollst::	cp	2
+	jr	z,polplist
+
+plserout:: add	A,A	;serial out poll for printer-check busy line	
+	inc	A
+	ld	C,A
+	ld	A,10h	;reset DART latch to get current value of BUSY
+	out	(C),A
+	in	A,(C)
+	and	0ch
+	cp	0ch
+	ld	A,0ffh
+	ret	z
+	cpl
+	ret
+
+page
+polplist::			;parallel printer driver poll
+	ld	A,(frstpar)	;first time parallel called?
+	or	A
+	jr	z,noinit	;no, interface already initialized
+	out	(pioac),A	;set channel A to output
+	ld	A,0cfh
+	out	(piobc),A	;set channel B to bit mode
+	ld	A,00011111b	;bit 7-5 output, 4-0 input
+	out	(piobc),A
+	xor	A
+	out	(piobd),A
+	ld	(frstpar),A	;reset first
+noinit::
+	in	A,(piobd)
+	and	1		;test busy bit
+	ret	z		;printer busy
+	ld	A,0ffh
+	ret			;printer not busy
+
+plist::				;parallel printer driver
+	call	polplist
+	or	A
+	jr	z,plist
+	ld	A,C
+	out	(pioad),A	;character on PIO A channel
+	ld	A,80h
+	out	(piobd),A	;strobe printer
+	xor	A
+	out	(piobd),A	;reset strobe
+	ret
+
+frstpar:: db	0fh		;first initialization code for parallel
+				;printer-flag that PIO has not been initialized
+
+	SUBTTL	Floppy disk driver module
+	page
+fpyio	equ	(($-start-1)/256)+1	;make line up on page boundary
+;
+;	Floppy disk drive driver module
+;
+org	fpyio*256
+fpy::
+;	floppy driver jump table
+jp	fhome
+jp	fseldsk
+jp	fsettrk
+jp	fsetsec
+jp	fread
+jp	fwrite
+jp	fflush
+
+db	'FLOPPY  '	;module name for display purposes
+dskparm::	;disk hardware parameter block
+		;one block for each drive
+	rept	nmbfpy
+
+	if	(mini and not special)
+	db	1	;single sided double density
+	else
+	db	0	;density - 0=single D; 1=1 side, Double D; 2= 2S 2D
+	endif
+
+	db	seekrate ;seek rate - 0=3ms, 1=6ms, 2=10ms, 3=15ms
+
+	if	(mini and not special)
+	db	ddpspt
+	else
+	db	26	;physical sectors per track - 26 in SD, ddpspt in DD
+	endif
+
+	db	0	;track drive currently set at
+	endm
+page
+;
+;	CP/M disk tables
+
+fDPHbase::
+	fdisks			; defind disk parameter headers for floppys
+	page
+;
+;	DPB's for the three formats of disk::
+;
+;	8" Single sided, single density
+;	5" Single sided, double density
+;	5" Double sided, double density
+;
+fdpbase::
+sssddpb::			;single density (1K block)
+	dw	26		;sectors per track
+	db	3		;block shift (log2[block size/128])
+	db	7		;block mask  ([block size/128]-1)
+	db	0		;extent mask
+	dw	242		;highest block on disk (numbered from 0)
+	dw	63		;directory entries-1
+	db	0c0h		;alloc0 -first two bits for two blocks for Dir
+	db	0		;alloc1
+	dw	16		;checked directories
+	dw	2		;track offset (system tracks)
+page
+ssdddpb::			;single sided double density
+	dw	8*ddpspt	;128 byte sectors per track
+	db	4
+	db	0fh
+	db	0
+	dw	(tracks*ddpspt/2)-1	
+				;each of 76 tracks has ddpspt/2 2K blocks
+if	mini
+	dw	63
+	db	80h
+else
+	dw	127
+	db	0c0h
+endif
+
+	db	0
+	dw	32
+	dw	1
+
+dsdddpb::			;double sided double density
+	dw	16*ddpspt	;one track consists of both sides
+	db	4
+	db	0fh
+	db	0
+	dw	(tracks*ddpspt)-1 	;each of 76 tracks has ddpspt 2K blocks
+
+if	mini
+	dw	127
+	db	0c0h
+else
+	dw	255
+	db	0f0h
+endif
+
+	db	0
+	dw	32
+	dw	1
+page
+trans::				;single density translate table
+	db	1,7,13,19,25,5,11,17,23,3,9,15,21	;sectors 1-13
+	db	2,8,14,20,26,6,12,18,24,4,10,16,22	;secotrs 14-16
+
+fhome::
+	ld	C,0
+
+fsettrk::
+	ld	A,C
+	ld	(iotrk),A
+	ret
+
+fsetsec:: ld	A,C
+	ld	(iosec),A
+	ret
+
+setdma::
+	ld	(iodma),BC	;shared among all drivers
+	ret
+page
+;
+;	Fseldsk selects the physical floppy in A (0-3)
+;	B=0 if last disk selected was a different floppy
+;	C=logical disk the floppy corresponds to
+
+fseldsk::
+	ld	B,A
+	call	getden			;will set density byte if successful
+	or	A
+	jr	nz,fbadsel		;couldn't get density
+					;all physical operations OK here
+
+	ld	(hwptr),IX		;store for later use
+	ld	A,(IX+density)
+	inc	A			;make 1-3
+	ld	B,A
+	ld	HL,fdpbase-dpblen
+	ld	DE,dpblen
+fgetdpb:: add	HL,DE
+	djnz	fgetdpb
+					;HL=DPB address
+	ld	C,L
+	ld	B,H
+	ld	A,(curfpy)
+	call	seldph
+	ld	A,(IX+density)
+	or	A
+	jr	z,setran		;single density,set translate vector
+	xor	A
+	ld	(HL),A
+	inc	HL
+	ld	(HL),A
+	jr	putdpb
+setran::	ld	DE,trans		;single density translate table
+	ld	(HL),E
+	inc	HL
+	ld	(HL),D
+putdpb:: ld	DE,9			;offset of DPB in DPH
+	add	HL,DE
+	ld	(HL),C
+	inc	HL
+	ld	(HL),B
+	dec	HL
+	dec	HL
+	sbc	HL,DE			;restore DPH (carry reset by or A)
+	ret
+
+fbadsel:: ld	A,(tempfpy)
+	ld	(curfpy),A		;restore changes made by getden
+	ld	HL,0
+	ret				;return error
+
+seldph::	add	A,A
+	add	A,A
+	add	A,A
+	add	A,A
+	ld	L,A
+	ld	H,0
+	ld	DE,fdphbase
+	add	HL,DE
+	ret
+page
+;
+;	Seldrv selects the drive from (curfpy), head from (head)
+;	(bit 0 set for head1), and density from (IX+density)
+;	it assembles the correct byte and outputs to wait
+;	and updates the track register with the most recent information
+
+seldrv::
+	ld	A,(IX+density)
+	or	A
+	jr	z,setdens
+	ld	A,00001000b	;set double density bit
+	ld	B,A
+	ld	A,(head)
+	rlca
+	rlca			;move head bit to bit 2
+	or	B
+setdens:: ld	B,A
+	ld	A,(curfpy)
+	or	B
+	out	(wait),A
+	ld	A,(IX+drvtrk)	;get track from parameter table
+				;this may be first physical i/o
+	out	(trk),A
+
+	ld	A,2		;set try flag
+	ld	(rdytry),A
+
+tstrdy::
+	ld	A,0d0h			;reset status to controller
+	out	(cmd),A
+	ex	(SP),HL			;wait a bit
+	ex	(SP),HL
+	ex	(SP),HL
+	ex	(SP),HL
+
+	in	A,(cmd)			;drive ready?
+	and	10000000b
+	ret	z			;yes
+
+	ld	HL,rdytry		;should we try once again
+	dec	(HL)
+	jr	nz,tstrdy		;yes
+
+	ld	DE,wpterr
+	call	pmsg
+	call	pdrv
+	ld	DE,ntrdyerr
+	call	pmsg
+	ld	DE,abortmsg
+	call	pmsg
+	call	conin
+	cp	3
+	jr	nz,tstrdy
+	pop	HL		;abort operation
+	ld	A,1
+	ret
+
+page
+;
+;	Seek attempts to step the R/W head to the track in (iotrk)
+;
+seek::
+	ld	A,retries
+	ld	(retryc),A
+seek2::	ld	A,(iotrk)
+	ld	C,A		;track stays in C
+	in	A,(trk)
+	sub	C
+	jr	nz,diftrk	;different track
+	ld	A,(curfpy)
+	ld	B,A
+	ld	A,(lstskdrv)	;last drive on which a seek took place
+	sub	B	
+	ret	z		;already there
+
+	ld	D,14h		;seek and verify but unload head at beginning
+	jr	samtrk
+diftrk:: ld	D,1ch		;seek with verify, load head at beginning
+samtrk:: ld	A,C
+	out	(data),A
+	ld	A,(IX+seekrt)	;seek rate mask
+	or	D
+	di
+	out	(cmd),A
+	ld	A,(curfpy)	;make current drive last drive
+	ld	(lstskdrv),A
+	in	A,(wait)
+	ei
+	rla
+	jr	c,seekerr	;no INTRQ from FDC
+
+	in	A,(cmd)
+	and	10011001b	;seek error, CRC error, or incomplete
+	jr	nz,seekerr
+
+				;seek successful
+	ld	(IX+drvtrk),C
+	ret
+
+seekerr:: ld	E,1ch		;seek command
+	call	diskerror
+	jr	seek2
+
+lstskdrv:: db	0		;drive on which last disk operation took place
+page
+;	write writes the sector to the selected disk
+
+fwrite::
+	ld	IX,(hwptr)	;restore IX to parameter block
+	ld	A,(IX+density)
+	or	A
+	jr	z,wrtsngl
+
+	ld	A,2
+	cp	C
+	jr	z,unalloc
+
+	dec	A
+	cp	C
+	jr	z,directry		;directory sector
+
+	jr	wrtnorm
+unalloc::				;unallocated sector write (no preread)
+	call	fflush
+	or	A
+	ret	nz			;flush error
+
+	ld	A,(iosec)
+	and	not(hstcnt-1)		;get first sector in buffer
+	ld	(blksec),A
+	xor	hstcnt*2
+	ld	(blk2sec),A		;if this is an unallocated block
+					;then two physical sectors (2K) were
+					;unallocated
+
+					;here we have a sector to write that
+		 			;is currently in the host buffer
+movwrt::	call	mkbufad			;get correct address in buffer
+	ex	DE,HL
+	ldir
+	ld	A,0ffh
+	ld	(wrtpend),A		;write pending
+	cpl				;return with no errors
+	ret
+
+directry::				;write to a directory sector
+					;the disk may be removed after this
+					;so we will make this write immediate
+	call	wrtnorm			;do a normal write
+	or	A
+	ret	nz			;error in previous flush or read
+	jr	fflush			;and flush this sector
+
+wrtnorm::				;a block that has been written before
+	call	inbuf			;returns C flag set if not in buffer
+	jr	nc,movwrt		;and A to relative sector if in buffer
+
+					;not in buffer but might be sector of other 1k of 
+					;an unallocated 2K data block
+	ld	A,D			;iosec
+	and	not (hstcnt-1)
+	ld	D,A			;first sector of new 1k block
+	ld	A,(blk2sec)
+	cp	D			; = unalocated block
+	jr	nz,wrtdbl		;unless sector of other 1K in 
+					;unallocated data block
+	call	inbuf2			;checks iotrk=blktrk
+	jr	c,wrtdbl
+
+	call	fflush			;previously unallocated data
+	or	A
+	ret	nz
+	cpl
+	ld	(blk2sec),A		;clear unallocated sector indicator
+	jr	movwrt			;and write this sector
+
+wrtsngl::
+	ld	A,(iosec)
+	ld	(psec),A
+	ld	A,0A3h			;second byte of OUTI instruction
+	ld	(iotran+1),A
+	ld	A,0ACh			;sector write
+	ld	(oper),A
+	jp	strtsel			;and do i/o
+
+wrtdbl:: call	fflush			;flush buffer
+	or	A
+	ret	nz			;return bad sector if hard flush error
+	cpl
+	ld	(blk2sec),A		;clear unalocated sector indicator
+	call	sidesec			;set up for new i/o
+	call	readprep		;do read to buffer
+	or	A
+	ret	nz			;physical error
+	jr	movwrt			;and move new sector from DMA
+page
+fflush::					;flush deblocking buffer to disk
+	ld	A,(wrtpend)		;do we have a write pending?
+	or	A
+	ld	A,0ffh
+	ld	(bufvalid),A		;buffer data not valid
+	cpl
+	ret	z
+
+	push	IX			;save pointer (drive may have changed)
+	ld	IX,(blkptr)		;for most recently selected drive
+					;which is the one to flush
+	ld	A,0A3h			;second byte of OUTI instruction
+	ld	(iotran+1),A
+	ld	A,0ACh			;FDC write sector command
+	ld	(oper),A
+	ld	HL,(iodrvtrk)
+	push	HL
+	ld	HL,(blkdrvtrk)
+	ld	(iodrvtrk),HL		;set drive to select and track
+	ld	A,(blksec)
+	call	sideflsh		;set up head bit and sector for flush
+	call	strtsel			;do physical flush
+	pop	HL
+	ld	(iodrvtrk),HL		;restore selected drive and track
+	pop	IX
+	ld	(wrtpend),A		;clear flag if no errors	
+	ret
+page
+;
+;	Read reads the sector from the selected disk
+;	In double density, the sector may already be in the host buffer
+;
+fread::
+	ld	IX,(hwptr)		;restore parameter pointer
+	ld	A,(IX+density)		;density byte
+	or	A
+	jr	z,rdsngl		;singl density
+
+	call	inbuf
+	jr	c,rddbl			;sector not in buffer
+;					sector is in buffer
+movrd::	call	mkbufad			;HL=start of sector in buffer
+	ldir
+	ret				;transfer done
+
+rddbl::	call	fflush			;flush previous buffer
+	or	A
+	ret	nz			;physical error in flush
+	call	sidesec
+	call	readprep
+	or	A
+	ret	nz
+	jr	movrd
+
+
+
+rdsngl::
+	ld	A,(iosec)
+	ld	(psec),A		;physical sector same as CP/M sector
+					;in single density
+
+readprep:: ld	A,0A2h			;second byte of INI instruction
+	ld	(iotran+1),A		;patch rdwrite routine
+	ld	A,08ch			;sector read command
+	ld	(oper),A
+page
+strtsel:: call	seldrv			;physically select drive and head
+	call	seek			;step to correct track
+
+;
+;	diskio actually reads or writes the necessary sector
+;	it assumes that the head has already settled on the correct track
+;	(and that the head has been selected on the correct side!)
+;	and that the bytes in rdwrite for R/W and sector size have been filled
+
+diskio::
+	ld	A,retries
+	ld	(retryc),A	
+
+iotry::	ld	A,0d0h			;force interrupt no conditions
+	out	(cmd),A
+	ld	A,(oper)
+	ld	B,A
+	ld	C,data			;prepare for indirect I/O instruction
+	ex	(SP),HL			;waste some time
+	ex	(SP),HL
+	ex	(SP),HL
+	ex	(SP),HL
+	di			;no interrupts from here to end of transfer
+	in	A,(cmd)
+	and	20h			;bit 5=head loaded
+	rrca
+	rrca
+	rrca				;move bit 5 to bit 2
+	cpl
+	and	B			
+			;	the purpose of these manipulations has been
+			;	to set bit 2 of the FDC command if the head
+			;	isn't settled.  Bit 2 will give a 15 ms delay
+	ld	E,A
+	ld	A,(IX+density)
+	or	A
+	ld	D,1		;one sector i/o transfer for single denisty
+	jr	z,dmasingl	;use the CP/M DMA buffer in single density
+	ld	HL,hstbuf	;use host buffer for double density operations
+	ld	D,hstcnt	;number of 128 byte units to transfer
+	jr	strtio
+dmasingl::
+	ld	HL,(iodma)
+strtio::	ld	A,(psec)
+	out	(sec),A		;set physical sector
+	ld	A,E
+	out	(cmd),A		;start read/write operation
+	call	rdwrite		;do the actual i/o
+	in	A,(cmd)
+	ei			;now ok to interrupt-status is saved
+	ld	E,A		;save status
+	or	B		;B returned from rdwrite is lost bytes count
+	ret	z		;if status OK and no lost bytes
+
+	ld	A,E
+	and	10111111b	;clear write protect bit
+	ld	A,(oper)
+	jr	nz,nowpt	;write protect was not the problem
+	cp	0ach		;was it a write operation
+	jr	nz,nowpt
+				;only error was disk write protected
+	ld	DE,wpterr
+	call	pmsg
+	call	pdrv
+	ld	DE,wpter2
+	call	pmsg
+	ld	DE,abortmsg
+	call	pmsg
+	call	conin
+	cp	3		;was it control-C?
+	jr	nz,iotry
+	ld	A,1
+	ret			;return to BDOS with error
+
+nowpt::	ld	D,A
+	call	diskerror
+	call	seek2
+	or	A
+	jr	z,iotry		;if nonzero then hopeless seek error
+	ret
+;
+;	rdwrite does the actual transfer to/from the FDC
+;	HL set to DMA address on entry, D=number of 128 byte units to transfer
+;	transfer direction has been set by poking INI or OUTI instruction
+
+rdwrite::
+	ld	B,128			;bytes in one CP/M sector
+loop::	in	A,(wait)
+	or	A
+	ret	p			;no more DRQ
+iotran::	ini				;start with read
+			;the second byte of this instruction is patched to
+			;be either INI or OUTI depending on need
+	jr	nz,loop
+	dec	D
+	jr	nz,rdwrite
+	jr	loop			;sector done, wait for INTRQ from fdc
+	page
+;
+;	disk error will eventually have all kinds of nice messages
+;
+diskerror::
+	ld	A,(retryc)
+	dec	A
+	ld	(retryc),A
+	jr	nz,restore		;more retries to attempt
+	ld	A,E
+	cp	1ch			;was it a seek error?
+	jr	z,pseekerr
+	cp	0ach			;writing?
+	jr	z,pwriterr
+	ld	DE,rderr
+	jr	perrtyp
+pwriterr:: ld	DE,wrterr
+	jr	perrtyp
+pseekerr:: ld	DE,skerr
+perrtyp:: call	pmsg
+	ld	DE,trkerr
+	call	pmsg
+	ld	A,(iotrk)
+	call	phex
+	ld	DE,secerr
+	call	pmsg
+	ld	A,(psec)
+	call	phex
+	ld	DE,siderr
+	call	pmsg
+	ld	A,(head)
+	call	phex
+	call	pdrv
+	ld	DE,crlf
+	call	pmsg
+	ld	A,1
+	pop	HL
+	ret			;return to caller of driver with error
+
+pdrv:: 	ld	DE,drverr
+	call	pmsg
+	ld	A,(curfpy)
+	call	phex
+	ret
+page
+;
+;	Restore is called from a disk operation with A=retries left
+;
+restore::
+	in	A,(cmd)
+	and	00010000b		;bit 4=record not found
+	ret	z			;try again if record was found but
+					;read/written with error
+resto1::					;restore to track 0 and seek again
+	ld	A,(IX+seekrt)		;get seek rate mask
+	or	00001100b		;head load, restore, verify track 0
+	out	(cmd),A
+
+tk0wait::
+	in 	A,(cmd)
+	and	00000100b		;at track 0
+	jr	z,tk0wait
+	xor	A
+	out	(trk),A			;back at track 0
+	ld	(IX+drvtrk),A		;update track table
+	ret
+page
+;
+;	sidesec is the read/write preparation for double density
+;	sidesec computes the correct physical sector and side
+;
+sidesec::
+	ld	A,(iosec)
+	and	not(hstcnt-1)		;computer first CP/M sector in block
+	ld	(blksec),A
+
+sideflsh::				;called to set up for a flush
+	rept	hstshft
+	rrca
+	endm
+					;A=physical sector number, but it may
+					;be on the second side
+	ld	B,(IX+pspt)		
+	cp	B
+	ld	C,0
+	jr	c,side0			
+	sub	B
+	inc	C
+side0::	inc	A
+	ld	(psec),A		;physical sector on one side
+	ld	A,C
+	ld	(head),A		;set head control byte
+	ret
+page
+;
+;	inbuf returns carry flag set if sector not in buffer
+;	also returns (iosec) in D
+;	if sector is in buffer, returns offset (0 - hstcnt-1) in A
+;
+inbuf::	ld	A,(iosec)
+	ld	D,A
+	ld	A,(bufvalid)		;0 if contains valid data, else 255
+	rra
+	ret	c
+inbuf2:: ld	HL,(iodrvtrk)		;check for 2nd sector 
+					;of unallocated block 
+	ld	BC,(blkdrvtrk)
+	sbc	HL,BC			;same drive and track
+ 	jr	z,rttrk
+	scf
+	ret				;not a match
+rttrk::	ld	A,(blksec)
+	ld	B,A
+	ld	A,D
+	sub	B
+	ret	C			;sector lower # than buffer
+	cp	hstcnt			;carry set if in buffer
+	ccf
+	ret
+
+;	stores drive, track, sector of contents of buffer for use by flush
+;	also saves hardware pointer and sets buffer valid flag
+;	returns HL=start of sector in buffer, DE=DMA address, BC=128, A=0
+
+mkbufad:: ld	(blkptr),IX
+	ld	HL,(iodrvtrk)
+	ld	(blkdrvtrk),HL
+	ld	A,(iosec)
+	ld	B,A
+	and	not(hstcnt-1)
+	ld	(blksec),A
+	ld	A,B
+	and	hstcnt-1 
+	ld	B,A			;B=relative sector in buffer
+	inc	B
+	ld	HL,hstbuf-128
+	ld	DE,128
+shft2::	add	HL,DE
+	djnz	shft2
+	ld	BC,128			;make ready for sector LDIR
+	ld	DE,(iodma)
+	xor	A
+	ld	(bufvalid),A
+	ret
+	page
+;
+;	returns IX=start of DHPB (disk hardware parameter block) for
+;	the drive in A (0-3)  
+;	uses B,DE  also, returns D=0
+
+getparm::
+	ld	B,A
+	inc	B
+	ld	IX,dskparm-parmlen	;hardware parameter block
+	ld	DE,parmlen
+shft1::	add	IX,DE
+	djnz	shft1	
+	ret
+
+;
+;	Sectran input::  Logical sector in BC, translate table in DE
+;			no translation if DE=0
+;
+;			Returns physical sector in HL
+;			Note:: only used in single density
+	
+sectran::
+	ld	A,D
+	or	E
+	ld	L,C
+	ld	H,B
+	ret	z		;no sector translation
+	ex	DE,HL
+	add	HL,BC
+	ld	L,(HL)
+	ld	H,0
+	ret
+page
+;
+;	Getden sets variables to reflect the density of the disk in drive 
+;	corresponding to logical disk in C.  The physical drive is in B.
+;	If the disk is already logged in since the last software reset,
+;	GETDEN just returns (in essence).  If the disk has not been logged in,
+;	GETDEN will try to read track 0, sector 1 (in single density for 8",
+;	in double density for 5") to determine the disk format.
+;	If the attempt is successful, Getden will update the
+;	dens, pspt, and drvtrk fields of the paramter table
+
+getden::
+	if	not prmboot
+	ld	A,C			;is it logical drive A:
+	or	A
+	jr	NZ,nlogdin		;if so can't change density
+	ld	D,B			;save physical drive
+	ld	A,(frstsel)		;first select
+	or	A
+	jp	z,logdin		;skip if not
+	ld	A,0			; otherwise clear flag
+	ld	(frstsel),A		; and continue
+nlogdin:
+	endif
+
+	ld	HL,(start-51h)		;get login vector, A: = least significant bit
+	ld	D,B
+	bit	3,C			;high byte or low byte
+	ld	A,L
+	jr	z,frst8
+	ld	A,H
+	res	3,B
+frst8:	ld	B,C
+	inc	B			;B = (drive MOD 8) + 1
+rol1:	rra				;set carry from drive bit
+	djnz	rol1
+	jr	c,logdin		;disk already logged in
+					;go look at track 0 sector 1
+logdrv::
+	push	DE
+ 	call	fflush			;getden uses buffer
+	pop	DE
+	or	A
+	ret	nz
+	ld	A,0d0h			;reset FDC
+	out	(cmd),A
+	ld	A,(curfpy)
+	ld	(tempfpy),A		;save most recent floppy
+	ld	A,D
+	ld	(curfpy),A
+	call	getparm
+if	mini 
+if	not	special
+	set	3,A			;set double density for minifloppy
+endif
+endif
+	out	(wait),A		;select new drive, head 0, single D
+	call	resto1			;back to track zero
+	xor	A
+	ld	(iotrk),A
+	ld	(head),A		;force head 0
+
+if	not mini 
+	ld	(IX+density),A		;track zero always single density
+endif
+	inc	A
+
+if	mini 
+	ld	(IX+density),A		;double density for minifloppies
+endif
+
+	ld	(iosec),A		;read sector 1
+	ld	HL,(iodma)		;save old DMA address
+	push	HL
+	ld	HL,hstbuf		;buffer has already been flushed
+	ld	(iodma),HL
+	call	rdsngl
+	pop	HL
+	ld	(iodma),HL		;restore dma
+	or	A
+	ret	nz			;can't read sector
+	ld	A,(hstbuf+7fh)		;code byte for disk type
+	OR	A
+	jr	z,codeok		;some SD disks have old loaders here
+	sub	0e5h			;code for a normal single density disk
+	cp	3
+	jr	c,codeok
+	ld	DE,badcode		;not our code byte
+	call	pmsg
+	call	pdrv
+	ld	A,255
+	ret
+codeok:: ld	(IX+density),A
+	or	A
+	jr	z,snglspt
+	ld	A,ddpspt		;physical sectors on one side of DD
+	jr	putpspt
+snglspt:: ld	A,26d			;single density physical sectors
+putpspt:: ld	(IX+pspt),A	
+	xor	A
+	ret				;no errors
+
+logdin:: ld	A,D			;drive already logged in
+	ld	(curfpy),A
+	call	getparm
+	ld	A,(IX+density)
+	jr	codeok			; drive can't change density
+
+bootlog:: db	1			;0 = A: logged in, nonzero = not logged
+	SUBTTL	Hard disk drivers
+page
+	.sfcond
+	if	hard
+	.lfcond
+hdcio	equ	(($-start-1)/256)+1	;make line up on page boundary
+;
+;	Hard disk drive driver module
+;
+	org	hdcio*256
+hdc::
+;	hard disk controller jump table
+	jp	hhome
+	jp	hseldsk
+	jp	hsettrk
+	jp	hsetsec
+	jp	hread
+	jp	hwrite
+	jp	hflush
+
+	db	'HARDDISK'	;module name for display purposes
+page
+;
+;	CP/M Hard disk tables
+;
+
+hDPHbase::
+	hddisks	hdldrvs			;set up disk parameter headers
+;
+;	DPB's for HARD DISKS
+;
+;
+hdpbase	equ	$+4
+	hddpbs	hddsks			;set up disk parameter blocks
+
+page
+
+hhome::
+	ld	BC,0		;force track 0
+
+hsettrk::
+	ld	(hdiotrk),BC	;save track number
+	ret
+
+hsetsec::
+	ld	(hdiosec),BC	;save sector number
+	ret
+;
+;	Hseldsk selects the hard disk in A
+;	B=0 if last disk selected was a different drive
+;	C=logical disk the drive corresponds to
+
+hseldsk::
+	res	7,a			;make sure high bit = 0
+	add	A,A			;*2
+	add	A,A			;*4
+	add	A,A			;*8
+	add	A,A			;*16
+	ld	L,A			;make 16 bits
+	ld	H,0
+	ld	DE,hdphbase		;add in base address
+	add	HL,DE
+	push	HL			;save address for return
+	ld	DE,10			;find dpb address
+	add	HL,DE
+	ld	E,(HL)			;get it
+	inc	HL
+	ld	D,(HL)
+	ld	HL,15			;make address of physical unit
+	add	HL,DE
+	ld	A,(HL)			;get physical unit
+	ld	(curhdsk),a		;set to new drive
+	pop	HL			;get returned address back
+	ld	IX,0			;clear to indicate hard disk
+	ret				; and go
+;
+;	Seldrv selects the drive from (curhdsk), head from (hhead)
+;	it assembles the correct byte and outputs it
+;	and updates the track register with the most recent information
+
+hseldrv::
+	ld	a,(curhdsk)		;get disk
+	rlca				;move it over
+	rlca
+	rlca
+	ld	hl,hhead			;get head
+	or	(hl)
+	or	20h	; or 80h	;set sector size to 512 bytes and ECC
+	out	(sdh),a			;send to controller
+	ret
+page
+;
+;	Seek sets head to the track in (hdiotrk)
+;	 and sector to (hpsec), sector count to one
+;
+hseek::	ld	a,(hdiotrk)		;send low order byte of track
+	out	(cyllo),a
+	ld	a,(hdiotrk+1)		;send high byte
+	out	(cylhi),a
+	ld	A,(hpsec)		;send physical sector
+	out	(secno),A
+	ld	A,1			;set sector count
+	out	(secnt),A
+	ret
+page
+;
+;	hwrite writes the sector to the selected disk
+;	and takes care of any necessary buffering
+;
+hwrite::
+	ld	A,2			;unallocated write
+	cp	C
+	jr	z,hunalloc
+
+	dec	A
+	cp	C
+	jr	z,hdirectry		;directory sector
+
+	jr	hwrtnorm
+
+hunalloc::				;unallocated sector write (no preread)
+	call	hflush
+	or	A
+	ret	nz			;flush error
+
+	ld	HL,(hdiosec)		;get sector
+	ld	B,L			;save it
+	ld	A,L			;find first sector in group
+	and	not 31
+	ld	L,A
+	ld	(hunalsec),HL
+	ld	A,B
+	rrca				;find out which sector this is in group
+	rrca
+	and	7
+	ld	B,A
+	xor	A			;set proper bit in unallocated vector
+	scf
+hstunv:	rla
+	djnz	hstunv
+	ld	(unalcv),a		;and save it for later
+;
+;
+					;here we have a sector to write that
+		 			;is currently in the host buffer
+hmvwrt::
+	call	hmkbfad			;get correct address in buffer
+	ex	DE,HL
+	ldir
+	ld	A,0ffh
+	ld	(hwrtpnd),A		;write pending
+	cpl				;return with no errors
+	ret
+
+hdirectry::				;write to a directory sector
+					;the disk may be removed after this
+					;so we will make this write immediate
+	call	hwrtnorm		;do a normal write
+	or	A
+	ret	nz			;error in previous flush or read
+	jr	hflush			;and flush this sector
+
+hwrtnorm::				;a block that has been written before
+	call	hinbuf			;returns C flag set if not in buffer
+	jr	nc,hmvwrt		;and A to relative sector if in buffer
+
+					;not in buffer but might be unallocated sector in
+					;an unallocated 4K data block
+
+	call	hinbf2			;checks hdiodrvtrk=hblkdrvtrk
+	jr	c,hwrt			;not same track or disk
+
+	ld	HL,(hdiosec)		;get sector
+	ld	DE,(hunalsec)		;get last unallocated block start
+	ld	B,L			;save L
+	ld	A,L			;find start of group
+	and	not 31
+	ld	L,A
+	sbc	HL,DE
+	jr	nz,hwrt1		;not in same group
+	ld	A,B
+	rrca				;find out which sector this is in group
+	rrca
+	and	7
+	inc	A
+	ld	B,A
+	xor	A			;set proper bit to test unallocated vector
+	scf
+htstunv:
+	rla
+	djnz	htstunv
+	ld	B,A			;save for test
+	ld	A,(unalcv)
+	ld	C,A			;save
+	and	B			;already written this sector ?
+	jr	nz,hwrt			;yes
+	ld	A,C			;mark new sector as writen
+	or	b
+	ld	(unalcv),a
+
+	call	hflush			;previously unallocated data
+	or	A
+	ret	nz
+	jr	hmvwrt			;and write this sector
+
+hwrt::	ld	HL,0ffffh		;Clear unallocated sector 'cause on diff. track
+	ld	(hunalsec),HL
+hwrt1::	call	hflush			;flush buffer
+	or	A
+	ret	nz			;return bad sector if hard flush error
+	call	hsidselc		;set up for new i/o
+	call	hrdprep			;do read to buffer
+	or	A
+	ret	nz			;physical error
+	jr	hmvwrt			;and move new sector from DMA
+	page
+;
+;	hflush flushes buffer to disk if write from it is pending
+;
+hflush::				;flush deblocking buffer to disk
+	ld	A,(hwrtpnd)		;do we have a write pending?
+	or	A
+	ld	A,0ffh
+	ld	(bufvalid),A		;buffer data not valid
+	cpl
+	ret	z			;nothing in buffer to flush
+
+	ld	A,(hiodrvtrk)
+	push	AF
+	ld	HL,(hiodrvtrk+1)
+	push	HL
+	ld	HL,(hblkdrvtrk+1)
+	ld	(hiodrvtrk+1),HL		;set drive to select and track
+	ld	HL,(hblksec)
+	call	hflsdsc			;set up head bit and sector for flush
+	call	hseldrv			;select drive
+	call	hseek			;make sure proper track and sector
+					;do physical flush
+	ld	HL,hstbuf		;point to buffer
+	ld	BC,hdcdata		;count and port
+	di				;protect transfer
+	ld	A,cwrite		;send write command
+	out	(comnd),A
+	otir				;256 bytes twice
+	otir
+	ei
+hwrtw::	in	A,(status)		;done yet
+	and	A
+	jp	m,hwrtw			;if not wait
+	and	1			;any errors
+	jp	nz,herrors		;process if so
+;
+	ld	(hwrtpnd),A		;clear flag if no errors	
+	pop	HL
+	ld	(hiodrvtrk+1),HL		;restore selected drive and track
+	push	AF
+	pop	HL
+	ex	(SP),HL
+	push	HL
+	pop	AF
+	ld	(hiodrvtrk),a
+	pop	AF
+	ret
+page
+;
+;	Read reads the sector from the selected disk
+;	it handles any necessary buffering
+;
+hread::	call	hinbuf			;is it in the buffer
+	jr	c,hrd			;sector not in buffer
+
+;					sector is in buffer
+hmvrd::	call	hmkbfad			;HL=start of sector in buffer
+	ldir
+	ret				;transfer done
+
+hrd::	call	hflush			;flush previous buffer
+	or	A
+	ret	nz			;physical error in flush
+	call	hsidselc
+	call	hrdprep
+	or	A
+	ret	nz
+	jr	hmvrd
+;
+;	read preperation
+;
+hrdprep::
+	call	hseldrv			;physically select drive and head
+	call	hseek			;step to correct track
+
+;
+;	this actually reads the necessary sector
+;	it assumes that the head has already settled on the correct track
+;	(and that the proper head has been selected)
+
+	ld	HL,hstbuf		;point to buffer
+	ld	BC,hdcdata		;count and port
+	di				;protect transfer
+	ld	A,cread			;send read command
+	out	(comnd),A
+hrdw::	in	A,(status)		;done yet
+	and	A
+	jp	m,hrdw			;if not wait
+	inir				;256 bytes twice
+	inir
+	ei
+	in	A,(status)
+	and	1			;any errors
+	ret	z			;return if not
+;
+	page
+;
+;	hard disk error message processor
+;
+;	This routine gives the user a detailed error report
+;
+herrors::
+	push	AF			;save error indication
+	ld	DE,herrst
+	CALL	pmsg			; First the error code
+	IN	A,(HDCERR)
+	CALL	phex
+	ld	DE,errst		; Status byte
+	call	pmsg
+	in	A,(status)
+	call	phex
+	ld	DE,errhd
+	CALL	pmsg			; then the head
+	IN	A,(SDH)
+	push	AF			;save drive no
+	AND	7
+	CALL	hex1			; Print single digit
+	ld	DE,errcyl
+	CALL	pmsg			; the cylinder
+	IN	A,(CYLHI)		; Report CYLHI first
+	CALL	phex
+	IN	A,(CYLLO)		; then CYLLO
+	CALL	phex
+	ld	DE,errsec
+	CALL	pmsg			; and finally the sector
+	IN	A,(SECNO)
+	CALL	phex
+	ld	DE,errdr		;send drive mess
+	call	pmsg
+	pop	AF
+	rra				;get drive
+	rra
+	rra
+	and	3
+	call	hex1
+	ld	A,(hdesc0+8)		;restore drive
+	rlca
+	or	crest
+	out	(comnd),A
+herrlp::
+	in	A,(status)
+	rlca
+	jr	c,herrlp		;wait until done
+	poð	AF
+	RET	
+	page
+;
+;	hsidselc is the read/write preparation for hard disk
+;	hsidselc computes the correct physical sector and side
+;
+hsidselc::
+	ld	HL,(hdiosec)
+	ld	E,L			;save L
+	ld	A,L
+	and	not(3)			;compute first cp/m sector in buffer
+	ld	L,A
+	ld	(hblksec),HL		;save it
+	ld	L,E			;restore sector to HL
+
+hflsdsc::				;called to set up for a flush
+	or	a			;clear carry
+	ld	C,-1			;set up head count
+	ld	DE,secs*4		;set up number cpm sectors per head
+sdsclp:	inc	C			;increment head count
+	sbc	HL,DE			;subtract out one heads worth of sectors
+	jp	p,sdsclp		;if not negitive do more
+	add	HL,DE			;restore sector number to HL
+	ld	A,L
+	srl	A			;find physical sector
+	srl	A
+	ld	(hpsec),A
+	ld	A,C
+	ld	(hhead),A		;set head control byte
+	ret
+page
+;
+;	hinbuf returns carry flag set if sector not in buffer
+;	if sector is in buffer, returns offset (0 - hdstcnt-1) in A
+;
+hinbuf::	ld	A,(bufvalid)		;0 if contains valid data, else 255
+	rra
+	ret	c
+
+hinbf2::
+	ld	A,(hiodrvtrk)		;check for right drive
+	ld	B,A
+	ld	A,(hblkdrvtrk)
+	sub	B
+	jr	z,rthdd			;skip if right drive
+	scf
+	ret				;wrong drive return with carry set
+rthdd::	ld	HL,(hiodrvtrk+1)		;check for right track
+	ld	BC,(hblkdrvtrk+1)
+	sbc	HL,BC			;same drive and track
+	scf
+	ret	nz			;not a match
+	ld	DE,(hblksec)
+	ld	HL,(hdiosec)
+	ld	A,D			;high bytes =
+	cp	H
+	scf				;set failure flag
+	ret	nz			;exit if not equal
+	ccf				;clear carry
+	sbc	HL,DE
+	ret	C			;sector lower # than buffer
+	ld	A,L
+	cp	hdstcnt			;carry set if in buffer
+	ccf
+	ret
+;
+;	stores drive, track, sector of contents of buffer for use by flush
+;	also sets buffer valid flag
+;	returns HL=start of sector in buffer, DE=DMA address, BC=128, A=0
+;
+hmkbfad::
+	ld	A,(hiodrvtrk)
+	ld	(hblkdrvtrk),a
+	ld	HL,(hiodrvtrk+1)
+	ld	(hblkdrvtrk+1),HL
+	ld	HL,(hdiosec)
+	ld	B,L
+	ld	A,L
+	and	not(hdstcnt-1)
+	ld	L,A
+	ld	(hblksec),HL
+	ld	A,B
+	and	hdstcnt-1 
+	ld	B,A			;B=relative sector in buffer
+	inc	B
+	ld	HL,hstbuf-128
+	ld	DE,128
+hshft2::
+	add	HL,DE
+	djnz	hshft2
+	ld	BC,128			;make ready for sector LDIR
+	ld	DE,(iodma)
+	xor	A
+	ld	(bufvalid),A
+	ret
+	endif			;hard disk drivers
+	.lfcond
+
+	SUBTTL	Disk driver select routine
+page
+;
+;	Seldsk selects the logical disk in C (0-15)
+;	Seldsk will flush the previous disk if it is in a different driver
+;	module than the new disk.  Seldsk also returns an error if the
+;	selected disk has not had a driver installed
+
+seldsk::
+	ld	A,(curdsk)
+	cp	C
+	jr	nz,chgdsk	;selecting a disk different from the current
+
+	ld	B,0		;no other modules have been selected
+frstime::
+	ld	D,3
+	jp	dskjmp		;if same disk then do normal select for DPH
+
+chgdsk:: ld	DE,drvtbl	;drvtbl is always on 256 byte boundary
+	add	A,A
+	ld	E,A
+	ld	A,(DE)		;driver module for current disk
+	ld	B,A
+	ld	A,C
+	add	A,A
+	ld	E,A		;address of new disk driver page
+	ld	A,(DE)		;driver module for new disk
+	or	A
+	jr	Z,badsel	;new disk not installed
+	ld	H,A
+	sub	B
+	jp	z,samemod	;different disk but same module, don't flush
+
+	ld	B,H
+	push	BC
+	push	de
+	ld	d,12h		;flush vector
+	call	dskjmp		;flush current drive
+	pop	de
+	pop	BC
+	or	A
+	jr	nz,badsel	;error in flushing disk
+	inc	A		;make non-zero to indicate a new disk module
+	ld	H,B		;module address
+	page
+;
+;	portion of module select routine
+;	used if new drive is in same module as old drive
+;
+samemod:: ld	 B,A		;B=0 if last disk in same module
+	ld	L,3		;seldsk offset
+	push	BC
+	inc	DE		;(DE) = driver number
+	ld	A,(DE)
+	push	DE
+	call	jphl		;do select
+	pop	DE
+	pop	BC
+	ld	A,H
+	or	L
+	ret	z		;bad select from driver
+	ld	A,C		;succesfully selected disk
+	ld	(curdsk),A
+
+	if	prmboot
+	or	A
+	ret	z		;drive A: selected
+	ld	(bootlog),A	;next select of A: with only A: logged means
+				;a disk reset has occured so A: could change 
+				;density if prom boot active
+	endif
+
+	xor	A		;show no errors just in case
+	ret
+
+badsel::
+	ld	HL,0
+	ret
+
+	SUBTTL	Common routines
+page
+;	miscellaneous character i/o routines
+pmsg::					;equivalent to BDOS function 9 (print)
+	ld	A,(DE)
+	cp	'$'
+	ret	z
+	ld	C,A
+	inc	DE
+	push	DE
+	call	conout
+	pop	DE
+	jr	pmsg
+
+phex::					;print A in hex
+	push	AF
+	rra
+	rra
+	rra
+	rra
+	call	hex1
+	pop	AF
+hex1::	and	0fh
+	add	A,90h
+	daa
+	adc	A,40h
+	daa
+	ld	C,A
+	jp	conout
+
+	SUBTTL	Floppy disk storage
+page
+;
+;	Floppy disk driver storage
+;
+iodrvtrk::
+curfpy::
+	db	0		;current selected physical floppy drive
+iotrk::	ds	1		;current track for current disk
+
+blkdrvtrk::
+	ds	2		;drive and track for deblocking buffer
+iosec::	ds	1		;current logical sector for DD, physical for SD
+blksec::
+	ds	1		;first logical sector in current host
+blk2sec::
+	ds	1		;8th CP/M sector in an unallocated 2K block
+psec::	ds	1		;current physical sector
+bufvalid::
+	db	0ffh		;buffer contains valid data for (blksec)
+				;0 = valid data
+wrtpend::
+	db	0		;write pending from buffer
+retryc::
+	db	0		;number of retries left
+newfpy::
+	db	0		;new floppy to be selected
+tempfpy::
+	db	0		;storage for current floppy while checking
+				;density of new one
+head::	db	0		;head control = 0 or 1
+oper::	db	0		;operation (read/write) to be performed next
+hwptr::	dw	dskparm		;storage for pointer to current hw parameters
+blkptr::
+	dw	dskparm		;pointer to paramters for block drive
+frstsel::
+	db	0ffh		;first select flag
+rdytry::
+	db	0		;ready try again flag
+	SUBTTL	Hard disk storage
+page
+;
+;	Hard disk driver storage
+;
+	if	hard
+hiodrvtrk::
+curhdsk::
+	db	0		;current selected physical hard disk drive
+hdiotrk::
+	ds	2		;current track for current disk
+
+hblkdrvtrk::
+	ds	3		;drive and track for deblocking buffer
+hdiosec::
+	ds	2		;current logical sector
+hblksec::
+	dw	0		;first logical sector in host buffer
+hunalsec::
+	dw	0		;first logical sector in current host unallocated block
+unalcv::
+	db	0		;unallocated block vector
+hpsec::	ds	1		;current physical sector
+hwrtpnd::
+	db	0		;write pending from buffer
+hhead::	db	0		;head control
+	endif
+
+	SUBTTL	Interrupt I/O buffers
+page
+;
+;	buffers for interrupt console i/o
+;
+	if	intrin
+outptri::
+	db	0
+inptri::
+	db	0
+	endif
+
+	if	introut
+inptro::
+	db	0
+outptro::
+	db	0
+	endif
+
+	if	intrin
+tmplen	defl	(($-start) mod inbfsz)
+	if	tmplen
+	ds	inbfsz-tmplen
+	endif
+inpbuf::
+	ds	inbfsz
+	endif
+
+	if	introut
+tmplen	defl	(($-start) mod outbfsz)	
+	if	tmplen
+	ds	outbfsz-tmplen
+	endif
+outbuf::
+	ds	outbfsz
+	endif
+
+	if	ints
+	ds	20			;local stack for interrupt routines
+locstk::
+svstk:	ds	2			;stack pointer storage area
+	endif
+
+	SUBTTL	Error messages
+page
+;
+;	Floppy error messages
+;
+badcode::
+	db	'Can''t recognize density of disk in$'
+rderr::	db	'Read$'
+wrterr::
+	db	'Write$'
+skerr::	db	'Seek$'
+trkerr::
+	db	' error on track $'
+secerr::
+	db	'  sector $'
+siderr::
+	db	'  side $'
+drverr::
+	db	'  drive $'
+wpterr::
+	db	0dh,0ah,'The diskette in$'
+wpter2::
+	db	' is write-protected.  Remove the diskette and',0dh,0ah
+	if	mini
+	db	'take off'
+	else
+	db	'put on'
+	endif
+	db	' the write protect tab, then type any character.$'
+abortmsg:: db	0dh,0ah,'Type a control-C if you wish to abort the operation instead',0dh,0ah,'$'
+ntrdyerr::
+	db	' is not ready.',0dh,0ah
+	db	'Insert diskette, close drive door, '
+	db	'and type any character to continue.$'
+page
+;
+;	Hard disk error messages
+;
+	if	hard
+herrst::
+	DB	0dH,0ah,'HD1001 Error $'
+errst::	db	' Status $'
+errhd::	DB	' on Head $'
+errcyl::
+	DB	', Cylinder $'
+errsec::
+	DB	', Sector $'
+errdr::	db	', Drive $'
+	endif
+
+	SUBTTL	Disk buffers and Cold Boot code
+page
+dskbufs	equ	(($-start-1)/256)+1
+;
+;	disk buffers
+;	These are not part of the floppy driver module as such and
+;	should be shared by all disk modules as much as possible
+
+	org	dskbufs*256
+coldboot::
+dirbuf::				;coldboot code lives in the directory buffer
+hstbuf	equ	dirbuf+128		;sector deblocking buffer
+
+	call	cinit			;call to expendable init code
+;	ld	E,0
+;	if	not special
+;	ld	BC,0000h	;select boot drive - make sure ok
+;	ld	A,(drvtbl)
+;	ld	H,A
+;	ld	L,3		;select vector
+;	ld	A,(drvtbl+1)
+;	call	jphl		;select boot drive in BIOS
+;	ld	A,H
+;	or	L
+;	jp	z,booterr	;can`t select system drive
+;	endif
+	jp	bootdone	;set up low memory and go to CCP
+;
+;	This portion of init. code can be overwritten later in initialization
+;
+cinit::
+	if	ints
+; Set up SIO channels
+	LD	HL,ISIOA		; point to SIO init table
+	LD	BC,ISIOAL*256+1		; length in B & port in C
+	OTIR
+	LD	HL,ISIOB		; repeat for channel B
+	LD	BC,ISIOBL*256+3
+	OTIR
+	ld	hl,serinttbl		;initialize interrupt vector
+	ld	a,h
+	ld	i,a
+	im	2			;put into interrupt mode 2
+	endif
+
+	if 	hard
+	ld	a,(hdesc0+8)		;get steprate
+	rlca				;*2
+	or	cseek			;get seek command
+	out	(comnd),A		;send to drive
+swait::	in	A,(status)
+	and	a
+	jp	m,swait
+	endif
+
+	xor	A
+	ld	(iobyte),A	;back to default routing
+	ld	(cdisk),A	;user 0, drive A::
+	ld	DE,signon
+ 	call	pmsg
+	ld	A,(wboota+2)	;warm boot vector
+	add	A,6
+	srl	a
+	srl	A		;A=memory size in K
+	call	twodec		;get ASCII digits for memory size
+	push	BC
+	ld	C,B
+	call	conout
+	pop	BC
+	call	conout
+	ld	DE,sign2
+	call	pmsg
+	ld	A,(contbl+1)	;default console
+	add	A,31h		;make 1-2
+	ld	C,A
+	call	conout
+	ld	DE,prnmsg
+	call	pmsg
+	ld	A,(lsttbl+1)
+	cp	2
+	jr	c,serprn
+	ld	DE,parprn
+	call	pmsg
+	jr	lastmsg
+serprn::
+	push	AF
+	ld	DE,serpmsg
+	call	pmsg
+	pop	AF
+	add	A,31h
+	ld	C,A
+	call	conout
+lastmsg::
+	ld	DE,sign3
+	call	pmsg
+	ret
+page
+signon::
+	db	0dh,0ah,'Super Quad CP/M v X2.0',0dh,0ah
+if	special
+	db	'Special 8"-5" BIOS',0dh,0ah
+endif
+if	mini
+	db	'for '
+if	m48tpi
+	db	'48'
+else
+	db	'96'
+endif
+	' tpi minifloppies',0dh,0ah
+endif
+
+	if	ints
+	if	intrin
+	db	'Typeahead '
+	endif
+
+	if	intrin and introut
+	db	'and '
+	endif
+
+	if	introut
+	db	'Buffered output '
+	endif
+
+	db	'installed',0dh,0ah
+	endif				;ints
+
+	db	0dh,0ah,'$'
+
+sign2::	db	'K CP/M 2.2 installed',0dh,0ah,0ah
+	db	'Default console is serial port $'
+
+prnmsg::
+	db	0dh,0ah,'Default printer is $'
+
+parprn::
+	db	'parallel printer driver$'
+
+serpmsg::
+	db	'serial port $'
+
+sign3::	db	0dh,0ah,0ah,'$'
+
+twodec::				;convert A < 100 to two ASCII digits in BC
+	ld	BC,0ff0ah
+nxtten::
+	inc	B
+	sub	C
+	jr	nc,nxtten
+	add	A,C
+	add	A,30h
+	ld	C,A
+	ld	A,30h
+	add	A,B
+	ld	B,A
+	ret
+
+	page
+	if	ints
+; ****** INITIALIZATION TABLES FOR SIO DEVICES ******
+;
+; CHANNEL A
+ISIOA::	DB	018H			; channel reset
+	DB	001H			; write reg 1
+
+	if	intrin and introut
+	DB	01AH			; Int on all recv and tx char
+	else
+	if	introut
+	DB	002H			; Int on tx ready
+	else
+	DB	018H			; Int on all recv char (no parity)
+	endif
+	endif
+
+	DB	003H			; write reg 3
+	DB	0C1H			; Rx 8-bit char, Rx enable
+	DB	004H			; write reg 4
+	DB	044H			; X16 clock, 1 stop bit
+	DB	005H			; write reg 5
+	DB	0EAH			; DTR, Tx 8-bit char, Tx enable, RTS
+;
+;
+	DB	000H			; read reg 0
+ISIOAL	EQU	$-ISIOA			; length of sequence
+;
+; CHANNEL B
+ISIOB::	DB	018H			; channel reset
+	DB	001H			; write reg 1
+	DB	004H			; Status affects interrupt vector
+	DB	002H			; write reg 2
+	DB	LOW(serinttbl-start)	; Interrupt vector table start
+	DB	003H			; write reg 3
+	DB	0C1H			; Rx 8-bit char, Rx enable
+	DB	004H			; write reg 4
+	DB	044H			; X16 clock, 1 stop bit
+	DB	005H			; write reg 5
+	DB	0EAH			; DTR, Tx 8-bit char, Tx enable, RTS
+;
+	DB	000H			; read reg 0
+ISIOBL	EQU	$-ISIOB			; length of sequence
+;
+	endif
+
+savnum	equ	(($-start-1)/256)+1+16h
+
+	ds	1024+128-($-dirbuf)	
+
+	SUBTTL	Allocation vectors
+page
+x	defl	0
+allfpy	equ	(tracks*ddpspt+7)/8
+	rept	nmbfpy			;set up floppy disk allocation vectors
+	defds	all0%x,allfpy
+	defds	chk0%x,32
+x	defl	x+1
+	endm
+	
+	if	hard
+	hdvect				;set up hard disk allocation vectors
+	endif
+;
+;
+lastadd	equ	$	
+biosiz	equ	(lastadd-start+0ffh) and 0ff00h		; absolute size of superbios
+mxld64k	equ	0-biosiz				; maximum load address for superbios
+							;  if using pagemove version of movcpm.com
+kld64k	equ	((mxld64k-200h) or 200h) and 0fe00h	; even K load address for superbios
+syssiz	equ	((kld64k+800)/400h) and 3fh		; size of cp/m for this assembly of suprbios
+ldofst	equ	1700h-kld64k				; load offset for using l80 hex file link
+	SUBTTL	SYMBOLS
+	end
+

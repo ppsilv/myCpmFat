@@ -1,0 +1,198 @@
+               Advanced Digital Super Six Turbo Dos Documentation
+
+
+             Thió documenô ió designeä tï explaiî somå oæ thå mysteryó oæ 
+        implementinç Turbï Doó oî thå Supeò Siø anä Supeò Slavå boardó bù 
+        Advanceä Digitaì Corp.
+
+             Iæ yoõ purchaseä youò TurboDOÓ througè Advanceä Digitaì theî 
+        yoõ  recieveä  fivå disketteó froí us®  Theså diskó  contaiî  thå 
+        operatinç systeí core¬  anä Advanceä Digitaì driveró necessarù tï 
+        implemenô  thå  TurboDOÓ  operatinç systeí  oî  Advanceä  Digitaì 
+        boardó Thå bootablå disë ió madå uğ froí fileó froí alì thå otheò 
+        disks¬ specifically:
+
+             Operating System Core side;
+
+             BUFFERS.COÍ         ;Allowó viewinç anä changinç buffers
+             CHANGE.COM          ;For changing disks in multi sys.
+             COPY.COM            ;For copying files
+             CRASH.COÍ           ;Demonstratioî proç foò multé sys® slaves
+             DIR.COM             ;Directory program
+             GEN.COM             ;System linker
+             FMTWD5.COM          ;5.25" floppy formatter
+             FMTWD8.COM          ;8" floppy formatter
+             MASTER.COM          ;Used to attach slaves to master proc.
+             PRINT.COM           ;Printer manager
+             PRINTER.COM         ; more
+             SET.COM             ;Set file attributes
+             TYPE.COM            ;Type ascii files
+             USER.COM            ;Change user number
+             STDLOADR.REL        ;Standard Loader system
+             STDSINGL.REL        ;Standard Single system
+             STDSPOOL.REL        ;Standard Spooled Single system
+             STDMASTR.REL        ;Standard Master system
+             STDSLAVE.REL        ;Standard Slave system
+             CPMSUP.REL          ;CP/M Support module
+
+             Gen, Par and Doc Files side
+
+             UPDATE.DOC          ;S2000 update documentation
+             SQTURBO.DOC         ;This file
+             S6LOADER.GEN        ;Turbo Dos loader .GEN file
+             S6LOADER.PAR        ;  and .PAR file
+             S6MASTRx.GEN        ;Turbo Dos Master .GEN file for x slaves
+             S6MASTRx.PAR        ;  and .PAR file
+             S6SINGLE.GEN        ;Turbo Dos Single user .GEN file
+             S6SINGLE.PAR        ;  and .PAR file
+             S6SPOOLR.GEN        ;Turbo Dos Single Spooled .GEN file
+             S6SPOOLR.PAR        ;  and .PAR file
+             SSLAVE.GEN          ;Turbo Dos Slave .GEN file
+             SSLAVE.PAR          ;  and .PAR file
+             SSLAVELG.GEÎ        ;Turbï Doó Slavå .GEÎ filå
+                                 ; w/ logoî installed
+             SSLAVELG.PAR        ;  and .PAR file
+             OSLOAD.DO           ;OSLOAD.SYS gen batch command file
+
+
+
+
+
+
+
+
+
+
+
+             GENSYSxx.DÏ         ;Dï fileó tï createä systemó listeä above
+                                 ; SG = Single w/o spooling
+                                 ; SP = Single w/ spooling
+                                 ; M1 = Multi w/ 1 slave
+                                 ; M2 = Multi w/ 2 slaves
+                                 ; M4 = Multi w/ 4 slaves
+
+
+             Non-Disk Drivers side;
+
+             LSTCTS.REL          ;Clear to send handshake list driver
+             LSTETX.REL          ;ETX handshake list driver
+             LSTPAR.REL          ;Parallel list driver
+             LSTXON.REL          ;XON XOFF handshake list driver
+             SSRESET.REL         ;Slave reset processor
+             S6NIT.REL           ;Super Six hardware initialization
+             S6RTC.REL           ;Super Six real time clock driver
+             SQPIO.REL           ;Super Quad parallel I/O driver
+             S6SIO.REL           ;Super Six serial I/O driver
+             MCDSS.REL           ;Master Circuit Driver for Super Slaves
+             HDWINIT.REL         ;Hardware initialization for Super Slave
+             SSLOAD.REL          ;Super Slave loader
+             SSBOOT.REL          ;Super Slave power up booter
+             SSPIO.REL           ;Super Slave parallel I/O driver
+             SSSIO.REL           ;Super Slave serial I/O driver
+             SSMPINIT.REÌ        ;Supeò Slavå memorù paritù initialization
+             SSCKTDR.REL         ;Super Slave network circuit driver
+             SSRTC.REL           ;Super Slave real time clock driver
+
+             Disk drivers side;
+
+             S6DSK.REL           ;Super Six floppy disk driver
+             DST58F.REÌ          ;Supeò Siø disë drivå specificatioî table
+             SQHDxxxx.REÌ        ;HDC100± harä disë driveò foò variouó drives
+             TRK0XXXX.LDÒ        ;Tracë zerï loaderó foò variouó disë types
+             SBCBOOT.MAC         ;Sector zero boot loader for floppies
+             SBCHBOOT.MAC        ;Sector zero boot loader for hard disks
+             LDRBDOS.MAC         ;Logical portion of track 0 loader
+             LODRBIOS.MAC        ;Physical portion of track 0 loader
+
+             Foò  harä  disë systemó yoõ maù havå tï ediô thå  harä  disë 
+        driveró anä reassemblå theí beforå geninç youò system® 
+
+             Tï generatå á Turbï Doó systeí yoõ musô ediô thå GEÎ anä PAÒ 
+        fileó  tï  matcè thå systeí configuratioî thaô  yoõ  want®  Theså 
+        fileó  havå  beeî  configureä bù Advanceä Digitaì  tï  meeô  mosô 
+        aplications¬ buô maù neeä somå customizatioî foò youò implementa-
+        tion® Thå fileó tï ediô are:
+
+             S6LOADER.GEN             ;GENERATES THE SYSTEM LOADER
+             S6LOADER.PAR             ;  AND .PAR FILE
+             S6SINGLE.GEN             ;GENS THE SINGLE USER SYS
+             S6SINGLE.PAR             ;  AND .PAR FILE
+             S6SPOOLR.GEN             ;GENS SINGLE SPOOLED SYS
+             S6SPOOLR.PAR             ;  AND .PAR FILE
+             S6MASTRx.GEÎ             ;GENS THE MULTIUSER MASTER SYS
+             S6MASTRx.PAR             ;  AND .PAR FILE
+             SSLAVE.GEN               ;GENS THE SUPER SLAVE SYSŠ
+
+
+
+
+
+
+
+             SSLAVE.PAR               ;  AND .PAR FILE
+
+
+             Afteò  generatinç  youò  ne÷ systeí yoõ wilì  neeä  tï  makå 
+        backups® Yoõ starô thió procesó bù formattinç á ne÷ diskette® Thå 
+        formaô programó havå manù optionó thaô yoõ caî chooså  from¬  foò 
+        8¢ systemó thå onlù valiä combinationó whicè caî bå madå bootablå 
+        arå single-sided/single-densitù CP/Í format¬ single-sided/double-
+        densitù  Turbï Doó format¬  anä double-sided/double-densitù Turbï 
+        Doó format®  Foò 5.25¢ systemó thå onlù valiä optionó arå single-
+        sided/double-densitù Turbï Doó format¬  anä  double-sided/double-
+        densitù Turbï Doó format®
+
+             Iæ yoõ arå goinç tï bå usinç aî 8¢ systeí witè botè CP/Í anä 
+        Turbï  Doó theî iô woulä bå á gooä ideá tï formaô disketteó undeò 
+        CP/Í aó thå CP/Í bioó cannoô reaä Turboó Doó formatteä  disketteó 
+        whilå Turbï Doó caî reaä CP/Í formatteä diskettes® Thió ió duå tï 
+        thå  facô thaô Turbï Doó formató alì trackó iî doublå densitù foò 
+        thoså formató wherå aó CP/Í formató tracë ° iî singlå density® Iô 
+        is possible to generate bootable disks of either format however.
+
+             Tï  generatå  á loadeò oî tracë ° undeò Turbï Doó  ediô  thå 
+        ldrbdoó  filå  foò thå typå oæ disë tï bå writteî  to®  Ediô  thå 
+        lodrbioó  foò thå typå oæ floppù driveó thaô yoõ  have®  Assemblå 
+        thå SBCBOOT.MAÃ file®  Assemblå thå LDRBDOS.MAÃ anä  LODRBIOS.MAÃ 
+        files®  Linë  SBCBOOT.REÌ  foò executioî aô 0H¬  linë LDRBDOS.REÌ 
+        foò executioî aô 100H¬  linë LODRBIOS.REÌ foò executioî aô  500H® 
+        No÷  usinç  thå MONITOÒ commanä iî Turbï Doó loaä thå SBCBOOÔ  aô 
+        100H¬  loaä thå LDRBDOÓ aô 180H¬ anä loaä thå LODRBIOÓ aô 580È iî 
+        memory®  Savå thå wholå thinç ouô tï á file® No÷ usinç eitheò thå 
+        Booô  commanä  or thå TK0BOOÔ commanä foò harä  diskó  writå  thå 
+        loadeò filå ouô tï thå reserveä trackó oæ thå disk® Tï generatå á 
+        loader.syó  filå tï uså witè thå tracë ° loadeò uså thå OSLOAD.DÏ 
+        batcè  commanä file®  Thå disë shoulä no÷ booô directlù froí  thå 
+        monitor prom installed on the Super Quad board.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

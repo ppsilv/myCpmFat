@@ -1,0 +1,38 @@
+                     SUPERBIOS disk formats
+
+
+     Thå SUPERBIOÓ singlå densitù eighô incè formaô ió completelù 
+IBÍ  standarä  3740®   Thå diskó shoulä bå readablå bù  anù  CP/Í 
+standarä  singlå  densitù system®   Notå thaô thå Advanceä  Micrï 
+Digitaì formaô prograí filló alì sectoró witè E5'ó iî  accordancå 
+with standard practice.
+
+     Somå  eighô incè singlå densitù diskó froí otheò systemó maù 
+noô  bå readablå aô firsô witè thå SUPERBIOS®   Thió  ió  becauså 
+theù  havå  odä  byteó locateä wherå thå doublå densitù  codå  ió 
+supposeä tï be®  Thå SUPERBIOÓ interpretó eitheò á 0° oò Eµ tï bå 
+singlå  density¬  anythinç elså (otheò thaî thå SUPERBIOÓ  doublå 
+densitù  codes© causinç aî error®   Iæ yoõ arå unablå tï  reaä  á 
+supposedlù   standarä  singlå  densitù  disk¬   trù  runninç  thå 
+SUPERBIOÓ  formaô  prograí  witè thå FORMAÔ  SYSTEÍ  TRACKÓ  ONLÙ 
+option®  Thió wilì filì thå outeò twï trackó witè Eµ anä noô hurô 
+any of the data.
+
+     Thå SUPERBIOÓ doublå densitù formaô foò eighô incè diskó haó 
+thå  firsô  tracë oæ eacè disë bå singlå density¬  iî  accordancå 
+witè  IBÍ  practice®   Alì  trackó  oæ  minifloppieó  arå  doublå 
+density®  Bytå 7Æ oæ tracë zero¬ sectoò ± ió á codå bytå (thió ió 
+thå standarä location)®   Ouò codeó arå Eµ foò singlå density¬ E¶ 
+foò  singlå sideä doublå density¬  anä E· foò doublå sideä doublå 
+density®   Therå  ió nï doublå sideä singlå  densitù  format¬  aó 
+therå arå nï standardó availablå foò sucè disks.
+
+     Doublå  densitù  diskó havå onlù onå  reserveä  track®   Thå 
+sectoró  arå 102´ byteó iî length®   Eighô incè diskó havå  eighô 
+sectoró peò track¬  fivå incè diskó havå four®  Thå physicaì ske÷ 
+oî thå disë ió threå foò eighô inch¬  twï foò fivå  inch®   Theså 
+numberó werå choseî tï optimizå sequentiaì sectoò operationó sucè 
+aó prograí loads¬  sincå theså operationó arå thå mosô sensityivå 
+to the skew factor.
+
+

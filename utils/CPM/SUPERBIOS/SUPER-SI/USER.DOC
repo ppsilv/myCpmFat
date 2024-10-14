@@ -1,0 +1,86 @@
+                    Welcome to the SUPERBIOS
+
+     Thió  ió onlù aî introduction®   Seå thå followinç fileó foò 
+additional information:
+
+     FORMAT.DOC for detailed information on the disk format.
+
+     CPMINSTA.DOÃ  foò installatioî oæ thå systeí foò  useró  whï 
+already own CP/M.
+
+     NEWSIZE.DOÃ  tï regeneratå thå systeí foò á differenô memorù 
+size.
+
+     INTRFACE.DOC for information on modifying the BIOS.
+
+
+Generating a new system disk:
+
+     Assuminç yoõ alreadù havå á bootablå systeí disk¬  eitheò bù 
+purchaså oæ CP/Í froí Advanceä Micrï Digitaì oò bù followinç  thå 
+steps outlined in CPMINSTA.DOC-
+
+     Uså  FORMAT.COÍ tï formaô á blanë disë iî thå desireä formaô 
+(Standarä  eighô incè singlå densitù diskó generallù  don'ô  neeä 
+refomatting)®   Placå youò systeí disë iî Aº  anä thå destinatioî 
+disk in B:.
+
+     Run LDRGEN from A to B.
+
+     Uså  PIĞ  tï  transfeò thå filå CPM.SYÓ froí Á  tï  B®   Foò 
+optimuí performance¬  CPM.SYÓ shoulä bå thå firsô filå yoõ  writå 
+tï anù systeí disk®   Thió ió becauså thå systeí musô accesó thió 
+filå oî eacè warí booô (control-C)¬ anä thå accesó ió mucè fasteò 
+iæ  thå  filå ió oî thå outermosô trackó oæ thå disë  (fileó  arå 
+writen to a new disk from the outer tracks in).
+
+
+.paŠOperation of the SUPERBIOS:
+
+     Thå  SUPERBIOÓ behaveó iî generaì aó anù normaì CP/Í system®  
+However¬  yoõ  musô noô changå densitù oæ diskó withouô  doinç  á 
+control-C®   Thió ió becauså thå SUPERBIOÓ checkó onlù oncå afteò 
+each warm boot to see what density each disk is.
+
+     Iî  general¬  yoõ  maù  changå  systeí  diskó  aô  anù  timå 
+provided:
+
+1)   The system disks are the same density.
+
+2)   CPM.SYS is the first file on each disk.
+
+     Iæ  yoõ  wisè  tï changå densitù oæ systeí  diskó  yoõ  musô 
+reboot the system (push the reset button and type control-C).
+
+
+Printer Selection:
+
+     Thå  SUPERBIOÓ  containó  codå tï drivå  botè  thå  paralleì 
+printeò  interfacå  anä  thå seriaì interfacå aó  thå  CP/Í  lisô 
+device®  Thå distributioî versioî haó thå paralleì printeò aó thå 
+default®  Thå defaulô printeò caî bå changeä bù patchinç thå bytå 
+iî CPM.SYÓ witè DDT®   (bytå 1829È - seô tï ² foò parallel¬ ± foò 
+serial).
+
+     Thå  systeí displayó thå defaulô printeò oî colä boot®   Thå 
+printeò  maù bå changeä aô anù timå tï thå alternatå bù  changinç 
+thå  iobytå  aô  locatioî 3®   STAÔ  LST:=CRTº  wilì  selecô  thå 
+alternate printer, STAT LST:=TTY: restores the default.
+
+
+NOTICE:
+
+     Aó  shipped¬  thå  SUPERBIOÓ caî supporô eighô  incè  doublå 
+sideä  doublå densitù driveó oî thå firsô twï driveó ¨ ° anä ± )®  
+Iæ  thå  thirä  drivå ¨ drivå ² © ió  alsï  doublå  sideä  doublå 
+density¬  theî yoõ cannoô ruî á fourtè drive®  Iæ thå thirä drivå 
+ió  singlå sideä doublå density¬  theî yoõ caî ruî á fourtè drivå 
+if it is also single sided.  
+
+     Thió limitatioî comeó froí thå facô thaô therå ió nï rooí iî 
+thå  BIOÓ  foò thå allocatioî vectoò necessarù  foò  fouò  doublå 
+sideä disks®   Iæ yoõ neeä tï ruî fouò drives¬ oæ whicè morå thsî 
+twï  arå  doublå  sided¬  yoõ wilì havå tï changå  thå  SUPERBIOÓ 
+Allocatioî Vectoò ³ tï thå samå sizå aó vectoò 0¬  anä generatå á 
+61K CP/M by the procedure outlined in NEWSIZE.DOC.
+

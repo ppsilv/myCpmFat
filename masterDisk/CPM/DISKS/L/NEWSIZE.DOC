@@ -1,0 +1,67 @@
+     Regenerating the SUPERBIOS for a different memory size
+
+     Thå SUPERBIOÓ normallù resideó iî á 61Ë CP/Í systeí witè  6´ 
+Ë  oæ  RAM®   Thå extrá 3Ë comeó froí thå facô thaô thå  BIOÓ  ió 
+relatively large and includes a 1Kbyte deblocking buffer.
+
+1)   Assemble SUPRBIOS.MAC with M80 (Microsoft Macro-80).
+
+2©    Determinå  thå  linë addresó foò thå  BIOS®   Thå  standarä 
+SUPERBIOÓ ió org'ä aô EE00H®   Calculatå youò highesô RAÍ addresó 
+availablå  tï  thå SUPERBIOÓ anä subtracô 1200È tï geô  thå  linë 
+address®   Exampleº   Á systeí haó á 2Ë memory-mappeä videï boarä 
+residing at F800H-FFFFH. F800h-1200H = E600H for the SUPERBIOS.
+
+3©   Uså á Microsoft-compatiblå linkeò (LINK¬  L80¬  LINKMT¬ etc© 
+tï  linë SUPRBIOS.REL®   LINË wilì generatå aî offseô .COÍ  file¬ 
+while with L80 you get a .HEX file.
+
+LINK:                       L80:
+
+LINË SUPRBIOS[LEA00İ        L8° /P:EA00,SUPRBIOS,SUPRBIOS/N/X/E
+
+4©    Creatå  á  relocateä  CP/Í usinç á patcheä  MOVCPÍ  aó  peò 
+Digital Research note.
+
+MOVCPM 59 *
+
+SAVE 34 CPM59.COM
+
+5)   Integrate the new BIOS and CP/M into the CPM.SYS file.
+
+DDT CPM59.COM
+
+NEXT      PC
+2300      0100
+
+-M980,1F7F,10°            (Movå  thå  CCĞ anä BDOÓ  tï  100È )
+
+if using an offset .COM file  (better alternative!)
+
+-ISUPRBIOS.COM
+-R1600
+
+iæ usinç á .HEØ filå (besô tï avoid© calculatå thå offseô tï makå 
+the .HEX file load at 1700.
+
+     Load address = E600H, offset =1700H-EA00H = 3100H
+
+-ISUPRBIOS.HEX
+-R2E00
+.paŠ     Makå  surå yoõ reaä thå BIOÓ iî correctlù - 1700È shoulä  bå 
+thå BIOÓ jumğ table.
+
+
+-G0  
+
+A>ERA CPM.SYS
+A>SAVÅ 34 CPM.SYÓ   
+
+(Iæ  yoõ havå modifieä thå BIOÓ yoõ musô savå howeveò manù  pageó 
+arå necessarù tï includå thå BIOÓ iî thå .SYÓ file®  Therå arå 22 
+pages to the CCP and BDOS portions of CPM.SYS)
+
+Thå ne÷ disë shoulä bå bootablå iæ iô haó haä thå loadeò SYSGEN'ä 
+on it.
+
+

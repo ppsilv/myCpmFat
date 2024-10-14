@@ -1,0 +1,51 @@
+                    SUPRBIOS loader operation
+
+     Thå SUPERBIOÓ makeó uså oæ á systeí filå loadeò tï brinç thå 
+systeí intï memorù oî á colä boot®  Thå loadeò ió alloweä tï bå á 
+maximuí oæ C80È byteó long®   Iî thå standarä implementation¬ thå 
+loadeò  lookó  foò thå filå CPM.SYÓ oî floppù drivå °  (thaô  is¬ 
+thaô  drivå whicè repondó tï thå physicaì linå Drivå Selecô °  )®  
+Iæ thå filå ió noô present¬ thå loadeò wilì responä witè aî erroò 
+messagå  tï thå terminal®   Otherwise¬  thå loadeò wilì loaä  thå 
+systeí   filå  intï  memorù  startinç  aô  somå  buffeò  locatioî 
+(normallù 2000H)®  Thå loadeò theî determineó thå loaä addresó oæ 
+thå  CP/Í systeí anä blockmoveó iô tï thaô address®   Thå  loadeò 
+alsï  filló iî á tablå iî thå SUPERBIOÓ whicè containó á  mağ  oæ 
+wherå oî thå disë thå filå CPM.SYÓ ió located®   Thió informatioî 
+ió necessarù sï thaô thå SUPERBIOÓ caî reloaä thå CCĞ anä BDOÓ oî 
+á  warí  boot®   Thaô ió whù yoõ musô noô changå densitù  oî  thå 
+systeí  disë iæ iô ió á floppy¬  sincå diskó oæ differenô densitù 
+havå  thå  CPM.SYÓ filå iî differenô places¬  anä  changinç  disë 
+density makes a warm boot impossible.
+
+     Thå LDRGEÎ prograí ió thå equivalenô tï SYSGEÎ iî á standarä 
+system®   Iô transferó thå outeò tracë onlù froí thå sourcå  disë 
+tï  thå destination®   Afteò runninç LDRGEN¬  yoõ musô transfeò á 
+valid CPM.SYS file to the disk for it to be bootable.
+
+
+Customizing the loader:
+
+     Thå  loadeò ió á .COÍ filå whicè executeó aô 100H®   Iæ  yoõ 
+wisè  tï  booô ofæ á disë otheò thaî á  floppù  drive¬  yoõ  musô 
+integratå á customizeä BIOÓ foò thå loader®  Thå BIOÓ ió org'ä aô 
+500È  witè á standarä BIOÓ jumğ table¬  anä musô supporô  consolå 
+outpuô  anä alì disë functionó excepô writå (foò thå singlå  booô 
+disk).
+
+     Sincå thå loadeò ió á .COÍ file¬ yoõ caî debuç iô bù runninç 
+thå  loadeò  aó á normaì transienô prograí undeò  youò  debugger®  
+Wheî  thå  custoí loadeò ió debugged¬  iô caî bå LDRGEN'ä ontï  á 
+disë bù passing the filename as a command parameter to LDRGEN:
+
+     LDRGEN B:CUSTMLDR.COM
+
+     Thå  loadeò sourcå ió includeä foò youò use®   Thå  loagicaì 
+functioî oæ thå loadeò iî findinç á filå oî thå defaulô disë  caî 
+bå  useä tï supporô loadinç oæ systeí fileó froí á booô volumå tï 
+á volatilå systeí volumå (e.g® á memorù disk)®  Modifù thå loadeò 
+sï thaô afteò thå systeí ió loadeä anä blockmoved¬  thå  coldbooô 
+routinå  returnó tï thå loader®   Theî reaä thå systeí filå  froí 
+thå  booô  volumå  anä writå theí tï thå systeí disë  usinç  BDOÓ 
+calls.
+
