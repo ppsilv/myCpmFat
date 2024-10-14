@@ -18,6 +18,7 @@ change_to_slot2:
 	ld de,  0	
 	ld bc,	128
 	ldir
+	pop    HL
     ret
 
 

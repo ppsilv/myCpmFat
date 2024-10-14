@@ -29,6 +29,21 @@ WBOOTE:
 
 BOOT:
     ld sp, BIOS_STACK
+
+;    ld a, '['
+;    call CORE_print_a
+;    ld a, (BIOS_STATUS)
+;    call CORE_show_a_as_hex
+;    ld a, ']'
+;    call CORE_print_a
+
+    ld a, (BIOS_STATUS)
+    cp 1
+    jp  z, WBOOT
+    ld sp, BIOS_STACK
+    ld a,1
+    ld (BIOS_STATUS), a
+
     call CORE_message
     db 27,'[2J'                     ; clear screen
     db 27,'[H'                      ; cursor home
@@ -198,9 +213,11 @@ BIOS_STACK_START:
     db 0,0,0,0,0,0,0,0,0,0
 BIOS_STACK:
     db 0,0
+BIOS_STATUS:
+    db 0
 
 UDFLAG	EQU	4		;current drive name and user number.
-BIOS_END equ $
+BIOS_END EQU $
 
     IF BIOS_END-BIOS_START>BIOS_SIZE
         WARNING "The BIOS is too big! ",BIOS_SIZE," bytes max!"

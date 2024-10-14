@@ -110,11 +110,13 @@ loader_entry:
    	db 27,'[42m',13,10,0
 
     CALL    initializeDisplay
-    LD      HL,MSGLCD001
+    LD      HL, start_cpm
     CALL    LcdPrintString
-    LD      A, 0x40
-    CALL    cursorPos
     LD      HL,MSGLCD002
+    CALL    LcdPrintString
+    LD      HL,MSGLCD003
+    CALL    LcdPrintString
+    LD      HL,MSGLCD004
     CALL    LcdPrintString
 
     ; Check MCR
@@ -904,9 +906,12 @@ CPM_CFG_NAME:
     db 'CPM.CFG',0
 UART_CFG_NAME:
     db 'UART.CFG',0
-;             1234567890123456
-MSGLCD001 db 'Z80 Monitor V2.0'
-MSGLCD002 db 'Uart38400 CPM2.2'
+;                      1         2
+;             12345678901234567890
+MSGLCD001 db 'Z80-10Mhz Mon   V2.0',0
+MSGLCD002 db 'CPM2.2 TAG.1.1.00   ',0
+MSGLCD003 db 'Conf. MSX           ',0
+MSGLCD004 db 'OscU 4.9152 BR38400 ',0
 
 first_eight_bytes:
     db $C3, $03, $F4, $00, $00, $C3, $00, $EA

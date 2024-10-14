@@ -4,10 +4,10 @@ ESC:     EQU 27
 
 monitor_start:
     call monitor_init
-
-monitor_restart:
 	call clear_screen
 	call show_welcome_message
+
+monitor_restart:
 
 	; If there is an auto-run-character defined, use that instead of a key press.
 	ld a, (auto_run_char)

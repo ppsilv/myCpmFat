@@ -173,7 +173,7 @@ displayHome:
 
 ;This must be called before any cmd, except read busy flag
 functionSet:
-        LD      A, 0x28 ; 2 lines 4 bits data lenght
+        LD      A, 0x48 ; 2 lines 4 bits data lenght
         CALL    writeCmdToLcd
         LD      BC, 4
         CALL    delay
