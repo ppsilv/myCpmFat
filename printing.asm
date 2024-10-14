@@ -10,8 +10,7 @@ clear_screen:
 show_page:
 	call clear_screen
 	
-	ld a,0x30
-	call print_a
+
 
 	ld a,(current_page)
 	ld d,a

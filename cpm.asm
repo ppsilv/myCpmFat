@@ -110,7 +110,9 @@ loader_entry:
    	db 27,'[42m',13,10,0
 
     CALL    initializeDisplay
-    LD      HL, start_cpm
+    ;LD      HL, start_cpm
+
+    LD      HL,MSGLCD001
     CALL    LcdPrintString
     LD      HL,MSGLCD002
     CALL    LcdPrintString
